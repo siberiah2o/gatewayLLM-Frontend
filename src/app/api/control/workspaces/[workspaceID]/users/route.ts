@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { badRequest, gatewayErrorResponse, unauthorized } from "@/lib/api-route"
-import { gatewayRequest, type User } from "@/lib/gatewayllm"
+import { gatewayRequest, type User, type UserList } from "@/lib/gatewayllm"
 import { getSessionToken } from "@/lib/session"
 
 type CreateWorkspaceUserBody = {
@@ -9,6 +9,40 @@ type CreateWorkspaceUserBody = {
   password?: string
   display_name?: string
   role?: string
+}
+
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ workspaceID: string }> }
+) {
+  const token = await getSessionToken()
+
+  if (!token) {
+    return unauthorized()
+  }
+
+  try {
+    const { workspaceID } = await context.params
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get("status")
+    const limit = searchParams.get("limit") || "50"
+    const query = new URLSearchParams({ limit })
+
+    if (status) {
+      query.set("status", status)
+    }
+
+    const users = await gatewayRequest<UserList>(
+      `/control/v1/workspaces/${encodeURIComponent(
+        workspaceID
+      )}/users?${query.toString()}`,
+      { token }
+    )
+
+    return NextResponse.json(users)
+  } catch (error) {
+    return gatewayErrorResponse(error)
+  }
 }
 
 export async function POST(

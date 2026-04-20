@@ -1,11 +1,18 @@
 "use client"
 
-import { useState, type FormEvent } from "react"
+import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import {
+  PencilIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+  Trash2Icon,
+} from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -15,10 +22,13 @@ import {
 } from "@/components/ui/dialog"
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldLegend,
+  FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -32,6 +42,7 @@ import type {
   ProviderCredential,
   RegistrationRequest,
   User,
+  UserModelPermissionList,
   Workspace,
   WorkspaceMember,
 } from "@/lib/gatewayllm"
@@ -138,27 +149,34 @@ export function CreateWorkspaceForm() {
   )
 }
 
-export function CreateWorkspaceUserForm({
+export function CreateWorkspaceUserDialog({
   workspaceId,
 }: {
   workspaceId?: string
 }) {
   const router = useRouter()
   const { t } = useI18n()
+  const [open, setOpen] = useState(false)
   const [error, setError] = useState<string>()
-  const [success, setSuccess] = useState<string>()
   const [isPending, setIsPending] = useState(false)
+  const canCreate = Boolean(workspaceId)
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen)
+    if (nextOpen) {
+      setError(undefined)
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!workspaceId) {
+    if (!workspaceId || !canCreate) {
       setError(t("forms.workspaceRequired"))
       return
     }
 
     setError(undefined)
-    setSuccess(undefined)
     setIsPending(true)
 
     const form = event.currentTarget
@@ -187,10 +205,8 @@ export function CreateWorkspaceUserForm({
         )
       }
 
-      const user = (await response.json()) as User
-
-      setSuccess(t("actions.created", { name: user.email }))
       form.reset()
+      setOpen(false)
       router.refresh()
     } catch (submitError) {
       setError(errorText(submitError, t("forms.createUserFailed")))
@@ -200,69 +216,87 @@ export function CreateWorkspaceUserForm({
   }
 
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
-      <FieldGroup>
-        <Field>
-          <FieldLabel htmlFor="member-email">
-            {t("forms.newWorkspaceUser")}
-          </FieldLabel>
-          <Input
-            id="member-email"
-            name="member-email"
-            type="email"
-            placeholder="new.user@gatewayllm.local"
-            disabled={!workspaceId}
-            required
-          />
-        </Field>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field>
-            <FieldLabel htmlFor="member-name">{t("forms.displayName")}</FieldLabel>
-            <Input
-              id="member-name"
-              name="member-name"
-              placeholder={t("auth.newUser")}
-              disabled={!workspaceId}
-              required
-            />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="member-password">
-              {t("auth.password")}
-            </FieldLabel>
-            <Input
-              id="member-password"
-              name="member-password"
-              type="password"
-              defaultValue="dev-password"
-              disabled={!workspaceId}
-              required
-            />
-          </Field>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-          <Field>
-            <FieldLabel htmlFor="member-role">{t("forms.role")}</FieldLabel>
-            <select
-              id="member-role"
-              name="member-role"
-              className={selectClassName}
-              defaultValue="member"
-              disabled={!workspaceId}
-              required
-            >
-              <option value="member">{t("values.member")}</option>
-              <option value="admin">{t("values.admin")}</option>
-            </select>
-          </Field>
-          <Button type="submit" className="self-end" disabled={!workspaceId || isPending}>
-            {isPending ? t("actions.creating") : t("forms.createUser")}
-          </Button>
-        </div>
-        <FieldError>{error}</FieldError>
-        {success ? <FieldDescription>{success}</FieldDescription> : null}
-      </FieldGroup>
-    </form>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger
+        render={<Button type="button" disabled={!canCreate} />}
+      >
+        <PlusIcon data-icon="inline-start" />
+        {t("forms.createUser")}
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("forms.newWorkspaceUser")}</DialogTitle>
+          <DialogDescription>{t("dashboard.usersDescription")}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="member-email">
+                {t("dashboard.email")}
+              </FieldLabel>
+              <Input
+                id="member-email"
+                name="member-email"
+                type="email"
+                placeholder="new.user@gatewayllm.local"
+                disabled={!canCreate || isPending}
+                required
+              />
+            </Field>
+            <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="member-name">
+                  {t("forms.displayName")}
+                </FieldLabel>
+                <Input
+                  id="member-name"
+                  name="member-name"
+                  placeholder={t("auth.newUser")}
+                  disabled={!canCreate || isPending}
+                  required
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="member-password">
+                  {t("auth.password")}
+                </FieldLabel>
+                <Input
+                  id="member-password"
+                  name="member-password"
+                  type="password"
+                  defaultValue="dev-password"
+                  disabled={!canCreate || isPending}
+                  required
+                />
+              </Field>
+            </FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="member-role">{t("forms.role")}</FieldLabel>
+              <select
+                id="member-role"
+                name="member-role"
+                className={selectClassName}
+                defaultValue="member"
+                disabled={!canCreate || isPending}
+                required
+              >
+                <option value="member">{t("values.member")}</option>
+                <option value="admin">{t("values.admin")}</option>
+              </select>
+            </Field>
+            <FieldError>{error}</FieldError>
+          </FieldGroup>
+          <DialogFooter className="mt-6">
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              {t("common.close")}
+            </DialogClose>
+            <Button type="submit" disabled={!canCreate || isPending}>
+              {isPending ? t("actions.creating") : t("forms.createUser")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -654,6 +688,559 @@ export function RemoveWorkspaceMemberButton({
         </div>
       ) : null}
     </div>
+  )
+}
+
+export function EditWorkspaceUserDialog({
+  workspaceId,
+  user,
+  disabled,
+}: {
+  workspaceId?: string
+  user: User
+  disabled?: boolean
+}) {
+  const router = useRouter()
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string>()
+  const [isPending, setIsPending] = useState(false)
+  const canUpdate = Boolean(workspaceId) && !disabled
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!workspaceId || !canUpdate) {
+      setError(t("forms.userCannotUpdate"))
+      return
+    }
+
+    setError(undefined)
+    setIsPending(true)
+
+    const form = event.currentTarget
+    const formData = new FormData(form)
+
+    try {
+      const response = await fetch(
+        `/api/control/workspaces/${encodeURIComponent(
+          workspaceId
+        )}/users/${encodeURIComponent(user.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            display_name: formData.get("user-display-name"),
+            status: formData.get("user-status"),
+            email_verified: formData.get("user-email-verified") === "true",
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await responseError(response, t("forms.updateUserFailed"))
+        )
+      }
+
+      const memberResponse = await fetch(
+        `/api/control/workspaces/${encodeURIComponent(
+          workspaceId
+        )}/members/${encodeURIComponent(user.id)}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            role: formData.get("user-member-role"),
+            status: formData.get("user-member-status"),
+          }),
+        }
+      )
+
+      if (!memberResponse.ok) {
+        throw new Error(
+          await responseError(memberResponse, t("forms.updateMemberFailed"))
+        )
+      }
+
+      setOpen(false)
+      router.refresh()
+    } catch (submitError) {
+      setError(errorText(submitError, t("forms.updateUserFailed")))
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!canUpdate}
+          />
+        }
+      >
+        <PencilIcon data-icon="inline-start" />
+        {t("actions.edit")}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t("forms.editUser")}</DialogTitle>
+          <DialogDescription>{user.email}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor={`user-display-name-${user.id}`}>
+                {t("forms.displayName")}
+              </FieldLabel>
+              <Input
+                id={`user-display-name-${user.id}`}
+                name="user-display-name"
+                defaultValue={user.display_name}
+                disabled={!canUpdate || isPending}
+                required
+              />
+            </Field>
+            <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`user-status-${user.id}`}>
+                  {t("dashboard.userStatus")}
+                </FieldLabel>
+                <select
+                  id={`user-status-${user.id}`}
+                  name="user-status"
+                  className={selectClassName}
+                  defaultValue={user.status === "inactive" ? "inactive" : "active"}
+                  disabled={!canUpdate || isPending}
+                  required
+                >
+                  <option value="active">{t("values.active")}</option>
+                  <option value="inactive">{t("values.inactive")}</option>
+                </select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`user-email-verified-${user.id}`}>
+                  {t("dashboard.emailVerification")}
+                </FieldLabel>
+                <select
+                  id={`user-email-verified-${user.id}`}
+                  name="user-email-verified"
+                  className={selectClassName}
+                  defaultValue={user.email_verified ? "true" : "false"}
+                  disabled={!canUpdate || isPending}
+                  required
+                >
+                  <option value="true">{t("dashboard.verified")}</option>
+                  <option value="false">{t("dashboard.unverified")}</option>
+                </select>
+              </Field>
+            </FieldGroup>
+            <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor={`user-member-role-${user.id}`}>
+                  {t("forms.role")}
+                </FieldLabel>
+                <select
+                  id={`user-member-role-${user.id}`}
+                  name="user-member-role"
+                  className={selectClassName}
+                  defaultValue={user.role === "admin" ? "admin" : "member"}
+                  disabled={!canUpdate || isPending}
+                  required
+                >
+                  <option value="member">{t("values.member")}</option>
+                  <option value="admin">{t("values.admin")}</option>
+                </select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor={`user-member-status-${user.id}`}>
+                  {t("dashboard.workspaceStatus")}
+                </FieldLabel>
+                <select
+                  id={`user-member-status-${user.id}`}
+                  name="user-member-status"
+                  className={selectClassName}
+                  defaultValue={
+                    user.workspace_member_status === "inactive"
+                      ? "inactive"
+                      : "active"
+                  }
+                  disabled={!canUpdate || isPending}
+                  required
+                >
+                  <option value="active">{t("values.active")}</option>
+                  <option value="inactive">{t("values.inactive")}</option>
+                </select>
+              </Field>
+            </FieldGroup>
+            <FieldError>{error}</FieldError>
+          </FieldGroup>
+          <DialogFooter className="mt-6">
+            <Button type="submit" disabled={!canUpdate || isPending}>
+              {isPending ? t("actions.saving") : t("actions.saveChanges")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function DeleteWorkspaceUserDialog({
+  workspaceId,
+  user,
+  disabled,
+}: {
+  workspaceId?: string
+  user: User
+  disabled?: boolean
+}) {
+  const router = useRouter()
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string>()
+  const [isPending, setIsPending] = useState(false)
+  const canRemove = Boolean(workspaceId) && !disabled
+
+  async function remove() {
+    if (!workspaceId || !canRemove) {
+      setError(t("forms.userCannotRemove"))
+      return
+    }
+
+    setError(undefined)
+    setIsPending(true)
+
+    try {
+      const response = await fetch(
+        `/api/control/workspaces/${encodeURIComponent(
+          workspaceId
+        )}/users/${encodeURIComponent(user.id)}`,
+        {
+          method: "DELETE",
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await responseError(response, t("forms.removeUserFailed"))
+        )
+      }
+
+      setOpen(false)
+      router.refresh()
+    } catch (submitError) {
+      setError(errorText(submitError, t("forms.removeUserFailed")))
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            disabled={!canRemove || isPending}
+          />
+        }
+      >
+        <Trash2Icon data-icon="inline-start" />
+        {isPending ? t("actions.removing") : t("actions.remove")}
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("forms.removeUser")}</DialogTitle>
+          <DialogDescription>{t("forms.removeUserConfirm")}</DialogDescription>
+        </DialogHeader>
+        <div className="min-w-0 rounded-lg border p-3 text-sm">
+          <div className="truncate font-medium">{user.display_name}</div>
+          <div className="truncate text-muted-foreground">{user.email}</div>
+        </div>
+        <FieldError>{error}</FieldError>
+        <DialogFooter>
+          <DialogClose render={<Button type="button" variant="outline" />}>
+            {t("common.close")}
+          </DialogClose>
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={!canRemove || isPending}
+            onClick={remove}
+          >
+            <Trash2Icon data-icon="inline-start" />
+            {isPending ? t("actions.removing") : t("actions.remove")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+export function ManageModelPermissionsDialog({
+  workspaceId,
+  member,
+  modelCatalogs,
+  disabled,
+}: {
+  workspaceId?: string
+  member: WorkspaceMember
+  modelCatalogs: ModelCatalog[]
+  disabled?: boolean
+}) {
+  const router = useRouter()
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const [selectedModelIDs, setSelectedModelIDs] = useState<string[]>([])
+  const [error, setError] = useState<string>()
+  const [success, setSuccess] = useState<string>()
+  const [isLoading, setIsLoading] = useState(false)
+  const [isPending, setIsPending] = useState(false)
+  const canManage = Boolean(workspaceId) && !disabled
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    if (!workspaceId) {
+      return
+    }
+
+    let ignore = false
+    const workspaceID = workspaceId
+
+    async function loadPermissions() {
+      setError(undefined)
+      setSuccess(undefined)
+      setIsLoading(true)
+
+      try {
+        const response = await fetch(
+          `/api/control/workspaces/${encodeURIComponent(
+            workspaceID
+          )}/users/${encodeURIComponent(member.user_id)}/model-permissions`,
+          {
+            cache: "no-store",
+          }
+        )
+
+        if (!response.ok) {
+          throw new Error(
+            await responseError(response, t("forms.loadModelPermissionsFailed"))
+          )
+        }
+
+        const permissions = (await response.json()) as UserModelPermissionList
+
+        if (!ignore) {
+          setSelectedModelIDs(
+            permissions.data.map((permission) => permission.model_catalog_id)
+          )
+        }
+      } catch (loadError) {
+        if (!ignore) {
+          setError(
+            errorText(loadError, t("forms.loadModelPermissionsFailed"))
+          )
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadPermissions()
+
+    return () => {
+      ignore = true
+    }
+  }, [member.user_id, open, t, workspaceId])
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!workspaceId || !canManage) {
+      setError(t("forms.memberCannotUpdate"))
+      return
+    }
+
+    setError(undefined)
+    setSuccess(undefined)
+    setIsPending(true)
+
+    try {
+      const response = await fetch(
+        `/api/control/workspaces/${encodeURIComponent(
+          workspaceId
+        )}/users/${encodeURIComponent(member.user_id)}/model-permissions`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model_catalog_ids: selectedModelIDs,
+            allowed_models: [],
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          await responseError(response, t("forms.updateModelPermissionsFailed"))
+        )
+      }
+
+      setSuccess(t("forms.modelPermissionsSaved"))
+      router.refresh()
+    } catch (submitError) {
+      setError(
+        errorText(submitError, t("forms.updateModelPermissionsFailed"))
+      )
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  function toggleModel(modelCatalogID: string, checked: boolean) {
+    setSelectedModelIDs((current) => {
+      if (checked) {
+        return Array.from(new Set([...current, modelCatalogID]))
+      }
+
+      return current.filter((id) => id !== modelCatalogID)
+    })
+  }
+
+  const knownModelIDs = new Set(modelCatalogs.map((modelCatalog) => modelCatalog.id))
+  const hiddenSelectedCount = selectedModelIDs.filter(
+    (id) => !knownModelIDs.has(id)
+  ).length
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!canManage}
+          />
+        }
+      >
+        <ShieldCheckIcon data-icon="inline-start" />
+        {t("forms.modelPermissions")}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>{t("forms.modelPermissions")}</DialogTitle>
+          <DialogDescription>{member.email}</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <FieldSet disabled={!canManage || isLoading || isPending}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <FieldLegend>{t("forms.allowedModels")}</FieldLegend>
+                  {hiddenSelectedCount > 0 ? (
+                    <FieldDescription>
+                      {t("forms.hiddenModelPermissions", {
+                        count: hiddenSelectedCount,
+                      })}
+                    </FieldDescription>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canManage || isLoading || isPending}
+                    onClick={() =>
+                      setSelectedModelIDs(modelCatalogs.map((model) => model.id))
+                    }
+                  >
+                    {t("actions.selectAll")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!canManage || isLoading || isPending}
+                    onClick={() => setSelectedModelIDs([])}
+                  >
+                    {t("actions.clear")}
+                  </Button>
+                </div>
+              </div>
+              {modelCatalogs.length > 0 ? (
+                <FieldGroup data-slot="checkbox-group">
+                  {modelCatalogs.map((modelCatalog) => {
+                    const checkboxID = `model-permission-${member.user_id}-${modelCatalog.id}`
+
+                    return (
+                      <Field
+                        key={modelCatalog.id}
+                        orientation="horizontal"
+                        className="rounded-lg border p-3"
+                      >
+                        <input
+                          id={checkboxID}
+                          type="checkbox"
+                          className="mt-0.5 size-4 shrink-0 accent-primary"
+                          checked={selectedModelIDs.includes(modelCatalog.id)}
+                          disabled={!canManage || isLoading || isPending}
+                          onChange={(event) =>
+                            toggleModel(modelCatalog.id, event.target.checked)
+                          }
+                        />
+                        <FieldContent>
+                          <FieldLabel htmlFor={checkboxID}>
+                            {modelCatalog.canonical_name}
+                          </FieldLabel>
+                          <FieldDescription>
+                            {modelCatalog.provider} - {modelCatalog.id}
+                          </FieldDescription>
+                        </FieldContent>
+                      </Field>
+                    )
+                  })}
+                </FieldGroup>
+              ) : (
+                <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                  {t("forms.noModelCatalogsForPermissions")}
+                </div>
+              )}
+            </FieldSet>
+            <FieldError>{error}</FieldError>
+            {success ? <FieldDescription>{success}</FieldDescription> : null}
+          </FieldGroup>
+          <DialogFooter className="mt-6">
+            <Button
+              type="submit"
+              disabled={!canManage || isLoading || isPending}
+            >
+              {isPending ? t("actions.saving") : t("actions.saveChanges")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -1424,9 +2011,11 @@ export function EditModelDeploymentDialog({
 
 export function ChatSmokeTestForm({ defaultModel }: { defaultModel: string }) {
   const { t } = useI18n()
+  const formRef = useRef<HTMLFormElement>(null)
   const [error, setError] = useState<string>()
   const [result, setResult] = useState<ChatSmokeResponse>()
   const [isPending, setIsPending] = useState(false)
+  const [isListingModels, setIsListingModels] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -1466,8 +2055,47 @@ export function ChatSmokeTestForm({ defaultModel }: { defaultModel: string }) {
     }
   }
 
+  async function listModels() {
+    const form = formRef.current
+
+    if (!form) {
+      return
+    }
+
+    setError(undefined)
+    setResult(undefined)
+    setIsListingModels(true)
+
+    const formData = new FormData(form)
+
+    try {
+      const response = await fetch("/api/gateway/models", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          api_key: formData.get("gateway-api-key"),
+        }),
+      })
+      const payload = (await response
+        .json()
+        .catch(() => ({}))) as ChatSmokeResponse
+
+      setResult(payload)
+
+      if (!response.ok) {
+        throw new Error(chatSmokeError(payload, t("forms.listModelsFailed")))
+      }
+    } catch (submitError) {
+      setError(errorText(submitError, t("forms.listModelsFailed")))
+    } finally {
+      setIsListingModels(false)
+    }
+  }
+
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
+    <form ref={formRef} className="rounded-lg border p-3" onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="gateway-api-key">
@@ -1518,9 +2146,19 @@ export function ChatSmokeTestForm({ defaultModel }: { defaultModel: string }) {
             required
           />
         </Field>
-        <Button type="submit" disabled={isPending}>
-          {isPending ? t("actions.running") : t("forms.runSmokeTest")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isPending || isListingModels}
+            onClick={listModels}
+          >
+            {isListingModels ? t("actions.loading") : t("forms.listModels")}
+          </Button>
+          <Button type="submit" disabled={isPending || isListingModels}>
+            {isPending ? t("actions.running") : t("forms.runSmokeTest")}
+          </Button>
+        </div>
         <FieldError>{error}</FieldError>
         {result ? (
           <pre className="max-h-80 overflow-auto rounded-lg border bg-muted/50 p-3 text-xs leading-relaxed">

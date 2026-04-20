@@ -1,5 +1,8 @@
 "use client"
 
+import * as React from "react"
+import Link from "next/link"
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,6 +20,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useI18n } from "@/components/i18n-provider"
 import { ChevronRightIcon } from "lucide-react"
+import type { DashboardSection } from "@/app/dashboard/dashboard-routes"
 
 export function NavMain({
   items,
@@ -29,10 +33,15 @@ export function NavMain({
     items?: {
       title: string
       url: string
+      section: DashboardSection
+      isActive?: boolean
     }[]
   }[]
 }) {
   const { t } = useI18n()
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(
+    {}
+  )
 
   return (
     <SidebarGroup>
@@ -41,12 +50,23 @@ export function NavMain({
         {items.map((item) => (
           <Collapsible
             key={item.title}
-            defaultOpen={item.isActive}
+            open={Boolean(item.isActive) || Boolean(openGroups[item.title])}
+            onOpenChange={(open) =>
+              setOpenGroups((current) => ({
+                ...current,
+                [item.title]: open,
+              }))
+            }
             className="group/collapsible"
             render={<SidebarMenuItem />}
           >
             <CollapsibleTrigger
-              render={<SidebarMenuButton tooltip={item.title} />}
+              render={
+                <SidebarMenuButton
+                  tooltip={item.title}
+                  isActive={item.isActive}
+                />
+              }
             >
               {item.icon}
               <span>{item.title}</span>
@@ -56,7 +76,10 @@ export function NavMain({
               <SidebarMenuSub>
                 {item.items?.map((subItem) => (
                   <SidebarMenuSubItem key={subItem.title}>
-                    <SidebarMenuSubButton render={<a href={subItem.url} />}>
+                    <SidebarMenuSubButton
+                      isActive={subItem.isActive}
+                      render={<Link href={subItem.url} />}
+                    >
                       <span>{subItem.title}</span>
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>

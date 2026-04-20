@@ -126,6 +126,20 @@ export type UserList = {
   data: User[]
 }
 
+export type UserModelPermission = {
+  workspace_id: string
+  user_id: string
+  model_catalog_id: string
+  model_canonical_name: string
+  provider: string
+  created_at: string
+}
+
+export type UserModelPermissionList = {
+  object: string
+  data: UserModelPermission[]
+}
+
 export type APIKey = {
   id: string
   workspace_id: string

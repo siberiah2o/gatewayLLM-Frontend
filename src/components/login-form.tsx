@@ -76,7 +76,11 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardContent>
-          <form onSubmit={handleSubmit}>
+          <form
+            action="/api/control/sessions"
+            method="post"
+            onSubmit={handleSubmit}
+          >
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">{t("auth.email")}</FieldLabel>

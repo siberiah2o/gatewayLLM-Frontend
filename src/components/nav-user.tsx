@@ -105,11 +105,13 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => router.push("/dashboard#account")}>
+              <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>
                 <BadgeCheckIcon />
                 {t("nav.signedInUser")}
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/dashboard#workspaces")}>
+              <DropdownMenuItem
+                onClick={() => router.push("/dashboard/workspaces")}
+              >
                 <SettingsIcon />
                 {t("nav.workspaces")}
               </DropdownMenuItem>
