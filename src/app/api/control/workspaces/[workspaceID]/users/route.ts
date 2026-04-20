@@ -1,0 +1,60 @@
+import { NextResponse } from "next/server"
+
+import { badRequest, gatewayErrorResponse, unauthorized } from "@/lib/api-route"
+import { gatewayRequest, type User } from "@/lib/gatewayllm"
+import { getSessionToken } from "@/lib/session"
+
+type CreateWorkspaceUserBody = {
+  email?: string
+  password?: string
+  display_name?: string
+  role?: string
+}
+
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ workspaceID: string }> }
+) {
+  const token = await getSessionToken()
+
+  if (!token) {
+    return unauthorized()
+  }
+
+  try {
+    const { workspaceID } = await context.params
+    const body = (await request.json()) as CreateWorkspaceUserBody
+    const email = body.email?.trim()
+    const password = body.password?.trim()
+    const displayName = body.display_name?.trim()
+    const role = body.role?.trim() || "member"
+
+    if (!email || !password || !displayName) {
+      return badRequest("Email, password, and display name are required.")
+    }
+
+    if (role !== "admin" && role !== "member") {
+      return badRequest("Role must be admin or member.")
+    }
+
+    const user = await gatewayRequest<User>(
+      `/control/v1/workspaces/${encodeURIComponent(workspaceID)}/users`,
+      {
+        method: "POST",
+        token,
+        body: {
+          email,
+          password,
+          display_name: displayName,
+          status: "active",
+          email_verified: true,
+          role,
+        },
+      }
+    )
+
+    return NextResponse.json(user, { status: 201 })
+  } catch (error) {
+    return gatewayErrorResponse(error)
+  }
+}
