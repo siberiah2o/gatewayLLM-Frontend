@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import {
+  CopyIcon,
+  EyeIcon,
   PencilIcon,
   PlusIcon,
   ShieldCheckIcon,
@@ -300,7 +302,13 @@ export function CreateWorkspaceUserDialog({
   )
 }
 
-export function CreateAPIKeyForm({ workspaceId }: { workspaceId?: string }) {
+export function CreateAPIKeyForm({
+  workspaceId,
+  className,
+}: {
+  workspaceId?: string
+  className?: string
+}) {
   const router = useRouter()
   const { t } = useI18n()
   const [error, setError] = useState<string>()
@@ -364,7 +372,7 @@ export function CreateAPIKeyForm({ workspaceId }: { workspaceId?: string }) {
   }
 
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
+    <form className={cn("space-y-4", className)} onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="api-key-name">{t("forms.newApiKey")}</FieldLabel>
@@ -380,6 +388,7 @@ export function CreateAPIKeyForm({ workspaceId }: { workspaceId?: string }) {
           </FieldDescription>
         </Field>
         <Button type="submit" disabled={!workspaceId || isPending}>
+          <PlusIcon />
           {isPending ? t("actions.creating") : t("forms.createApiKey")}
         </Button>
         <FieldError>{error}</FieldError>
@@ -393,6 +402,7 @@ export function CreateAPIKeyForm({ workspaceId }: { workspaceId?: string }) {
               className="w-full"
               onClick={copyAPIKey}
             >
+              <CopyIcon />
               {copied ? t("actions.copied") : t("actions.copyKey")}
             </Button>
           </div>
@@ -405,9 +415,11 @@ export function CreateAPIKeyForm({ workspaceId }: { workspaceId?: string }) {
 export function RevokeAPIKeyButton({
   apiKeyID,
   disabled,
+  className,
 }: {
   apiKeyID: string
   disabled?: boolean
+  className?: string
 }) {
   const router = useRouter()
   const { t } = useI18n()
@@ -441,22 +453,155 @@ export function RevokeAPIKeyButton({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className={cn("flex flex-col gap-1", className)}>
       <Button
         type="button"
         variant="destructive"
-        size="sm"
+        size="xs"
         disabled={disabled || isPending}
         onClick={revoke}
       >
+        <Trash2Icon />
         {isPending ? t("actions.revoking") : t("actions.revoke")}
       </Button>
       {error ? (
-        <div className="max-w-40 text-right text-xs text-destructive">
+        <div className="max-w-36 text-right text-xs text-destructive">
           {error}
         </div>
       ) : null}
     </div>
+  )
+}
+
+export function ViewAPIKeyDialog({
+  apiKeyID,
+  displayName,
+  triggerLabel,
+  triggerVariant = "outline",
+  triggerSize = "xs",
+  triggerClassName,
+  triggerTitle,
+  showIcon = true,
+}: {
+  apiKeyID: string
+  displayName: string
+  triggerLabel?: string
+  triggerVariant?: "default" | "outline" | "secondary" | "ghost" | "destructive" | "link"
+  triggerSize?: "default" | "xs" | "sm" | "lg" | "icon" | "icon-xs" | "icon-sm" | "icon-lg"
+  triggerClassName?: string
+  triggerTitle?: string
+  showIcon?: boolean
+}) {
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string>()
+  const [apiKey, setAPIKey] = useState<APIKey>()
+  const [copied, setCopied] = useState(false)
+  const [isPending, setIsPending] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+
+    let cancelled = false
+
+    async function loadAPIKey() {
+      setIsPending(true)
+      setError(undefined)
+      setCopied(false)
+
+      try {
+        const response = await fetch(
+          `/api/control/me/api-keys/${encodeURIComponent(apiKeyID)}`
+        )
+
+        if (!response.ok) {
+          throw new Error(
+            await responseError(response, t("forms.createApiKeyFailed"))
+          )
+        }
+
+        const payload = (await response.json()) as APIKey
+
+        if (!cancelled) {
+          setAPIKey(payload)
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(errorText(loadError, t("forms.createApiKeyFailed")))
+          setAPIKey(undefined)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsPending(false)
+        }
+      }
+    }
+
+    loadAPIKey()
+
+    return () => {
+      cancelled = true
+    }
+  }, [apiKeyID, open, t])
+
+  async function copyCurrentKey() {
+    if (!apiKey?.api_key) {
+      return
+    }
+
+    await navigator.clipboard.writeText(apiKey.api_key)
+    setCopied(true)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant={triggerVariant}
+            size={triggerSize}
+            className={triggerClassName}
+            title={triggerTitle}
+          />
+        }
+      >
+        {showIcon ? <EyeIcon /> : null}
+        <span className="truncate">{triggerLabel ?? t("actions.viewKey")}</span>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{displayName}</DialogTitle>
+          <DialogDescription>{apiKeyID}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          {isPending ? (
+            <div className="text-muted-foreground">{t("actions.loading")}</div>
+          ) : error ? (
+            <FieldError>{error}</FieldError>
+          ) : apiKey?.api_key ? (
+            <>
+              <Input readOnly value={apiKey.api_key} />
+              <Button type="button" variant="outline" onClick={copyCurrentKey}>
+                <CopyIcon />
+                {copied ? t("actions.copied") : t("actions.copyKey")}
+              </Button>
+            </>
+          ) : (
+            <div className="rounded-lg border border-dashed p-3 text-muted-foreground">
+              {t("forms.apiKeyUnavailable")}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <DialogClose render={<Button type="button" variant="outline" />}>
+            {t("common.close")}
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

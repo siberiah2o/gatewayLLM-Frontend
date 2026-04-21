@@ -2,7 +2,6 @@ import { redirect } from "next/navigation"
 
 import {
   GatewayAPIError,
-  gatewayBaseURL,
   gatewayRequest,
   type MeResponse,
   type WorkspaceList,
@@ -44,7 +43,6 @@ export default async function DashboardLayout({
     <DashboardShell
       user={me.user}
       workspaces={workspaces.ok ? workspaces.data.data : []}
-      gatewayBaseUrl={gatewayBaseURL()}
     >
       {children}
     </DashboardShell>

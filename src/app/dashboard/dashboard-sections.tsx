@@ -7,6 +7,7 @@ import {
   CreateWorkspaceForm,
   CreateWorkspaceUserDialog,
   RevokeAPIKeyButton,
+  ViewAPIKeyDialog,
 } from "@/components/dashboard-actions"
 import {
   Card,
@@ -16,7 +17,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Building2Icon,
+  KeyRoundIcon,
+  ShieldCheckIcon,
+} from "lucide-react"
+import type { ReactNode } from "react"
 import type {
+  APIKey,
   APIKeyList,
   Balance,
   DailyUsageList,
@@ -41,7 +49,6 @@ import type { Settled } from "./dashboard-data"
 import type { DashboardSection } from "./dashboard-routes"
 import {
   EmptyState,
-  InfoRow,
   MetricCard,
   StatusBadge,
   WorkspaceRow,
@@ -55,6 +62,7 @@ import {
   RegistrationRequestRow,
   WorkspaceMemberRow,
 } from "./dashboard-rows"
+import { AccountSection } from "./sections/account-section"
 import { WorkspaceUsersTable } from "./workspace-user-row"
 
 type DashboardSectionContentProps = {
@@ -247,41 +255,6 @@ function WorkspacesSection({
   )
 }
 
-function AccountSection({ t, user }: DashboardSectionContentProps) {
-  return (
-    <section className="grid gap-4">
-      <Card id="account">
-        <CardHeader>
-          <CardTitle>{t("dashboard.signedInUser")}</CardTitle>
-          <CardDescription>{user.email}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          <InfoRow
-            label={t("dashboard.name")}
-            value={user.display_name || t("dashboard.notSet")}
-          />
-          <InfoRow
-            label={t("nav.status")}
-            value={
-              user.status
-                ? localizeValue(t, user.status)
-                : t("dashboard.notSet")
-            }
-          />
-          <InfoRow
-            label={t("dashboard.email")}
-            value={
-              user.email_verified
-                ? t("dashboard.verified")
-                : localizeValue(t, user.email_verification_status ?? "unverified")
-            }
-          />
-        </CardContent>
-      </Card>
-    </section>
-  )
-}
-
 function UsersSection({
   t,
   activeWorkspace,
@@ -399,47 +372,197 @@ function ApiKeysSection({
   activeWorkspace,
   apiKeys,
 }: DashboardSectionContentProps) {
+  const apiKeyList = apiKeys.ok ? apiKeys.data.data : []
+  const activeKeyCount = apiKeyList.filter(
+    (apiKey) => apiKey.status === "active"
+  ).length
+  const workspaceLabel =
+    activeWorkspace?.name ?? t("dashboard.noWorkspaceAvailable")
+
   return (
     <section className="grid gap-4">
       <Card id="api-keys">
-        <CardHeader>
-          <CardTitle>{t("dashboard.apiKeysTitle")}</CardTitle>
-          <CardDescription>{t("dashboard.apiKeysDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <CreateAPIKeyForm workspaceId={activeWorkspace?.id} />
-          {apiKeys.ok && apiKeys.data.data.length > 0 ? (
-            apiKeys.data.data.map((apiKey) => (
-              <div
-                key={apiKey.id}
-                className="flex items-center justify-between gap-3 rounded-lg border p-3 text-sm"
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-medium">
-                    {apiKey.display_name}
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {apiKey.id}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <StatusBadge>{localizeValue(t, apiKey.status)}</StatusBadge>
-                  <RevokeAPIKeyButton
-                    apiKeyID={apiKey.id}
-                    disabled={apiKey.status !== "active"}
-                  />
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState
-              message={apiKeys.ok ? t("dashboard.noApiKeys") : apiKeys.error}
-            />
-          )}
+        <CardContent className="grid gap-3 sm:grid-cols-2">
+          <ApiKeySummary
+            icon={<ShieldCheckIcon className="size-4" />}
+            label={t("dashboard.activeApiKeys")}
+            value={String(activeKeyCount)}
+            detail={apiKeys.ok ? t("dashboard.apiKeysListTitle") : apiKeys.error}
+          />
+          <ApiKeySummary
+            icon={<Building2Icon className="size-4" />}
+            label={t("dashboard.workspaceScope")}
+            value={workspaceLabel}
+            detail={activeWorkspace?.id ?? t("dashboard.notSet")}
+          />
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>{t("dashboard.apiKeysListTitle")}</CardTitle>
+            <CardAction>
+              <StatusBadge>{String(apiKeyList.length)}</StatusBadge>
+            </CardAction>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {apiKeyList.length > 0 ? (
+              <div className="space-y-3">
+                <div className="hidden xl:grid xl:grid-cols-[minmax(10rem,0.95fr)_minmax(0,1.2fr)_minmax(12rem,0.95fr)_minmax(10rem,0.85fr)_6rem] xl:gap-4 xl:px-4 xl:text-[0.72rem] xl:font-medium xl:text-muted-foreground">
+                  <div>{t("dashboard.nickname")}</div>
+                  <div>{t("dashboard.apiKeyId")}</div>
+                  <div>{t("dashboard.createdAt")}</div>
+                  <div>{t("dashboard.lastUsedAt")}</div>
+                  <div className="text-right">{t("dashboard.actions")}</div>
+                </div>
+                {apiKeyList.map((apiKey) => (
+                  <APIKeyRow key={apiKey.id} apiKey={apiKey} t={t} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                message={apiKeys.ok ? t("dashboard.noApiKeys") : apiKeys.error}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="flex items-center gap-2">
+              <KeyRoundIcon className="size-4 text-muted-foreground" />
+              {t("dashboard.createApiKeyTitle")}
+            </CardTitle>
+            <CardDescription>{workspaceLabel}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CreateAPIKeyForm workspaceId={activeWorkspace?.id} />
+          </CardContent>
+        </Card>
+      </div>
     </section>
   )
+}
+
+function ApiKeySummary({
+  icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+  detail: string
+}) {
+  return (
+    <div className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-md bg-muted/50 p-3">
+      <div className="flex size-8 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-foreground/10">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="truncate font-heading text-lg font-semibold">{value}</div>
+        <div className="truncate text-xs text-muted-foreground">{detail}</div>
+      </div>
+    </div>
+  )
+}
+
+function APIKeyRow({ apiKey, t }: { apiKey: APIKey; t: Translator }) {
+  const displayName = apiKey.display_name?.trim() || t("dashboard.notSet")
+  const status = localizeValue(t, apiKey.status)
+
+  return (
+    <div className="grid gap-4 rounded-lg border p-4 xl:grid-cols-[minmax(10rem,0.95fr)_minmax(0,1.2fr)_minmax(12rem,0.95fr)_minmax(10rem,0.85fr)_6rem] xl:items-center">
+      <div className="min-w-0">
+        <div className="text-[0.72rem] text-muted-foreground xl:hidden">
+          {t("dashboard.nickname")}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="truncate font-medium">{displayName}</div>
+          <StatusBadge>{status}</StatusBadge>
+        </div>
+        <div className="mt-1 truncate text-xs text-muted-foreground">
+          {t("dashboard.expiresAt")}{" "}
+          {formatAPIKeyDate(apiKey.expires_at, t("dashboard.noExpiration"))}
+        </div>
+      </div>
+      <div className="min-w-0">
+        <div className="text-[0.72rem] text-muted-foreground xl:hidden">
+          {t("dashboard.apiKeyId")}
+        </div>
+        <ViewAPIKeyDialog
+          apiKeyID={apiKey.id}
+          displayName={displayName}
+          triggerLabel={formatAPIKeyPreview(apiKey.id)}
+          triggerVariant="link"
+          triggerSize="sm"
+          triggerClassName="h-auto min-w-0 max-w-full shrink justify-start overflow-hidden px-0 font-mono text-xs font-medium text-primary hover:text-primary/80 xl:text-sm"
+          triggerTitle={apiKey.id}
+          showIcon={false}
+        />
+      </div>
+      <APIKeyMeta
+        label={t("dashboard.createdAt")}
+        value={formatAPIKeyDate(apiKey.created_at, t("dashboard.notSet"))}
+      />
+      <APIKeyMeta
+        label={t("dashboard.lastUsedAt")}
+        value={formatAPIKeyDate(apiKey.last_used_at, t("dashboard.neverUsed"))}
+      />
+      <div className="flex items-start xl:justify-end">
+        <div className="xl:hidden text-[0.72rem] text-muted-foreground">
+          {t("actions.revoke")}
+        </div>
+        <RevokeAPIKeyButton
+          apiKeyID={apiKey.id}
+          disabled={apiKey.status !== "active"}
+          className="items-start xl:items-end"
+        />
+      </div>
+    </div>
+  )
+}
+
+function APIKeyMeta({
+  label,
+  value,
+}: {
+  label: string
+  value: string
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[0.72rem] text-muted-foreground xl:hidden">{label}</div>
+      <div className="truncate font-medium">{value}</div>
+    </div>
+  )
+}
+
+function formatAPIKeyPreview(value: string) {
+  const normalized = value.trim()
+
+  if (normalized.length <= 18) {
+    return normalized
+  }
+
+  return `${normalized.slice(0, 8)}...${normalized.slice(-8)}`
+}
+
+function formatAPIKeyDate(value: string | undefined, fallback: string) {
+  if (!value) {
+    return fallback
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return value
+  }
+
+  return `${date.toISOString().replace("T", " ").slice(0, 16)} UTC`
 }
 
 function ModelsSection({

@@ -4,6 +4,32 @@ import { gatewayErrorResponse, unauthorized } from "@/lib/api-route"
 import { gatewayRequest } from "@/lib/gatewayllm"
 import { getSessionToken } from "@/lib/session"
 
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ apiKeyID: string }> }
+) {
+  const token = await getSessionToken()
+
+  if (!token) {
+    return unauthorized()
+  }
+
+  try {
+    const { apiKeyID } = await context.params
+
+    const apiKey = await gatewayRequest(
+      `/control/v1/me/api-keys/${encodeURIComponent(apiKeyID)}`,
+      {
+        token,
+      }
+    )
+
+    return NextResponse.json(apiKey)
+  } catch (error) {
+    return gatewayErrorResponse(error)
+  }
+}
+
 export async function DELETE(
   _request: Request,
   context: { params: Promise<{ apiKeyID: string }> }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { badRequest, gatewayErrorResponse } from "@/lib/api-route"
 import {
+  GatewayAPIError,
   gatewayRequest,
   type RegistrationRequest,
 } from "@/lib/gatewayllm"
@@ -44,6 +45,40 @@ export async function POST(request: Request) {
 
     return NextResponse.json(registration, { status: 201 })
   } catch (error) {
+    if (
+      error instanceof GatewayAPIError &&
+      error.status === 404 &&
+      error.code === "not_found"
+    ) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "workspace_not_found",
+            message:
+              "Workspace was not found. Check the workspace ID or create/seed a workspace first.",
+          },
+        },
+        { status: 404 }
+      )
+    }
+
+    if (
+      error instanceof GatewayAPIError &&
+      error.status === 400 &&
+      error.message ===
+        "policy target invalid: workspace is not accepting registrations"
+    ) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "workspace_inactive",
+            message: "Workspace is not accepting registrations.",
+          },
+        },
+        { status: 400 }
+      )
+    }
+
     return gatewayErrorResponse(error)
   }
 }

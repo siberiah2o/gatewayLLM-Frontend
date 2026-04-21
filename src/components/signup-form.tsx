@@ -29,6 +29,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
     setSuccess(undefined)
 
     const formData = new FormData(form)
+    const workspaceID = String(formData.get("workspace-id") ?? "").trim()
     const password = String(formData.get("password") ?? "")
     const confirmPassword = String(formData.get("confirm-password") ?? "")
 
@@ -46,7 +47,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          workspace_id: formData.get("workspace-id"),
+          workspace_id: workspaceID,
           display_name: formData.get("name"),
           email: formData.get("email"),
           password,
@@ -56,6 +57,21 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       const payload = await response.json().catch(() => null)
 
       if (!response.ok) {
+        if (
+          response.status === 404 &&
+          (payload?.error?.code === "not_found" ||
+            payload?.error?.code === "workspace_not_found")
+        ) {
+          throw new Error(t("auth.workspaceNotFound"))
+        }
+
+        if (
+          response.status === 400 &&
+          payload?.error?.code === "workspace_inactive"
+        ) {
+          throw new Error(t("auth.workspaceInactive"))
+        }
+
         throw new Error(
           translateKnownError(
             locale,
@@ -94,8 +110,10 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 id="workspace-id"
                 name="workspace-id"
                 type="text"
-                placeholder="ws_..."
+                autoComplete="off"
+                placeholder="123e4567-e89b-12d3-a456-426614174000"
                 required
+                spellCheck={false}
               />
               <FieldDescription>
                 {t("auth.workspaceHelp")}

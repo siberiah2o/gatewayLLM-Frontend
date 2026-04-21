@@ -30,14 +30,12 @@ import {
 type DashboardShellProps = {
   user: SessionUser
   workspaces: Workspace[]
-  gatewayBaseUrl: string
   children: React.ReactNode
 }
 
 export function DashboardShell({
   user,
   workspaces,
-  gatewayBaseUrl,
   children,
 }: DashboardShellProps) {
   const { t } = useI18n()
@@ -76,9 +74,6 @@ export function DashboardShell({
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
-                <div className="truncate text-xs leading-tight text-muted-foreground">
-                  {t("dashboard.connectedTo", { url: gatewayBaseUrl })}
-                </div>
               </div>
             </div>
             <LanguageSwitcher className="shrink-0" />
