@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies, headers } from "next/headers";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider } from "@/components/i18n-provider";
 import { normalizeLocale } from "@/lib/i18n";
 import "./globals.css";
@@ -41,6 +42,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col">
         <I18nProvider initialLocale={locale}>
           <TooltipProvider>{children}</TooltipProvider>
+          <Toaster position="bottom-right" richColors />
         </I18nProvider>
       </body>
     </html>

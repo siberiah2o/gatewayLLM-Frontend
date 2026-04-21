@@ -19,9 +19,9 @@ import type {
   WorkspaceMember,
   WorkspaceMemberList,
 } from "@/lib/gatewayllm"
-import type { Settled } from "../dashboard-data"
-import type { DashboardSection } from "../dashboard-routes"
-import type { Translator } from "../dashboard-ui"
+import type { Settled } from "./dashboard-data"
+import type { DashboardSection } from "./dashboard-routes"
+import type { Translator } from "./dashboard-ui"
 
 export type DashboardSectionContentProps = {
   section: DashboardSection

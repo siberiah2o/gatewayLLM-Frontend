@@ -25,6 +25,7 @@ import {
   settle,
   showPrivilegedSection,
   skippedResult,
+  type Settled,
 } from "./dashboard-data"
 import type { DashboardSection } from "./dashboard-routes"
 import { DashboardSectionContent } from "./dashboard-sections"
@@ -70,7 +71,6 @@ export async function DashboardPage({
   const noWorkspaceMessage = t("dashboard.noWorkspaceAvailable")
   const needsStatus = section === "status"
   const needsModelCatalogs =
-    section === "users" ||
     section === "members" ||
     section === "models" ||
     section === "deployments" ||
@@ -160,18 +160,7 @@ export async function DashboardPage({
           { token }
         )
     ),
-    loadWorkspaceResource(
-      needsStatus || section === "registration",
-      activeWorkspace,
-      noWorkspaceMessage,
-      (workspace) =>
-        gatewayRequest<RegistrationRequestList>(
-          `/control/v1/workspaces/${encodeURIComponent(
-            workspace.id
-          )}/registration-requests?status=pending&limit=20`,
-          { token }
-        )
-    ),
+    skippedResult<RegistrationRequestList>(),
     loadWorkspaceResource(
       needsModelCatalogs,
       activeWorkspace,
@@ -210,6 +199,15 @@ export async function DashboardPage({
     ),
   ])
 
+  const pendingRegistrationRequests =
+    needsStatus || section === "registration"
+      ? await loadRegistrationRequestsForWorkspaces(
+          workspaceList,
+          token,
+          noWorkspaceMessage
+        )
+      : registrationRequests
+
   const workspaceUserList = workspaceUsers.ok ? workspaceUsers.data.data : []
   const workspaceMemberList = workspaceMembers.ok
     ? workspaceMembers.data.data
@@ -232,7 +230,7 @@ export async function DashboardPage({
     showPrivilegedSection(activeWorkspace, workspaceMembers)
   const showRegistration =
     section === "registration" ||
-    showPrivilegedSection(activeWorkspace, registrationRequests)
+    showPrivilegedSection(activeWorkspace, pendingRegistrationRequests)
   const showModelCatalogManagement =
     section === "models" ||
     showPrivilegedSection(activeWorkspace, modelCatalogs)
@@ -260,7 +258,7 @@ export async function DashboardPage({
       workspaceUserList={workspaceUserList}
       workspaceMembers={workspaceMembers}
       workspaceMemberList={workspaceMemberList}
-      registrationRequests={registrationRequests}
+      registrationRequests={pendingRegistrationRequests}
       modelCatalogs={modelCatalogs}
       modelCatalogList={modelCatalogList}
       providerCredentials={providerCredentials}
@@ -276,4 +274,49 @@ export async function DashboardPage({
       showModelDeploymentManagement={showModelDeploymentManagement}
     />
   )
+}
+
+async function loadRegistrationRequestsForWorkspaces(
+  workspaces: WorkspaceList["data"],
+  token: string,
+  noWorkspaceMessage: string
+): Promise<Settled<RegistrationRequestList>> {
+  if (workspaces.length === 0) {
+    return {
+      ok: false,
+      error: noWorkspaceMessage,
+    }
+  }
+
+  const results = await Promise.all(
+    workspaces.map((workspace) =>
+      settle(
+        gatewayRequest<RegistrationRequestList>(
+          `/control/v1/workspaces/${encodeURIComponent(
+            workspace.id
+          )}/registration-requests?status=pending&limit=20`,
+          { token }
+        )
+      )
+    )
+  )
+  const successful = results.filter((result) => result.ok)
+
+  if (successful.length === 0) {
+    const firstError = results.find((result) => !result.ok)
+
+    return {
+      ok: false,
+      error: firstError?.error ?? noWorkspaceMessage,
+      status: firstError && !firstError.ok ? firstError.status : undefined,
+    }
+  }
+
+  return {
+    ok: true,
+    data: {
+      object: "list",
+      data: successful.flatMap((result) => result.data.data),
+    },
+  }
 }

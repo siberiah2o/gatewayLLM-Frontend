@@ -37,8 +37,13 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "auth.passwordsMismatch": "Passwords do not match.",
     "auth.registrationFailed": "Could not create the registration request.",
     "auth.workspaceNotFound":
-      "Workspace was not found. Check the workspace ID or create/seed a workspace first.",
+      "No active workspace is accepting registrations. Ask an administrator to create or activate a workspace first.",
     "auth.workspaceInactive": "This workspace is not accepting registrations.",
+    "auth.registrationConflict":
+      "This email already has a pending registration request or an existing account.",
+    "auth.registrationSuccessTitle": "Registration request submitted",
+    "auth.registrationSuccessDescription":
+      "Name: {name}; Email: {email}; Workspace: {workspace}; Status: {status}.",
     "auth.registrationSuccess": "Registration request {id} is {status}.",
     "nav.platform": "Platform",
     "nav.resources": "Resources",
@@ -111,7 +116,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.noMembers": "No workspace members returned.",
     "dashboard.usersTitle": "Workspace users",
     "dashboard.usersDescription":
-      "Control-plane users and model access for the first visible workspace.",
+      "Profile and account status for users in the first visible workspace.",
     "dashboard.noUsers": "No workspace users returned.",
     "dashboard.registrationTitle": "Registration requests",
     "dashboard.registrationDescription":
@@ -335,8 +340,13 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "auth.passwordsMismatch": "两次输入的密码不一致。",
     "auth.registrationFailed": "无法创建注册申请。",
     "auth.workspaceNotFound":
-      "未找到这个工作区。请检查工作区 ID，或先创建/seed 一个工作区。",
+      "当前没有可接收注册申请的活跃工作区，请先联系管理员创建或启用工作区。",
     "auth.workspaceInactive": "这个工作区当前不接受注册申请。",
+    "auth.registrationConflict":
+      "这个邮箱已经提交过待处理注册申请，或已经存在账号。",
+    "auth.registrationSuccessTitle": "注册申请已提交",
+    "auth.registrationSuccessDescription":
+      "姓名：{name}；邮箱：{email}；工作区：{workspace}；状态：{status}。",
     "auth.registrationSuccess": "注册申请 {id} 当前状态为 {status}。",
     "nav.platform": "平台",
     "nav.resources": "资源",
@@ -406,7 +416,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.membersDescription": "可访问第一个可见工作区的用户。",
     "dashboard.noMembers": "没有返回工作区成员。",
     "dashboard.usersTitle": "工作区用户",
-    "dashboard.usersDescription": "第一个可见工作区的控制平面用户与模型访问。",
+    "dashboard.usersDescription": "第一个可见工作区用户的资料与账号状态。",
     "dashboard.noUsers": "没有返回工作区用户。",
     "dashboard.registrationTitle": "注册申请",
     "dashboard.registrationDescription": "第一个可见工作区的待处理注册申请。",

@@ -39,55 +39,59 @@ export function NavMain({
   }[]
 }) {
   const { t } = useI18n()
-  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(
-    {}
-  )
+  const [openGroups, setOpenGroups] = React.useState<
+    Partial<Record<string, boolean>>
+  >({})
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{t("nav.platform")}</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
-          <Collapsible
-            key={item.title}
-            open={Boolean(item.isActive) || Boolean(openGroups[item.title])}
-            onOpenChange={(open) =>
-              setOpenGroups((current) => ({
-                ...current,
-                [item.title]: open,
-              }))
-            }
-            className="group/collapsible"
-            render={<SidebarMenuItem />}
-          >
-            <CollapsibleTrigger
-              render={
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  isActive={item.isActive}
-                />
+        {items.map((item) => {
+          const isOpen = openGroups[item.title] ?? Boolean(item.isActive)
+
+          return (
+            <Collapsible
+              key={item.title}
+              open={isOpen}
+              onOpenChange={(open) =>
+                setOpenGroups((current) => ({
+                  ...current,
+                  [item.title]: open,
+                }))
               }
+              className="group/collapsible"
+              render={<SidebarMenuItem />}
             >
-              {item.icon}
-              <span>{item.title}</span>
-              <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarMenuSub>
-                {item.items?.map((subItem) => (
-                  <SidebarMenuSubItem key={subItem.title}>
-                    <SidebarMenuSubButton
-                      isActive={subItem.isActive}
-                      render={<Link href={subItem.url} />}
-                    >
-                      <span>{subItem.title}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                ))}
-              </SidebarMenuSub>
-            </CollapsibleContent>
-          </Collapsible>
-        ))}
+              <CollapsibleTrigger
+                render={
+                  <SidebarMenuButton
+                    tooltip={item.title}
+                    isActive={item.isActive}
+                  />
+                }
+              >
+                {item.icon}
+                <span>{item.title}</span>
+                <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-open/collapsible:rotate-90" />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarMenuSub>
+                  {item.items?.map((subItem) => (
+                    <SidebarMenuSubItem key={subItem.title}>
+                      <SidebarMenuSubButton
+                        isActive={subItem.isActive}
+                        render={<Link href={subItem.url} />}
+                      >
+                        <span>{subItem.title}</span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  ))}
+                </SidebarMenuSub>
+              </CollapsibleContent>
+            </Collapsible>
+          )
+        })}
       </SidebarMenu>
     </SidebarGroup>
   )

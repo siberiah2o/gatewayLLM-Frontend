@@ -15,21 +15,22 @@ type SignupBody = {
 }
 
 export async function POST(request: Request) {
+  let usesDefaultRegistrationWorkspace = false
+
   try {
     const body = (await request.json()) as SignupBody
 
-    if (
-      !body.workspace_id ||
-      !body.email ||
-      !body.password ||
-      !body.display_name
-    ) {
-      return badRequest("Workspace, name, email, and password are required.")
+    if (!body.email || !body.password || !body.display_name) {
+      return badRequest("Name, email, and password are required.")
     }
 
-    const requestPath = `/control/v1/workspaces/${encodeURIComponent(
-      body.workspace_id
-    )}/registration-requests`
+    const workspaceID = body.workspace_id?.trim()
+    const requestPath = workspaceID
+      ? `/control/v1/workspaces/${encodeURIComponent(
+          workspaceID
+        )}/registration-requests`
+      : "/control/v1/registration-requests"
+    usesDefaultRegistrationWorkspace = !workspaceID
 
     const registration = await gatewayRequest<RegistrationRequest>(
       requestPath,
@@ -50,6 +51,18 @@ export async function POST(request: Request) {
       error.status === 404 &&
       error.code === "not_found"
     ) {
+      if (usesDefaultRegistrationWorkspace) {
+        return NextResponse.json(
+          {
+            error: {
+              code: "no_registration_workspace",
+              message: "No active workspace is accepting registrations.",
+            },
+          },
+          { status: 404 }
+        )
+      }
+
       return NextResponse.json(
         {
           error: {
@@ -76,6 +89,23 @@ export async function POST(request: Request) {
           },
         },
         { status: 400 }
+      )
+    }
+
+    if (
+      error instanceof GatewayAPIError &&
+      error.status === 409 &&
+      error.code === "conflict"
+    ) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "registration_conflict",
+            message:
+              "Registration request already exists or user email is already in use.",
+          },
+        },
+        { status: 409 }
       )
     }
 

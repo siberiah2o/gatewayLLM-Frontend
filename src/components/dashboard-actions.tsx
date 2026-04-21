@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import {
+  CheckIcon,
   CopyIcon,
   EyeIcon,
   PencilIcon,
@@ -32,7 +33,22 @@ import {
   FieldLegend,
   FieldSet,
 } from "@/components/ui/field"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+} from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { useI18n } from "@/components/i18n-provider"
 import { normalizeLocale, translateKnownError } from "@/lib/i18n"
@@ -63,6 +79,11 @@ type ChatSmokeResponse = {
   }
   request_uid?: string
   response?: unknown
+}
+
+type DashboardSelectOption = {
+  label: string
+  value: string
 }
 
 export function CreateWorkspaceForm() {
@@ -196,7 +217,7 @@ export function CreateWorkspaceUserDialog({
             email: formData.get("member-email"),
             password: formData.get("member-password"),
             display_name: formData.get("member-name"),
-            role: formData.get("member-role"),
+            role: "member",
           }),
         }
       )
@@ -272,20 +293,6 @@ export function CreateWorkspaceUserDialog({
                 />
               </Field>
             </FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="member-role">{t("forms.role")}</FieldLabel>
-              <select
-                id="member-role"
-                name="member-role"
-                className={selectClassName}
-                defaultValue="member"
-                disabled={!canCreate || isPending}
-                required
-              >
-                <option value="member">{t("values.member")}</option>
-                <option value="admin">{t("values.admin")}</option>
-              </select>
-            </Field>
             <FieldError>{error}</FieldError>
           </FieldGroup>
           <DialogFooter className="mt-6">
@@ -372,7 +379,7 @@ export function CreateAPIKeyForm({
   }
 
   return (
-    <form className={cn("space-y-4", className)} onSubmit={handleSubmit}>
+    <form className={cn("flex flex-col gap-4", className)} onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="api-key-name">{t("forms.newApiKey")}</FieldLabel>
@@ -393,7 +400,7 @@ export function CreateAPIKeyForm({
         </Button>
         <FieldError>{error}</FieldError>
         {createdKey?.api_key ? (
-          <div className="space-y-2 rounded-lg border bg-muted/50 p-3 text-sm">
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/50 p-3 text-sm">
             <div className="font-medium">{t("forms.saveKeyNow")}</div>
             <Input readOnly value={createdKey.api_key} />
             <Button
@@ -461,7 +468,7 @@ export function RevokeAPIKeyButton({
         disabled={disabled || isPending}
         onClick={revoke}
       >
-        <Trash2Icon />
+        <Trash2Icon data-icon="inline-start" />
         {isPending ? t("actions.revoking") : t("actions.revoke")}
       </Button>
       {error ? (
@@ -576,7 +583,7 @@ export function ViewAPIKeyDialog({
           <DialogTitle>{displayName}</DialogTitle>
           <DialogDescription>{apiKeyID}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 text-sm">
+        <div className="flex flex-col gap-3 text-sm">
           {isPending ? (
             <div className="text-muted-foreground">{t("actions.loading")}</div>
           ) : error ? (
@@ -720,40 +727,45 @@ export function UpdateWorkspaceMemberForm({
   }
 
   return (
-    <form className="flex flex-wrap items-end justify-end gap-2" onSubmit={handleSubmit}>
-      <Field className="w-28">
-        <FieldLabel className="sr-only" htmlFor={`member-role-${member.user_id}`}>
-          {t("forms.role")}
-        </FieldLabel>
-        <select
+    <form
+      className="flex min-w-0 grow flex-wrap items-center justify-end gap-1.5"
+      onSubmit={handleSubmit}
+    >
+      <Field className="w-[7rem] shrink-0">
+        <DashboardFormSelect
           id={`member-role-${member.user_id}`}
           name="member-row-role"
-          className={selectClassName}
+          label={t("forms.role")}
+          labelClassName="sr-only"
           defaultValue={member.role === "admin" ? "admin" : "member"}
           disabled={!canUpdate || isPending}
           required
-        >
-          <option value="member">{t("values.member")}</option>
-          <option value="admin">{t("values.admin")}</option>
-        </select>
+          size="sm"
+          triggerClassName="min-w-[7rem]"
+          options={memberRoleOptions(t)}
+        />
       </Field>
-      <Field className="w-28">
-        <FieldLabel className="sr-only" htmlFor={`member-status-${member.user_id}`}>
-          {t("nav.status")}
-        </FieldLabel>
-        <select
+      <Field className="w-[7rem] shrink-0">
+        <DashboardFormSelect
           id={`member-status-${member.user_id}`}
           name="member-row-status"
-          className={selectClassName}
+          label={t("nav.status")}
+          labelClassName="sr-only"
           defaultValue={member.status === "inactive" ? "inactive" : "active"}
           disabled={!canUpdate || isPending}
           required
-        >
-          <option value="active">{t("values.active")}</option>
-          <option value="inactive">{t("values.inactive")}</option>
-        </select>
+          size="sm"
+          triggerClassName="min-w-[7rem]"
+          options={activeStatusOptions(t)}
+        />
       </Field>
-      <Button type="submit" size="sm" variant="outline" disabled={!canUpdate || isPending}>
+      <Button
+        type="submit"
+        size="xs"
+        variant="outline"
+        disabled={!canUpdate || isPending}
+      >
+        <CheckIcon data-icon="inline-start" />
         {isPending ? t("actions.saving") : t("actions.save")}
       </Button>
       {error ? (
@@ -821,10 +833,11 @@ export function RemoveWorkspaceMemberButton({
       <Button
         type="button"
         variant="destructive"
-        size="sm"
+        size="xs"
         disabled={disabled || isPending}
         onClick={remove}
       >
+        <Trash2Icon data-icon="inline-start" />
         {isPending ? t("actions.removing") : t("actions.remove")}
       </Button>
       {error ? (
@@ -890,28 +903,6 @@ export function EditWorkspaceUserDialog({
         )
       }
 
-      const memberResponse = await fetch(
-        `/api/control/workspaces/${encodeURIComponent(
-          workspaceId
-        )}/members/${encodeURIComponent(user.id)}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            role: formData.get("user-member-role"),
-            status: formData.get("user-member-status"),
-          }),
-        }
-      )
-
-      if (!memberResponse.ok) {
-        throw new Error(
-          await responseError(memberResponse, t("forms.updateMemberFailed"))
-        )
-      }
-
       setOpen(false)
       router.refresh()
     } catch (submitError) {
@@ -928,7 +919,7 @@ export function EditWorkspaceUserDialog({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             disabled={!canUpdate}
           />
         }
@@ -936,7 +927,7 @@ export function EditWorkspaceUserDialog({
         <PencilIcon data-icon="inline-start" />
         {t("actions.edit")}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{t("forms.editUser")}</DialogTitle>
           <DialogDescription>{user.email}</DialogDescription>
@@ -957,74 +948,26 @@ export function EditWorkspaceUserDialog({
             </Field>
             <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor={`user-status-${user.id}`}>
-                  {t("dashboard.userStatus")}
-                </FieldLabel>
-                <select
+                <DashboardFormSelect
                   id={`user-status-${user.id}`}
                   name="user-status"
-                  className={selectClassName}
+                  label={t("dashboard.userStatus")}
                   defaultValue={user.status === "inactive" ? "inactive" : "active"}
                   disabled={!canUpdate || isPending}
                   required
-                >
-                  <option value="active">{t("values.active")}</option>
-                  <option value="inactive">{t("values.inactive")}</option>
-                </select>
+                  options={activeStatusOptions(t)}
+                />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`user-email-verified-${user.id}`}>
-                  {t("dashboard.emailVerification")}
-                </FieldLabel>
-                <select
+                <DashboardFormSelect
                   id={`user-email-verified-${user.id}`}
                   name="user-email-verified"
-                  className={selectClassName}
+                  label={t("dashboard.emailVerification")}
                   defaultValue={user.email_verified ? "true" : "false"}
                   disabled={!canUpdate || isPending}
                   required
-                >
-                  <option value="true">{t("dashboard.verified")}</option>
-                  <option value="false">{t("dashboard.unverified")}</option>
-                </select>
-              </Field>
-            </FieldGroup>
-            <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor={`user-member-role-${user.id}`}>
-                  {t("forms.role")}
-                </FieldLabel>
-                <select
-                  id={`user-member-role-${user.id}`}
-                  name="user-member-role"
-                  className={selectClassName}
-                  defaultValue={user.role === "admin" ? "admin" : "member"}
-                  disabled={!canUpdate || isPending}
-                  required
-                >
-                  <option value="member">{t("values.member")}</option>
-                  <option value="admin">{t("values.admin")}</option>
-                </select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor={`user-member-status-${user.id}`}>
-                  {t("dashboard.workspaceStatus")}
-                </FieldLabel>
-                <select
-                  id={`user-member-status-${user.id}`}
-                  name="user-member-status"
-                  className={selectClassName}
-                  defaultValue={
-                    user.workspace_member_status === "inactive"
-                      ? "inactive"
-                      : "active"
-                  }
-                  disabled={!canUpdate || isPending}
-                  required
-                >
-                  <option value="active">{t("values.active")}</option>
-                  <option value="inactive">{t("values.inactive")}</option>
-                </select>
+                  options={emailVerificationOptions(t)}
+                />
               </Field>
             </FieldGroup>
             <FieldError>{error}</FieldError>
@@ -1097,7 +1040,7 @@ export function DeleteWorkspaceUserDialog({
           <Button
             type="button"
             variant="destructive"
-            size="sm"
+            size="xs"
             disabled={!canRemove || isPending}
           />
         }
@@ -1272,6 +1215,9 @@ export function ManageModelPermissionsDialog({
   }
 
   const knownModelIDs = new Set(modelCatalogs.map((modelCatalog) => modelCatalog.id))
+  const selectedVisibleCount = modelCatalogs.filter((modelCatalog) =>
+    selectedModelIDs.includes(modelCatalog.id)
+  ).length
   const hiddenSelectedCount = selectedModelIDs.filter(
     (id) => !knownModelIDs.has(id)
   ).length
@@ -1283,7 +1229,7 @@ export function ManageModelPermissionsDialog({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="xs"
             disabled={!canManage}
           />
         }
@@ -1291,85 +1237,119 @@ export function ManageModelPermissionsDialog({
         <ShieldCheckIcon data-icon="inline-start" />
         {t("forms.modelPermissions")}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>{t("forms.modelPermissions")}</DialogTitle>
-          <DialogDescription>{member.email}</DialogDescription>
+          <DialogDescription>
+            {member.display_name} · {member.email}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <FieldSet disabled={!canManage || isLoading || isPending}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <FieldLegend>{t("forms.allowedModels")}</FieldLegend>
-                  {hiddenSelectedCount > 0 ? (
-                    <FieldDescription>
-                      {t("forms.hiddenModelPermissions", {
-                        count: hiddenSelectedCount,
-                      })}
-                    </FieldDescription>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!canManage || isLoading || isPending}
-                    onClick={() =>
-                      setSelectedModelIDs(modelCatalogs.map((model) => model.id))
-                    }
-                  >
-                    {t("actions.selectAll")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!canManage || isLoading || isPending}
-                    onClick={() => setSelectedModelIDs([])}
-                  >
-                    {t("actions.clear")}
-                  </Button>
+              <div className="rounded-lg border bg-muted/35 p-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <FieldLegend className="mb-0">
+                      {t("forms.allowedModels")}
+                    </FieldLegend>
+                    <div className="mt-1 flex items-end gap-1">
+                      <span className="text-2xl font-medium">
+                        {selectedVisibleCount}
+                      </span>
+                      <span className="pb-0.5 text-sm text-muted-foreground">
+                        / {modelCatalogs.length}
+                      </span>
+                    </div>
+                    {hiddenSelectedCount > 0 ? (
+                      <FieldDescription className="mt-1">
+                        {t("forms.hiddenModelPermissions", {
+                          count: hiddenSelectedCount,
+                        })}
+                      </FieldDescription>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-lg border bg-background p-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      disabled={!canManage || isLoading || isPending}
+                      onClick={() =>
+                        setSelectedModelIDs(modelCatalogs.map((model) => model.id))
+                      }
+                    >
+                      {t("actions.selectAll")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      disabled={!canManage || isLoading || isPending}
+                      onClick={() => setSelectedModelIDs([])}
+                    >
+                      {t("actions.clear")}
+                    </Button>
+                  </div>
                 </div>
               </div>
-              {modelCatalogs.length > 0 ? (
-                <FieldGroup data-slot="checkbox-group">
-                  {modelCatalogs.map((modelCatalog) => {
-                    const checkboxID = `model-permission-${member.user_id}-${modelCatalog.id}`
-
-                    return (
-                      <Field
-                        key={modelCatalog.id}
-                        orientation="horizontal"
-                        className="rounded-lg border p-3"
-                      >
-                        <input
-                          id={checkboxID}
-                          type="checkbox"
-                          className="mt-0.5 size-4 shrink-0 accent-primary"
-                          checked={selectedModelIDs.includes(modelCatalog.id)}
-                          disabled={!canManage || isLoading || isPending}
-                          onChange={(event) =>
-                            toggleModel(modelCatalog.id, event.target.checked)
-                          }
-                        />
-                        <FieldContent>
-                          <FieldLabel htmlFor={checkboxID}>
-                            {modelCatalog.canonical_name}
-                          </FieldLabel>
-                          <FieldDescription>
-                            {modelCatalog.provider} - {modelCatalog.id}
-                          </FieldDescription>
-                        </FieldContent>
-                      </Field>
-                    )
-                  })}
-                </FieldGroup>
-              ) : (
-                <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                  {t("forms.noModelCatalogsForPermissions")}
+              {isLoading ? (
+                <div className="grid gap-2">
+                  {Array.from({ length: 4 }).map((_, index) => (
+                    <Skeleton key={index} className="h-[4.5rem] rounded-lg" />
+                  ))}
                 </div>
+              ) : modelCatalogs.length > 0 ? (
+                <div className="max-h-[24rem] overflow-auto pr-1">
+                  <FieldGroup data-slot="checkbox-group" className="gap-2">
+                    {modelCatalogs.map((modelCatalog) => {
+                      const checkboxID = `model-permission-${member.user_id}-${modelCatalog.id}`
+                      const isSelected = selectedModelIDs.includes(modelCatalog.id)
+
+                      return (
+                        <Field
+                          key={modelCatalog.id}
+                          orientation="horizontal"
+                          className={cn(
+                            "rounded-lg border bg-background p-3 transition-colors",
+                            isSelected &&
+                              "border-primary/30 bg-primary/5 dark:border-primary/20 dark:bg-primary/10"
+                          )}
+                        >
+                          <input
+                            id={checkboxID}
+                            type="checkbox"
+                            className="mt-0.5 size-4 shrink-0 accent-primary"
+                            checked={isSelected}
+                            disabled={!canManage || isLoading || isPending}
+                            onChange={(event) =>
+                              toggleModel(modelCatalog.id, event.target.checked)
+                            }
+                          />
+                          <FieldContent>
+                            <FieldLabel htmlFor={checkboxID}>
+                              {modelCatalog.canonical_name}
+                            </FieldLabel>
+                            <FieldDescription>
+                              {modelCatalog.provider} - {modelCatalog.id}
+                            </FieldDescription>
+                          </FieldContent>
+                        </Field>
+                      )
+                    })}
+                  </FieldGroup>
+                </div>
+              ) : (
+                <Empty className="min-h-40 rounded-lg border">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <ShieldCheckIcon />
+                    </EmptyMedia>
+                    <EmptyDescription>
+                      {t("forms.noModelCatalogsForPermissions")}
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               )}
             </FieldSet>
             <FieldError>{error}</FieldError>
@@ -1441,7 +1421,7 @@ function DeactivateResourceButton({
       <Button
         type="button"
         variant="outline"
-        size="sm"
+        size="xs"
         disabled={disabled || isPending}
         onClick={deactivate}
       >
@@ -1522,7 +1502,7 @@ export function ReviewRegistrationRequestActions({
       <div className="flex items-center gap-2">
         <Button
           type="button"
-          size="sm"
+          size="xs"
           disabled={!!action}
           onClick={() => review("approve")}
         >
@@ -1531,7 +1511,7 @@ export function ReviewRegistrationRequestActions({
         <Button
           type="button"
           variant="outline"
-          size="sm"
+          size="xs"
           disabled={!!action}
           onClick={() => review("reject")}
         >
@@ -1862,40 +1842,32 @@ export function CreateModelDeploymentForm({
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field>
-            <FieldLabel htmlFor="model-catalog-id">
-              {t("forms.modelCatalog")}
-            </FieldLabel>
-            <select
+            <DashboardFormSelect
               id="model-catalog-id"
               name="model-catalog-id"
-              className={selectClassName}
+              label={t("forms.modelCatalog")}
+              defaultValue={modelCatalogs[0]?.id}
               disabled={!canCreate}
               required
-            >
-              {modelCatalogs.map((modelCatalog) => (
-                <option key={modelCatalog.id} value={modelCatalog.id}>
-                  {modelCatalog.canonical_name}
-                </option>
-              ))}
-            </select>
+              options={modelCatalogs.map((modelCatalog) => ({
+                label: modelCatalog.canonical_name,
+                value: modelCatalog.id,
+              }))}
+            />
           </Field>
           <Field>
-            <FieldLabel htmlFor="credential-id">
-              {t("forms.credential")}
-            </FieldLabel>
-            <select
+            <DashboardFormSelect
               id="credential-id"
               name="credential-id"
-              className={selectClassName}
+              label={t("forms.credential")}
+              defaultValue={providerCredentials[0]?.id}
               disabled={!canCreate}
               required
-            >
-              {providerCredentials.map((credential) => (
-                <option key={credential.id} value={credential.id}>
-                  {credential.credential_name}
-                </option>
-              ))}
-            </select>
+              options={providerCredentials.map((credential) => ({
+                label: credential.credential_name,
+                value: credential.id,
+              }))}
+            />
           </Field>
         </div>
         <Field>
@@ -2016,7 +1988,7 @@ export function EditModelDeploymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button type="button" variant="outline" size="sm" />}>
+      <DialogTrigger render={<Button type="button" variant="outline" size="xs" />}>
         {t("actions.edit")}
       </DialogTrigger>
       <DialogContent className="sm:max-w-2xl">
@@ -2039,40 +2011,30 @@ export function EditModelDeploymentDialog({
             </Field>
             <div className="grid gap-3 sm:grid-cols-2">
               <Field>
-                <FieldLabel htmlFor={`edit-model-catalog-id-${deployment.id}`}>
-                  {t("forms.modelCatalog")}
-                </FieldLabel>
-                <select
+                <DashboardFormSelect
                   id={`edit-model-catalog-id-${deployment.id}`}
                   name="edit-model-catalog-id"
-                  className={selectClassName}
+                  label={t("forms.modelCatalog")}
                   defaultValue={deployment.model_catalog_id}
                   required
-                >
-                  {modelCatalogs.map((modelCatalog) => (
-                    <option key={modelCatalog.id} value={modelCatalog.id}>
-                      {modelCatalog.canonical_name}
-                    </option>
-                  ))}
-                </select>
+                  options={modelCatalogs.map((modelCatalog) => ({
+                    label: modelCatalog.canonical_name,
+                    value: modelCatalog.id,
+                  }))}
+                />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`edit-credential-id-${deployment.id}`}>
-                  {t("forms.credential")}
-                </FieldLabel>
-                <select
+                <DashboardFormSelect
                   id={`edit-credential-id-${deployment.id}`}
                   name="edit-credential-id"
-                  className={selectClassName}
+                  label={t("forms.credential")}
                   defaultValue={deployment.credential_id}
                   required
-                >
-                  {providerCredentials.map((credential) => (
-                    <option key={credential.id} value={credential.id}>
-                      {credential.credential_name}
-                    </option>
-                  ))}
-                </select>
+                  options={providerCredentials.map((credential) => ({
+                    label: credential.credential_name,
+                    value: credential.id,
+                  }))}
+                />
               </Field>
             </div>
             <Field>
@@ -2126,19 +2088,14 @@ export function EditModelDeploymentDialog({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor={`edit-status-${deployment.id}`}>
-                  {t("nav.status")}
-                </FieldLabel>
-                <select
+                <DashboardFormSelect
                   id={`edit-status-${deployment.id}`}
                   name="edit-status"
-                  className={selectClassName}
+                  label={t("nav.status")}
                   defaultValue={deployment.status}
                   required
-                >
-                  <option value="active">{t("values.active")}</option>
-                  <option value="inactive">{t("values.inactive")}</option>
-                </select>
+                  options={activeStatusOptions(t)}
+                />
               </Field>
             </div>
             <FieldError>{error}</FieldError>
@@ -2315,11 +2272,85 @@ export function ChatSmokeTestForm({ defaultModel }: { defaultModel: string }) {
   )
 }
 
-const selectClassName = cn(
-  "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm outline-none",
-  "focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-  "disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50"
-)
+function DashboardFormSelect({
+  id,
+  name,
+  label,
+  options,
+  defaultValue,
+  disabled,
+  required,
+  size = "default",
+  labelClassName,
+  triggerClassName,
+}: {
+  id: string
+  name: string
+  label: string
+  options: DashboardSelectOption[]
+  defaultValue?: string
+  disabled?: boolean
+  required?: boolean
+  size?: "default" | "sm"
+  labelClassName?: string
+  triggerClassName?: string
+}) {
+  const labelId = `${id}-label`
+
+  return (
+    <>
+      <FieldLabel id={labelId} className={labelClassName}>
+        {label}
+      </FieldLabel>
+      <Select
+        name={name}
+        items={options}
+        defaultValue={defaultValue ?? null}
+        disabled={disabled}
+        required={required}
+      >
+        <SelectTrigger
+          id={id}
+          aria-labelledby={labelId}
+          size={size}
+          className={cn("w-full", triggerClassName)}
+        >
+          <SelectValue placeholder={label} />
+        </SelectTrigger>
+        <SelectContent align="start">
+          <SelectGroup>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </>
+  )
+}
+
+function memberRoleOptions(t: ReturnType<typeof useI18n>["t"]) {
+  return [
+    { value: "member", label: t("values.member") },
+    { value: "admin", label: t("values.admin") },
+  ]
+}
+
+function activeStatusOptions(t: ReturnType<typeof useI18n>["t"]) {
+  return [
+    { value: "active", label: t("values.active") },
+    { value: "inactive", label: t("values.inactive") },
+  ]
+}
+
+function emailVerificationOptions(t: ReturnType<typeof useI18n>["t"]) {
+  return [
+    { value: "true", label: t("dashboard.verified") },
+    { value: "false", label: t("dashboard.unverified") },
+  ]
+}
 
 async function responseError(response: Response, fallback: string) {
   const payload = (await response.json().catch(() => null)) as ErrorPayload | null

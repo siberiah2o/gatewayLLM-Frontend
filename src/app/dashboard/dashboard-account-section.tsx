@@ -1,8 +1,6 @@
 import {
   Card,
-  CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import {
@@ -16,8 +14,15 @@ import {
 } from "lucide-react"
 import type { ReactNode } from "react"
 
-import { StatusBadge, localizeValue } from "../dashboard-ui"
-import type { DashboardSectionContentProps } from "./types"
+import {
+  DashboardMonoDetailText,
+  DashboardPanelContent,
+  DashboardPanelHeader,
+  DashboardSummaryGrid,
+  DashboardSummaryTile,
+  localizeValue,
+} from "./dashboard-ui"
+import type { DashboardSectionContentProps } from "./dashboard-section-types"
 
 export function AccountSection({ t, user }: DashboardSectionContentProps) {
   const displayName = user.display_name || user.email
@@ -29,35 +34,38 @@ export function AccountSection({ t, user }: DashboardSectionContentProps) {
   return (
     <section className="grid gap-4">
       <Card id="account">
-        <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-md bg-primary text-xl font-semibold text-primary-foreground">
-              {accountInitials(displayName, user.email)}
-            </div>
-            <div className="min-w-0">
-              <h2 className="truncate font-heading text-xl font-semibold">
-                {t("dashboard.signedInUser")}
-              </h2>
-              <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2 md:justify-end">
-            <StatusBadge>{status}</StatusBadge>
-            <StatusBadge>{verification}</StatusBadge>
-          </div>
-        </CardContent>
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={
+              <span className="text-xs font-semibold">
+                {accountInitials(displayName, user.email)}
+              </span>
+            }
+            label={t("dashboard.signedInUser")}
+            value={displayName}
+            detail={user.email}
+            size="default"
+          />
+          <DashboardSummaryTile
+            icon={<ShieldCheckIcon className="size-4" />}
+            label={t("dashboard.accountSecurity")}
+            value={status}
+            detail={verification}
+            size="default"
+          />
+        </DashboardSummaryGrid>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
-          <CardHeader className="border-b">
+          <DashboardPanelHeader>
             <CardTitle className="flex items-center gap-2">
               <UserRoundIcon className="size-4 text-muted-foreground" />
               {t("dashboard.accountIdentity")}
             </CardTitle>
             <CardDescription>{displayName}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm">
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
             <AccountDetail
               icon={<UserRoundIcon className="size-4" />}
               label={t("dashboard.name")}
@@ -72,19 +80,20 @@ export function AccountSection({ t, user }: DashboardSectionContentProps) {
               icon={<FingerprintIcon className="size-4" />}
               label={t("dashboard.accountId")}
               value={user.id}
+              valueClassName="font-mono text-sm tabular-nums text-muted-foreground"
             />
-          </CardContent>
+          </DashboardPanelContent>
         </Card>
 
         <div className="grid gap-4">
           <Card>
-            <CardHeader className="border-b">
+            <DashboardPanelHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheckIcon className="size-4 text-muted-foreground" />
                 {t("dashboard.accountSecurity")}
               </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
+            </DashboardPanelHeader>
+            <DashboardPanelContent>
               <AccountDetail
                 icon={<BadgeCheckIcon className="size-4" />}
                 label={t("nav.status")}
@@ -95,28 +104,30 @@ export function AccountSection({ t, user }: DashboardSectionContentProps) {
                 label={t("dashboard.emailVerification")}
                 value={verification}
               />
-            </CardContent>
+            </DashboardPanelContent>
           </Card>
 
           <Card>
-            <CardHeader className="border-b">
+            <DashboardPanelHeader>
               <CardTitle className="flex items-center gap-2">
                 <CalendarClockIcon className="size-4 text-muted-foreground" />
                 {t("dashboard.accountTimeline")}
               </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
+            </DashboardPanelHeader>
+            <DashboardPanelContent>
               <AccountDetail
                 icon={<CalendarClockIcon className="size-4" />}
                 label={t("dashboard.createdAt")}
                 value={formatAccountDate(user.created_at, t("dashboard.notSet"))}
+                valueClassName="font-mono text-sm tabular-nums text-foreground/80"
               />
               <AccountDetail
                 icon={<Clock3Icon className="size-4" />}
                 label={t("dashboard.updatedAt")}
                 value={formatAccountDate(user.updated_at, t("dashboard.notSet"))}
+                valueClassName="font-mono text-sm tabular-nums text-foreground/80"
               />
-            </CardContent>
+            </DashboardPanelContent>
           </Card>
         </div>
       </div>
@@ -128,10 +139,12 @@ function AccountDetail({
   icon,
   label,
   value,
+  valueClassName,
 }: {
   icon: ReactNode
   label: string
   value: string
+  valueClassName?: string
 }) {
   return (
     <div className="grid min-h-14 grid-cols-[2rem_minmax(0,1fr)] items-center gap-3 border-b py-3 last:border-b-0">
@@ -140,7 +153,13 @@ function AccountDetail({
       </div>
       <div className="min-w-0">
         <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="truncate font-medium">{value}</div>
+        {valueClassName ? (
+          <DashboardMonoDetailText className={valueClassName}>
+            {value}
+          </DashboardMonoDetailText>
+        ) : (
+          <div className="truncate font-medium">{value}</div>
+        )}
       </div>
     </div>
   )

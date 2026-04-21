@@ -6,96 +6,55 @@ import {
   CreateProviderCredentialForm,
   CreateWorkspaceForm,
   CreateWorkspaceUserDialog,
-  RevokeAPIKeyButton,
-  ViewAPIKeyDialog,
 } from "@/components/dashboard-actions"
 import {
   Card,
   CardAction,
-  CardContent,
   CardDescription,
-  CardHeader,
   CardTitle,
 } from "@/components/ui/card"
 import {
-  Building2Icon,
+  BotIcon,
+  ClipboardListIcon,
   KeyRoundIcon,
+  MessageSquareTextIcon,
   ShieldCheckIcon,
+  UserCheckIcon,
+  UserPlusIcon,
+  UsersRoundIcon,
 } from "lucide-react"
 import type { ReactNode } from "react"
-import type {
-  APIKey,
-  APIKeyList,
-  Balance,
-  DailyUsageList,
-  HealthResponse,
-  ModelCatalog,
-  ModelCatalogList,
-  ModelDeployment,
-  ModelDeploymentList,
-  ProviderCredential,
-  ProviderCredentialList,
-  ReadyResponse,
-  RegistrationRequestList,
-  SessionUser,
-  User,
-  UserList,
-  Workspace,
-  WorkspaceList,
-  WorkspaceMember,
-  WorkspaceMemberList,
-} from "@/lib/gatewayllm"
-import type { Settled } from "./dashboard-data"
-import type { DashboardSection } from "./dashboard-routes"
 import {
+  DashboardDetailText,
+  DashboardMonoDetailText,
+  DashboardPanelContent,
+  DashboardPanelHeader,
+  DashboardRow,
+  DashboardStackContent,
+  DashboardSummaryGrid,
+  DashboardSummaryTile,
+  DashboardSidebarCard,
+  DashboardTableList,
+  DashboardWorkspaceScopeTile,
   EmptyState,
   MetricCard,
   StatusBadge,
   WorkspaceRow,
+  getWorkspaceScope,
   localizeValue,
-  type Translator,
 } from "./dashboard-ui"
 import {
+  APIKeyRow,
   ModelCatalogRow,
   ModelDeploymentRow,
   ProviderCredentialRow,
   RegistrationRequestRow,
   WorkspaceMemberRow,
 } from "./dashboard-rows"
-import { AccountSection } from "./sections/account-section"
+import { AccountSection } from "./dashboard-account-section"
+import type { Settled } from "./dashboard-data"
+import type { DashboardSectionContentProps } from "./dashboard-section-types"
 import { WorkspaceUsersTable } from "./workspace-user-row"
-
-type DashboardSectionContentProps = {
-  section: DashboardSection
-  t: Translator
-  user: SessionUser
-  activeWorkspace?: Workspace
-  workspaceList: Workspace[]
-  workspaces: Settled<WorkspaceList>
-  health: Settled<HealthResponse>
-  ready: Settled<ReadyResponse>
-  balance: Settled<Balance>
-  apiKeys: Settled<APIKeyList>
-  dailyUsage: Settled<DailyUsageList>
-  workspaceUsers: Settled<UserList>
-  workspaceUserList: User[]
-  workspaceMembers: Settled<WorkspaceMemberList>
-  workspaceMemberList: WorkspaceMember[]
-  registrationRequests: Settled<RegistrationRequestList>
-  modelCatalogs: Settled<ModelCatalogList>
-  modelCatalogList: ModelCatalog[]
-  providerCredentials: Settled<ProviderCredentialList>
-  providerCredentialList: ProviderCredential[]
-  modelDeployments: Settled<ModelDeploymentList>
-  modelDeploymentList: ModelDeployment[]
-  chatSmokeModel: string
-  showUserManagement: boolean
-  showMemberManagement: boolean
-  showRegistration: boolean
-  showModelCatalogManagement: boolean
-  showProviderCredentialManagement: boolean
-  showModelDeploymentManagement: boolean
-}
 
 export function DashboardSectionContent(props: DashboardSectionContentProps) {
   switch (props.section) {
@@ -126,6 +85,55 @@ export function DashboardSectionContent(props: DashboardSectionContentProps) {
   }
 }
 
+function getSettledMessage<T>(result: Settled<T>, successMessage: string) {
+  return result.ok ? successMessage : result.error
+}
+
+function DashboardSettledMetric<T>({
+  label,
+  result,
+  value,
+  detail,
+  fallbackValue,
+}: {
+  label: string
+  result: Settled<T>
+  value: (data: T) => string
+  detail: string | ((data: T) => string)
+  fallbackValue: string
+}) {
+  return (
+    <MetricCard
+      label={label}
+      value={result.ok ? value(result.data) : fallbackValue}
+      detail={
+        result.ok
+          ? typeof detail === "function"
+            ? detail(result.data)
+            : detail
+          : result.error
+      }
+    />
+  )
+}
+
+function DashboardSettledEmptyState<T>({
+  result,
+  emptyMessage,
+  icon,
+}: {
+  result: Settled<T>
+  emptyMessage: string
+  icon?: ReactNode
+}) {
+  return (
+    <EmptyState
+      message={getSettledMessage(result, emptyMessage)}
+      icon={icon}
+    />
+  )
+}
+
 function StatusSection({
   t,
   health,
@@ -147,83 +155,69 @@ function StatusSection({
       id="status"
       className="grid auto-rows-min gap-4 md:grid-cols-3 xl:grid-cols-7"
     >
-      <MetricCard
+      <DashboardSettledMetric
         label={t("dashboard.httpServer")}
-        value={
-          health.ok ? localizeValue(t, health.data.status) : t("dashboard.offline")
-        }
-        detail={health.ok ? health.data.service : health.error}
+        result={health}
+        value={(data) => localizeValue(t, data.status)}
+        detail={(data) => data.service}
+        fallbackValue={t("dashboard.offline")}
       />
-      <MetricCard
+      <DashboardSettledMetric
         label={t("dashboard.readiness")}
-        value={
-          ready.ok ? localizeValue(t, ready.data.status) : t("dashboard.unknown")
-        }
-        detail={ready.ok ? "readyz" : ready.error}
+        result={ready}
+        value={(data) => localizeValue(t, data.status)}
+        detail="readyz"
+        fallbackValue={t("dashboard.unknown")}
       />
-      <MetricCard
+      <DashboardSettledMetric
         label={t("dashboard.workspaces")}
-        value={String(workspaceList.length)}
-        detail={workspaces.ok ? t("dashboard.visibleToSession") : workspaces.error}
+        result={workspaces}
+        value={() => String(workspaceList.length)}
+        detail={t("dashboard.visibleToSession")}
+        fallbackValue={String(workspaceList.length)}
       />
       {showRegistration ? (
-        <MetricCard
+        <DashboardSettledMetric
           label={t("dashboard.pendingSignups")}
-          value={
-            registrationRequests.ok
-              ? String(registrationRequests.data.data.length)
-              : "0"
-          }
-          detail={
-            registrationRequests.ok
-              ? t("dashboard.registrationRequests")
-              : registrationRequests.error
-          }
+          result={registrationRequests}
+          value={(data) => String(data.data.length)}
+          detail={t("dashboard.registrationRequests")}
+          fallbackValue="0"
         />
       ) : null}
       {showUserManagement ? (
-        <MetricCard
+        <DashboardSettledMetric
           label={t("dashboard.users")}
-          value={
-            workspaceUsers.ok ? String(workspaceUsers.data.data.length) : "0"
-          }
-          detail={
-            workspaceUsers.ok
-              ? t("dashboard.workspaceUsers")
-              : workspaceUsers.error
-          }
+          result={workspaceUsers}
+          value={(data) => String(data.data.length)}
+          detail={t("dashboard.workspaceUsers")}
+          fallbackValue="0"
         />
       ) : null}
       {showMemberManagement ? (
-        <MetricCard
+        <DashboardSettledMetric
           label={t("dashboard.members")}
-          value={
-            workspaceMembers.ok ? String(workspaceMembers.data.data.length) : "0"
-          }
-          detail={
-            workspaceMembers.ok
-              ? t("dashboard.workspaceMembers")
-              : workspaceMembers.error
-          }
+          result={workspaceMembers}
+          value={(data) => String(data.data.length)}
+          detail={t("dashboard.workspaceMembers")}
+          fallbackValue="0"
         />
       ) : null}
       {showModelDeploymentManagement ? (
-        <MetricCard
+        <DashboardSettledMetric
           label={t("dashboard.deployments")}
-          value={
-            modelDeployments.ok ? String(modelDeployments.data.data.length) : "0"
-          }
-          detail={
-            modelDeployments.ok
-              ? t("dashboard.activeModels")
-              : modelDeployments.error
-          }
+          result={modelDeployments}
+          value={(data) => String(data.data.length)}
+          detail={t("dashboard.activeModels")}
+          fallbackValue="0"
         />
       ) : null}
-      <MetricCard
+      <DashboardSettledMetric
         label={t("dashboard.monthSpend")}
-        value={balance.ok ? `$${balance.data.month_to_date_spend_usd}` : "$0"}
-        detail={balance.ok ? t("dashboard.monthToDate") : balance.error}
+        result={balance}
+        value={(data) => `$${data.month_to_date_spend_usd}`}
+        detail={t("dashboard.monthToDate")}
+        fallbackValue="$0"
       />
     </section>
   )
@@ -234,13 +228,13 @@ function WorkspacesSection({
   workspaceList,
 }: DashboardSectionContentProps) {
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="workspaces">
-        <CardHeader>
+        <DashboardPanelHeader>
           <CardTitle>{t("dashboard.workspaces")}</CardTitle>
           <CardDescription>{t("dashboard.workspacesDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        </DashboardPanelHeader>
+        <DashboardStackContent>
           <CreateWorkspaceForm />
           {workspaceList.length > 0 ? (
             workspaceList.map((workspace) => (
@@ -249,7 +243,7 @@ function WorkspacesSection({
           ) : (
             <EmptyState message={t("dashboard.noWorkspaces")} />
           )}
-        </CardContent>
+        </DashboardStackContent>
       </Card>
     </section>
   )
@@ -260,35 +254,58 @@ function UsersSection({
   activeWorkspace,
   workspaceUsers,
   workspaceUserList,
-  modelCatalogList,
 }: DashboardSectionContentProps) {
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
+
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="users">
-        <CardHeader>
-          <CardTitle>{t("dashboard.usersTitle")}</CardTitle>
-          <CardDescription>{t("dashboard.usersDescription")}</CardDescription>
-          <CardAction>
-            <CreateWorkspaceUserDialog workspaceId={activeWorkspace?.id} />
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          {workspaceUsers.ok && workspaceUserList.length > 0 ? (
-            <WorkspaceUsersTable
-              users={workspaceUserList}
-              workspaceId={activeWorkspace?.id}
-              modelCatalogs={modelCatalogList}
-              t={t}
-            />
-          ) : (
-            <EmptyState
-              message={
-                workspaceUsers.ok ? t("dashboard.noUsers") : workspaceUsers.error
-              }
-            />
-          )}
-        </CardContent>
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<UsersRoundIcon className="size-4" />}
+            label={t("dashboard.users")}
+            value={String(workspaceUserList.length)}
+            detail={getSettledMessage(workspaceUsers, t("dashboard.workspaceUsers"))}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
       </Card>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Card>
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.usersTitle")}</CardTitle>
+            <CardAction>
+              <StatusBadge>{String(workspaceUserList.length)}</StatusBadge>
+            </CardAction>
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
+            {workspaceUsers.ok && workspaceUserList.length > 0 ? (
+              <WorkspaceUsersTable
+                users={workspaceUserList}
+                workspaceId={activeWorkspace?.id}
+                t={t}
+              />
+            ) : (
+              <DashboardSettledEmptyState
+                result={workspaceUsers}
+                emptyMessage={t("dashboard.noUsers")}
+              />
+            )}
+          </DashboardPanelContent>
+        </Card>
+
+        <DashboardSidebarCard
+          title={t("forms.createUser")}
+          description={workspaceScope.label}
+          icon={<UserPlusIcon className="size-4 text-muted-foreground" />}
+        >
+            <CreateWorkspaceUserDialog workspaceId={activeWorkspace?.id} />
+            <div className="text-sm text-muted-foreground">
+              {t("dashboard.usersDescription")}
+            </div>
+        </DashboardSidebarCard>
+      </div>
     </section>
   )
 }
@@ -300,34 +317,58 @@ function MembersSection({
   workspaceMemberList,
   modelCatalogList,
 }: DashboardSectionContentProps) {
+  const activeMemberCount = workspaceMemberList.filter(
+    (member) => member.status === "active"
+  ).length
+
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="members">
-        <CardHeader>
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<UserCheckIcon className="size-4" />}
+            label={t("dashboard.members")}
+            value={String(activeMemberCount)}
+            detail={getSettledMessage(workspaceMembers, t("dashboard.workspaceMembers"))}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
+      </Card>
+      <Card>
+        <DashboardPanelHeader>
           <CardTitle>{t("dashboard.membersTitle")}</CardTitle>
-          <CardDescription>{t("dashboard.membersDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+          <CardAction>
+            <StatusBadge>{String(workspaceMemberList.length)}</StatusBadge>
+          </CardAction>
+        </DashboardPanelHeader>
+        <DashboardPanelContent>
           {workspaceMembers.ok && workspaceMemberList.length > 0 ? (
-            workspaceMemberList.map((member) => (
-              <WorkspaceMemberRow
-                key={member.user_id}
-                member={member}
-                workspaceId={activeWorkspace?.id}
-                modelCatalogs={modelCatalogList}
-                t={t}
-              />
-            ))
+            <DashboardTableList
+              className="xl:grid-cols-[minmax(12rem,1fr)_5rem_minmax(12rem,0.7fr)_minmax(26rem,1fr)]"
+              columns={[
+                { label: t("dashboard.name") },
+                { label: t("forms.role") },
+                { label: t("nav.status") },
+                { label: t("dashboard.actions"), className: "text-right" },
+              ]}
+            >
+              {workspaceMemberList.map((member) => (
+                <WorkspaceMemberRow
+                  key={member.user_id}
+                  member={member}
+                  workspaceId={activeWorkspace?.id}
+                  modelCatalogs={modelCatalogList}
+                  t={t}
+                />
+              ))}
+            </DashboardTableList>
           ) : (
-            <EmptyState
-              message={
-                workspaceMembers.ok
-                  ? t("dashboard.noMembers")
-                  : workspaceMembers.error
-              }
+            <DashboardSettledEmptyState
+              result={workspaceMembers}
+              emptyMessage={t("dashboard.noMembers")}
             />
           )}
-        </CardContent>
+        </DashboardPanelContent>
       </Card>
     </section>
   )
@@ -335,33 +376,63 @@ function MembersSection({
 
 function RegistrationSection({
   t,
+  activeWorkspace,
   registrationRequests,
 }: DashboardSectionContentProps) {
+  const registrationRequestList = registrationRequests.ok
+    ? registrationRequests.data.data
+    : []
+
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="registration">
-        <CardHeader>
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<ClipboardListIcon className="size-4" />}
+            label={t("dashboard.registrationTitle")}
+            value={String(registrationRequestList.length)}
+            detail={getSettledMessage(
+              registrationRequests,
+              t("dashboard.registrationRequests")
+            )}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
+      </Card>
+
+      <Card>
+        <DashboardPanelHeader>
           <CardTitle>{t("dashboard.registrationTitle")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.registrationDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {registrationRequests.ok &&
-          registrationRequests.data.data.length > 0 ? (
-            registrationRequests.data.data.map((request) => (
-              <RegistrationRequestRow key={request.id} request={request} />
-            ))
+          <CardAction>
+            <StatusBadge>{String(registrationRequestList.length)}</StatusBadge>
+          </CardAction>
+        </DashboardPanelHeader>
+        <DashboardPanelContent>
+          {registrationRequests.ok && registrationRequestList.length > 0 ? (
+            <DashboardTableList
+              className="xl:grid-cols-[minmax(12rem,1fr)_minmax(0,1fr)_minmax(12rem,0.8fr)_auto]"
+              columns={[
+                { label: t("dashboard.name") },
+                { label: t("dashboard.email") },
+                { label: t("dashboard.createdAt") },
+                { label: t("dashboard.actions"), className: "text-right" },
+              ]}
+            >
+              {registrationRequestList.map((request) => (
+                <RegistrationRequestRow
+                  key={request.id}
+                  request={request}
+                  t={t}
+                />
+              ))}
+            </DashboardTableList>
           ) : (
-            <EmptyState
-              message={
-                registrationRequests.ok
-                  ? t("dashboard.noRegistration")
-                  : registrationRequests.error
-              }
+            <DashboardSettledEmptyState
+              result={registrationRequests}
+              emptyMessage={t("dashboard.noRegistration")}
             />
           )}
-        </CardContent>
+        </DashboardPanelContent>
       </Card>
     </section>
   )
@@ -376,193 +447,68 @@ function ApiKeysSection({
   const activeKeyCount = apiKeyList.filter(
     (apiKey) => apiKey.status === "active"
   ).length
-  const workspaceLabel =
-    activeWorkspace?.name ?? t("dashboard.noWorkspaceAvailable")
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
 
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="api-keys">
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          <ApiKeySummary
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
             icon={<ShieldCheckIcon className="size-4" />}
             label={t("dashboard.activeApiKeys")}
             value={String(activeKeyCount)}
-            detail={apiKeys.ok ? t("dashboard.apiKeysListTitle") : apiKeys.error}
+            detail={getSettledMessage(apiKeys, t("dashboard.apiKeysListTitle"))}
           />
-          <ApiKeySummary
-            icon={<Building2Icon className="size-4" />}
-            label={t("dashboard.workspaceScope")}
-            value={workspaceLabel}
-            detail={activeWorkspace?.id ?? t("dashboard.notSet")}
-          />
-        </CardContent>
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
-          <CardHeader className="border-b">
+          <DashboardPanelHeader>
             <CardTitle>{t("dashboard.apiKeysListTitle")}</CardTitle>
             <CardAction>
               <StatusBadge>{String(apiKeyList.length)}</StatusBadge>
             </CardAction>
-          </CardHeader>
-          <CardContent className="text-sm">
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
             {apiKeyList.length > 0 ? (
-              <div className="space-y-3">
-                <div className="hidden xl:grid xl:grid-cols-[minmax(10rem,0.95fr)_minmax(0,1.2fr)_minmax(12rem,0.95fr)_minmax(10rem,0.85fr)_6rem] xl:gap-4 xl:px-4 xl:text-[0.72rem] xl:font-medium xl:text-muted-foreground">
-                  <div>{t("dashboard.nickname")}</div>
-                  <div>{t("dashboard.apiKeyId")}</div>
-                  <div>{t("dashboard.createdAt")}</div>
-                  <div>{t("dashboard.lastUsedAt")}</div>
-                  <div className="text-right">{t("dashboard.actions")}</div>
-                </div>
+              <DashboardTableList
+                className="xl:grid-cols-[minmax(10rem,0.95fr)_minmax(0,1.2fr)_minmax(12rem,0.95fr)_minmax(10rem,0.85fr)_auto]"
+                columns={[
+                  { label: t("dashboard.name") },
+                  { label: t("dashboard.apiKeyId") },
+                  { label: t("dashboard.createdAt") },
+                  { label: t("dashboard.lastUsedAt") },
+                  {
+                    label: t("dashboard.actions"),
+                    className: "text-right",
+                  },
+                ]}
+              >
                 {apiKeyList.map((apiKey) => (
                   <APIKeyRow key={apiKey.id} apiKey={apiKey} t={t} />
                 ))}
-              </div>
+              </DashboardTableList>
             ) : (
-              <EmptyState
-                message={apiKeys.ok ? t("dashboard.noApiKeys") : apiKeys.error}
+              <DashboardSettledEmptyState
+                result={apiKeys}
+                emptyMessage={t("dashboard.noApiKeys")}
               />
             )}
-          </CardContent>
+          </DashboardPanelContent>
         </Card>
 
-        <Card>
-          <CardHeader className="border-b">
-            <CardTitle className="flex items-center gap-2">
-              <KeyRoundIcon className="size-4 text-muted-foreground" />
-              {t("dashboard.createApiKeyTitle")}
-            </CardTitle>
-            <CardDescription>{workspaceLabel}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <CreateAPIKeyForm workspaceId={activeWorkspace?.id} />
-          </CardContent>
-        </Card>
+        <DashboardSidebarCard
+          title={t("dashboard.createApiKeyTitle")}
+          description={workspaceScope.label}
+          icon={<KeyRoundIcon className="size-4 text-muted-foreground" />}
+        >
+          <CreateAPIKeyForm workspaceId={activeWorkspace?.id} />
+        </DashboardSidebarCard>
       </div>
     </section>
   )
-}
-
-function ApiKeySummary({
-  icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: ReactNode
-  label: string
-  value: string
-  detail: string
-}) {
-  return (
-    <div className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-md bg-muted/50 p-3">
-      <div className="flex size-8 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-foreground/10">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-xs text-muted-foreground">{label}</div>
-        <div className="truncate font-heading text-lg font-semibold">{value}</div>
-        <div className="truncate text-xs text-muted-foreground">{detail}</div>
-      </div>
-    </div>
-  )
-}
-
-function APIKeyRow({ apiKey, t }: { apiKey: APIKey; t: Translator }) {
-  const displayName = apiKey.display_name?.trim() || t("dashboard.notSet")
-  const status = localizeValue(t, apiKey.status)
-
-  return (
-    <div className="grid gap-4 rounded-lg border p-4 xl:grid-cols-[minmax(10rem,0.95fr)_minmax(0,1.2fr)_minmax(12rem,0.95fr)_minmax(10rem,0.85fr)_6rem] xl:items-center">
-      <div className="min-w-0">
-        <div className="text-[0.72rem] text-muted-foreground xl:hidden">
-          {t("dashboard.nickname")}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="truncate font-medium">{displayName}</div>
-          <StatusBadge>{status}</StatusBadge>
-        </div>
-        <div className="mt-1 truncate text-xs text-muted-foreground">
-          {t("dashboard.expiresAt")}{" "}
-          {formatAPIKeyDate(apiKey.expires_at, t("dashboard.noExpiration"))}
-        </div>
-      </div>
-      <div className="min-w-0">
-        <div className="text-[0.72rem] text-muted-foreground xl:hidden">
-          {t("dashboard.apiKeyId")}
-        </div>
-        <ViewAPIKeyDialog
-          apiKeyID={apiKey.id}
-          displayName={displayName}
-          triggerLabel={formatAPIKeyPreview(apiKey.id)}
-          triggerVariant="link"
-          triggerSize="sm"
-          triggerClassName="h-auto min-w-0 max-w-full shrink justify-start overflow-hidden px-0 font-mono text-xs font-medium text-primary hover:text-primary/80 xl:text-sm"
-          triggerTitle={apiKey.id}
-          showIcon={false}
-        />
-      </div>
-      <APIKeyMeta
-        label={t("dashboard.createdAt")}
-        value={formatAPIKeyDate(apiKey.created_at, t("dashboard.notSet"))}
-      />
-      <APIKeyMeta
-        label={t("dashboard.lastUsedAt")}
-        value={formatAPIKeyDate(apiKey.last_used_at, t("dashboard.neverUsed"))}
-      />
-      <div className="flex items-start xl:justify-end">
-        <div className="xl:hidden text-[0.72rem] text-muted-foreground">
-          {t("actions.revoke")}
-        </div>
-        <RevokeAPIKeyButton
-          apiKeyID={apiKey.id}
-          disabled={apiKey.status !== "active"}
-          className="items-start xl:items-end"
-        />
-      </div>
-    </div>
-  )
-}
-
-function APIKeyMeta({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="min-w-0">
-      <div className="text-[0.72rem] text-muted-foreground xl:hidden">{label}</div>
-      <div className="truncate font-medium">{value}</div>
-    </div>
-  )
-}
-
-function formatAPIKeyPreview(value: string) {
-  const normalized = value.trim()
-
-  if (normalized.length <= 18) {
-    return normalized
-  }
-
-  return `${normalized.slice(0, 8)}...${normalized.slice(-8)}`
-}
-
-function formatAPIKeyDate(value: string | undefined, fallback: string) {
-  if (!value) {
-    return fallback
-  }
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return `${date.toISOString().replace("T", " ").slice(0, 16)} UTC`
 }
 
 function ModelsSection({
@@ -571,32 +517,73 @@ function ModelsSection({
   modelCatalogs,
   modelCatalogList,
 }: DashboardSectionContentProps) {
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
+  const activeModelCount = modelCatalogList.filter(
+    (modelCatalog) => modelCatalog.status === "active"
+  ).length
+
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="models">
-        <CardHeader>
-          <CardTitle>{t("dashboard.modelsTitle")}</CardTitle>
-          <CardDescription>{t("dashboard.modelsDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <CreateModelCatalogForm workspaceId={activeWorkspace?.id} />
-          {modelCatalogs.ok && modelCatalogList.length > 0 ? (
-            modelCatalogList.map((modelCatalog) => (
-              <ModelCatalogRow
-                key={modelCatalog.id}
-                modelCatalog={modelCatalog}
-                t={t}
-              />
-            ))
-          ) : (
-            <EmptyState
-              message={
-                modelCatalogs.ok ? t("dashboard.noModels") : modelCatalogs.error
-              }
-            />
-          )}
-        </CardContent>
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<BotIcon className="size-4" />}
+            label={t("dashboard.modelsTitle")}
+            value={String(activeModelCount)}
+            detail={getSettledMessage(modelCatalogs, t("dashboard.activeModels"))}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
       </Card>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+        <Card>
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.modelsTitle")}</CardTitle>
+            <CardAction>
+              <StatusBadge>{String(modelCatalogList.length)}</StatusBadge>
+            </CardAction>
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
+            {modelCatalogs.ok && modelCatalogList.length > 0 ? (
+              <DashboardTableList
+                className="xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto]"
+                columns={[
+                  { label: t("dashboard.name") },
+                  { label: t("forms.provider") },
+                  { label: t("dashboard.createdAt") },
+                  {
+                    label: t("dashboard.actions"),
+                    className: "text-right",
+                  },
+                ]}
+              >
+                {modelCatalogList.map((modelCatalog) => (
+                  <ModelCatalogRow
+                    key={modelCatalog.id}
+                    modelCatalog={modelCatalog}
+                    t={t}
+                  />
+                ))}
+              </DashboardTableList>
+            ) : (
+              <DashboardSettledEmptyState
+                result={modelCatalogs}
+                emptyMessage={t("dashboard.noModels")}
+                icon={<BotIcon />}
+              />
+            )}
+          </DashboardPanelContent>
+        </Card>
+
+        <DashboardSidebarCard
+          title={t("forms.createModel")}
+          description={workspaceScope.label}
+          icon={<BotIcon className="size-4 text-muted-foreground" />}
+        >
+          <CreateModelCatalogForm workspaceId={activeWorkspace?.id} />
+        </DashboardSidebarCard>
+      </div>
     </section>
   )
 }
@@ -607,36 +594,76 @@ function CredentialsSection({
   providerCredentials,
   providerCredentialList,
 }: DashboardSectionContentProps) {
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
+  const activeCredentialCount = providerCredentialList.filter(
+    (credential) => credential.status === "active"
+  ).length
+
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="credentials">
-        <CardHeader>
-          <CardTitle>{t("dashboard.credentialsTitle")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.credentialsDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <CreateProviderCredentialForm workspaceId={activeWorkspace?.id} />
-          {providerCredentials.ok && providerCredentialList.length > 0 ? (
-            providerCredentialList.map((credential) => (
-              <ProviderCredentialRow
-                key={credential.id}
-                credential={credential}
-                t={t}
-              />
-            ))
-          ) : (
-            <EmptyState
-              message={
-                providerCredentials.ok
-                  ? t("dashboard.noCredentials")
-                  : providerCredentials.error
-              }
-            />
-          )}
-        </CardContent>
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<KeyRoundIcon className="size-4" />}
+            label={t("dashboard.credentialsTitle")}
+            value={String(activeCredentialCount)}
+            detail={getSettledMessage(
+              providerCredentials,
+              t("dashboard.credentialsDescription")
+            )}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
       </Card>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+        <Card>
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.credentialsTitle")}</CardTitle>
+            <CardAction>
+              <StatusBadge>{String(providerCredentialList.length)}</StatusBadge>
+            </CardAction>
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
+            {providerCredentials.ok && providerCredentialList.length > 0 ? (
+              <DashboardTableList
+                className="xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto]"
+                columns={[
+                  { label: t("dashboard.name") },
+                  { label: t("forms.provider") },
+                  { label: t("dashboard.createdAt") },
+                  {
+                    label: t("dashboard.actions"),
+                    className: "text-right",
+                  },
+                ]}
+              >
+                {providerCredentialList.map((credential) => (
+                  <ProviderCredentialRow
+                    key={credential.id}
+                    credential={credential}
+                    t={t}
+                  />
+                ))}
+              </DashboardTableList>
+            ) : (
+              <DashboardSettledEmptyState
+                result={providerCredentials}
+                emptyMessage={t("dashboard.noCredentials")}
+                icon={<KeyRoundIcon />}
+              />
+            )}
+          </DashboardPanelContent>
+        </Card>
+
+        <DashboardSidebarCard
+          title={t("forms.createCredential")}
+          description={workspaceScope.label}
+          icon={<KeyRoundIcon className="size-4 text-muted-foreground" />}
+        >
+          <CreateProviderCredentialForm workspaceId={activeWorkspace?.id} />
+        </DashboardSidebarCard>
+      </div>
     </section>
   )
 }
@@ -649,62 +676,113 @@ function DeploymentsSection({
   modelCatalogList,
   providerCredentialList,
 }: DashboardSectionContentProps) {
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
+  const activeDeploymentCount = modelDeploymentList.filter(
+    (deployment) => deployment.status === "active"
+  ).length
+
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="deployments">
-        <CardHeader>
-          <CardTitle>{t("dashboard.deploymentsTitle")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.deploymentsDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<ShieldCheckIcon className="size-4" />}
+            label={t("dashboard.deploymentsTitle")}
+            value={String(activeDeploymentCount)}
+            detail={getSettledMessage(
+              modelDeployments,
+              t("dashboard.deploymentsDescription")
+            )}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
+      </Card>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+        <Card>
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.deploymentsTitle")}</CardTitle>
+            <CardAction>
+              <StatusBadge>{String(modelDeploymentList.length)}</StatusBadge>
+            </CardAction>
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
+            {modelDeployments.ok && modelDeploymentList.length > 0 ? (
+              <DashboardTableList
+                className="xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,0.9fr)_minmax(14rem,1fr)_auto]"
+                columns={[
+                  { label: t("dashboard.name") },
+                  { label: t("forms.model") },
+                  { label: t("dashboard.region") },
+                  {
+                    label: t("dashboard.actions"),
+                    className: "text-right",
+                  },
+                ]}
+              >
+                {modelDeploymentList.map((deployment) => (
+                  <ModelDeploymentRow
+                    key={deployment.id}
+                    deployment={deployment}
+                    modelCatalogs={modelCatalogList}
+                    providerCredentials={providerCredentialList}
+                    t={t}
+                  />
+                ))}
+              </DashboardTableList>
+            ) : (
+              <DashboardSettledEmptyState
+                result={modelDeployments}
+                emptyMessage={t("dashboard.noDeployments")}
+                icon={<ShieldCheckIcon />}
+              />
+            )}
+          </DashboardPanelContent>
+        </Card>
+
+        <DashboardSidebarCard
+          title={t("forms.createDeployment")}
+          description={workspaceScope.label}
+          icon={<ShieldCheckIcon className="size-4 text-muted-foreground" />}
+        >
           <CreateModelDeploymentForm
             workspaceId={activeWorkspace?.id}
             modelCatalogs={modelCatalogList}
             providerCredentials={providerCredentialList}
           />
-          {modelDeployments.ok && modelDeploymentList.length > 0 ? (
-            modelDeploymentList.map((deployment) => (
-              <ModelDeploymentRow
-                key={deployment.id}
-                deployment={deployment}
-                modelCatalogs={modelCatalogList}
-                providerCredentials={providerCredentialList}
-                t={t}
-              />
-            ))
-          ) : (
-            <EmptyState
-              message={
-                modelDeployments.ok
-                  ? t("dashboard.noDeployments")
-                  : modelDeployments.error
-              }
-            />
-          )}
-        </CardContent>
-      </Card>
+        </DashboardSidebarCard>
+      </div>
     </section>
   )
 }
 
 function ChatSmokeSection({
   t,
+  activeWorkspace,
   chatSmokeModel,
 }: DashboardSectionContentProps) {
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="chat-smoke">
-        <CardHeader>
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<MessageSquareTextIcon className="size-4" />}
+            label={t("dashboard.chatSmokeTitle")}
+            value={chatSmokeModel}
+            detail={t("forms.model")}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
+      </Card>
+
+      <Card>
+        <DashboardPanelHeader>
           <CardTitle>{t("dashboard.chatSmokeTitle")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.chatSmokeDescription")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          <CardDescription>{t("dashboard.chatSmokeDescription")}</CardDescription>
+        </DashboardPanelHeader>
+        <DashboardPanelContent>
           <ChatSmokeTestForm defaultModel={chatSmokeModel} />
-        </CardContent>
+        </DashboardPanelContent>
       </Card>
     </section>
   )
@@ -712,41 +790,44 @@ function ChatSmokeSection({
 
 function UsageSection({ t, dailyUsage }: DashboardSectionContentProps) {
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-3">
       <Card id="usage">
-        <CardHeader>
+        <DashboardPanelHeader>
           <CardTitle>{t("dashboard.dailyUsageTitle")}</CardTitle>
           <CardDescription>
             {t("dashboard.dailyUsageDescription")}
           </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        </DashboardPanelHeader>
+        <DashboardStackContent>
           {dailyUsage.ok && dailyUsage.data.data.length > 0 ? (
             dailyUsage.data.data.slice(0, 6).map((usage) => (
-              <div
+              <DashboardRow
                 key={usage.usage_date}
-                className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border p-3 text-sm"
+                className="gap-3 p-3 md:grid-cols-[1fr_auto] md:items-center"
               >
-                <div>
-                  <div className="font-medium">{usage.usage_date}</div>
-                  <div className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <DashboardMonoDetailText className="font-medium text-foreground/80">
+                    {usage.usage_date}
+                  </DashboardMonoDetailText>
+                  <DashboardDetailText>
                     {t("dashboard.requestsTokens", {
                       requests: usage.request_count,
                       tokens: usage.prompt_tokens + usage.completion_tokens,
                     })}
-                  </div>
+                  </DashboardDetailText>
                 </div>
-                <div className="font-medium">${usage.spend_usd}</div>
-              </div>
+                <DashboardMonoDetailText className="font-medium text-foreground/80 md:text-right">
+                  ${usage.spend_usd}
+                </DashboardMonoDetailText>
+              </DashboardRow>
             ))
           ) : (
-            <EmptyState
-              message={
-                dailyUsage.ok ? t("dashboard.noDailyUsage") : dailyUsage.error
-              }
+            <DashboardSettledEmptyState
+              result={dailyUsage}
+              emptyMessage={t("dashboard.noDailyUsage")}
             />
           )}
-        </CardContent>
+        </DashboardStackContent>
       </Card>
     </section>
   )

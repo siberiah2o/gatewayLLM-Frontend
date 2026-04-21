@@ -2,13 +2,13 @@
 
 import { useState, type FormEvent } from "react"
 import Link from "next/link"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
   Field,
   FieldDescription,
-  FieldError,
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field"
@@ -18,23 +18,20 @@ import { translateKnownError } from "@/lib/i18n"
 
 export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   const { locale, t } = useI18n()
-  const [error, setError] = useState<string>()
-  const [success, setSuccess] = useState<string>()
   const [isPending, setIsPending] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
-    setError(undefined)
-    setSuccess(undefined)
 
     const formData = new FormData(form)
-    const workspaceID = String(formData.get("workspace-id") ?? "").trim()
+    const displayName = String(formData.get("name") ?? "").trim()
+    const email = String(formData.get("email") ?? "").trim()
     const password = String(formData.get("password") ?? "")
     const confirmPassword = String(formData.get("confirm-password") ?? "")
 
     if (password !== confirmPassword) {
-      setError(t("auth.passwordsMismatch"))
+      toast.error(t("auth.passwordsMismatch"))
       return
     }
 
@@ -47,9 +44,9 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          workspace_id: workspaceID,
-          display_name: formData.get("name"),
-          email: formData.get("email"),
+          workspace_id: workspaceIDFromURL(),
+          display_name: displayName,
+          email,
           password,
         }),
       })
@@ -60,7 +57,8 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         if (
           response.status === 404 &&
           (payload?.error?.code === "not_found" ||
-            payload?.error?.code === "workspace_not_found")
+            payload?.error?.code === "workspace_not_found" ||
+            payload?.error?.code === "no_registration_workspace")
         ) {
           throw new Error(t("auth.workspaceNotFound"))
         }
@@ -72,6 +70,13 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
           throw new Error(t("auth.workspaceInactive"))
         }
 
+        if (
+          response.status === 409 &&
+          payload?.error?.code === "registration_conflict"
+        ) {
+          throw new Error(t("auth.registrationConflict"))
+        }
+
         throw new Error(
           translateKnownError(
             locale,
@@ -81,15 +86,17 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
         )
       }
 
-      setSuccess(
-        t("auth.registrationSuccess", {
-          id: payload.id,
+      toast.success(t("auth.registrationSuccessTitle"), {
+        description: t("auth.registrationSuccessDescription", {
+          name: payload.display_name ?? displayName,
+          email: payload.email ?? email,
+          workspace: payload.workspace_id,
           status: localizeValue(t, payload.status),
-        })
-      )
+        }),
+      })
       form.reset()
     } catch (submitError) {
-      setError(
+      toast.error(
         submitError instanceof Error
           ? submitError.message
           : t("auth.registrationFailed")
@@ -104,21 +111,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       <CardContent>
         <form onSubmit={handleSubmit}>
           <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="workspace-id">{t("auth.workspaceId")}</FieldLabel>
-              <Input
-                id="workspace-id"
-                name="workspace-id"
-                type="text"
-                autoComplete="off"
-                placeholder="123e4567-e89b-12d3-a456-426614174000"
-                required
-                spellCheck={false}
-              />
-              <FieldDescription>
-                {t("auth.workspaceHelp")}
-              </FieldDescription>
-            </Field>
             <Field>
               <FieldLabel htmlFor="name">{t("auth.fullName")}</FieldLabel>
               <Input
@@ -166,12 +158,6 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 required
               />
             </Field>
-            <FieldError>{error}</FieldError>
-            {success ? (
-              <FieldDescription className="rounded-lg border bg-muted/50 p-3 text-foreground">
-                {success}
-              </FieldDescription>
-            ) : null}
             <FieldGroup>
               <Field>
                 <Button type="submit" className="w-full" disabled={isPending}>
@@ -188,6 +174,14 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
       </CardContent>
     </Card>
   )
+}
+
+function workspaceIDFromURL() {
+  if (typeof window === "undefined") {
+    return ""
+  }
+
+  return new URLSearchParams(window.location.search).get("workspace_id") ?? ""
 }
 
 function localizeValue(
