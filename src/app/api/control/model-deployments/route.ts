@@ -28,21 +28,13 @@ export async function POST(request: Request) {
     const modelCatalogID = body.model_catalog_id?.trim()
     const credentialID = body.credential_id?.trim()
     const deploymentName = body.deployment_name?.trim()
-    const region = body.region?.trim() || "global"
+    const region = body.region?.trim()
     const endpointURL = body.endpoint_url?.trim()
     const priority = Number(body.priority ?? 1)
     const weight = Number(body.weight ?? 100)
 
-    if (
-      !workspaceID ||
-      !modelCatalogID ||
-      !credentialID ||
-      !deploymentName ||
-      !endpointURL
-    ) {
-      return badRequest(
-        "Workspace, model catalog, credential, name, and endpoint are required."
-      )
+    if (!workspaceID || !modelCatalogID || !credentialID || !deploymentName) {
+      return badRequest("Workspace, model catalog, credential, and name are required.")
     }
 
     if (!Number.isInteger(priority) || !Number.isInteger(weight)) {
@@ -59,8 +51,8 @@ export async function POST(request: Request) {
           model_catalog_id: modelCatalogID,
           credential_id: credentialID,
           deployment_name: deploymentName,
-          region,
-          endpoint_url: endpointURL,
+          region: region || undefined,
+          endpoint_url: endpointURL || undefined,
           priority,
           weight,
           status: "active",

@@ -7,6 +7,8 @@ export const DASHBOARD_SECTIONS = [
   "members",
   "registration",
   "api-keys",
+  "provider-setups",
+  "advanced",
   "models",
   "credentials",
   "deployments",
@@ -39,6 +41,10 @@ export function dashboardSectionTitleKey(section: DashboardSection) {
       return "nav.registrationRequests"
     case "api-keys":
       return "nav.apiKeys"
+    case "provider-setups":
+      return "nav.providerSetups"
+    case "advanced":
+      return "nav.advanced"
     case "models":
       return "nav.catalogs"
     case "credentials":

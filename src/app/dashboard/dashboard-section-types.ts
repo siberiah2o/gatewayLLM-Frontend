@@ -9,6 +9,8 @@ import type {
   ModelDeploymentList,
   ProviderCredential,
   ProviderCredentialList,
+  ProviderSetup,
+  ProviderSetupList,
   ReadyResponse,
   RegistrationRequestList,
   SessionUser,
@@ -44,6 +46,8 @@ export type DashboardSectionContentProps = {
   modelCatalogList: ModelCatalog[]
   providerCredentials: Settled<ProviderCredentialList>
   providerCredentialList: ProviderCredential[]
+  providerSetups: Settled<ProviderSetupList>
+  providerSetupList: ProviderSetup[]
   modelDeployments: Settled<ModelDeploymentList>
   modelDeploymentList: ModelDeployment[]
   chatSmokeModel: string

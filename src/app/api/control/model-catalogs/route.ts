@@ -44,11 +44,13 @@ export async function POST(request: Request) {
           workspace_id: workspaceID,
           canonical_name: canonicalName,
           provider,
-          input_modalities: ["text"],
-          output_modalities: ["text"],
           pricing_rules: {
-            prompt_microusd_per_million: promptPrice,
-            completion_microusd_per_million: completionPrice,
+            version: 1,
+            currency: "USD",
+            token_rates: {
+              prompt_microusd_per_million: promptPrice,
+              completion_microusd_per_million: completionPrice,
+            },
           },
           status: "active",
         },

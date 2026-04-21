@@ -4,6 +4,7 @@ import {
   CreateModelCatalogForm,
   CreateModelDeploymentForm,
   CreateProviderCredentialForm,
+  CreateProviderSetupForm,
   CreateWorkspaceForm,
   CreateWorkspaceUserDialog,
 } from "@/components/dashboard-actions"
@@ -48,6 +49,7 @@ import {
   ModelCatalogRow,
   ModelDeploymentRow,
   ProviderCredentialRow,
+  ProviderSetupRow,
   RegistrationRequestRow,
   WorkspaceMemberRow,
 } from "./dashboard-rows"
@@ -74,6 +76,10 @@ export function DashboardSectionContent(props: DashboardSectionContentProps) {
       return <RegistrationSection {...props} />
     case "api-keys":
       return <ApiKeysSection {...props} />
+    case "provider-setups":
+      return <ProviderSetupsSection {...props} />
+    case "advanced":
+      return <AdvancedSection {...props} />
     case "models":
       return <ModelsSection {...props} />
     case "credentials":
@@ -207,8 +213,13 @@ function StatusSection({
         <DashboardSettledMetric
           label={t("dashboard.deployments")}
           result={modelDeployments}
-          value={(data) => String(data.data.length)}
-          detail={t("dashboard.activeModels")}
+          value={(data) =>
+            String(
+              data.data.filter((deployment) => deployment.status === "active")
+                .length
+            )
+          }
+          detail={t("dashboard.activeDeployments")}
           fallbackValue="0"
         />
       ) : null}
@@ -317,6 +328,9 @@ function MembersSection({
   workspaceMemberList,
   modelCatalogList,
 }: DashboardSectionContentProps) {
+  const assignableModelCatalogList = modelCatalogList.filter(
+    (modelCatalog) => modelCatalog.status === "active"
+  )
   const activeMemberCount = workspaceMemberList.filter(
     (member) => member.status === "active"
   ).length
@@ -357,7 +371,7 @@ function MembersSection({
                   key={member.user_id}
                   member={member}
                   workspaceId={activeWorkspace?.id}
-                  modelCatalogs={modelCatalogList}
+                  modelCatalogs={assignableModelCatalogList}
                   t={t}
                 />
               ))}
@@ -508,6 +522,94 @@ function ApiKeysSection({
         </DashboardSidebarCard>
       </div>
     </section>
+  )
+}
+
+function ProviderSetupsSection({
+  t,
+  activeWorkspace,
+  providerSetups,
+  providerSetupList,
+}: DashboardSectionContentProps) {
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
+  const activeSetupCount = providerSetupList.filter(
+    (setup) => setup.status === "active"
+  ).length
+
+  return (
+    <section className="grid gap-3">
+      <Card id="provider-setups">
+        <DashboardSummaryGrid>
+          <DashboardSummaryTile
+            icon={<BotIcon className="size-4" />}
+            label={t("dashboard.providerSetupsTitle")}
+            value={String(activeSetupCount)}
+            detail={getSettledMessage(
+              providerSetups,
+              t("dashboard.providerSetupsDescription")
+            )}
+          />
+          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+        </DashboardSummaryGrid>
+      </Card>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+        <Card>
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.providerSetupsTitle")}</CardTitle>
+            <CardAction>
+              <StatusBadge>{String(providerSetupList.length)}</StatusBadge>
+            </CardAction>
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
+            {providerSetups.ok && providerSetupList.length > 0 ? (
+              <DashboardTableList
+                className="xl:grid-cols-[minmax(10rem,0.8fr)_minmax(12rem,1fr)_minmax(14rem,1.1fr)_minmax(12rem,0.9fr)_minmax(10rem,0.8fr)_auto]"
+                columns={[
+                  { label: t("forms.provider") },
+                  { label: t("forms.model") },
+                  { label: t("forms.endpointUrl") },
+                  { label: t("forms.credential") },
+                  { label: t("dashboard.updatedAt") },
+                  {
+                    label: t("dashboard.actions"),
+                    className: "text-right",
+                  },
+                ]}
+              >
+                {providerSetupList.map((setup) => (
+                  <ProviderSetupRow key={setup.id} setup={setup} t={t} />
+                ))}
+              </DashboardTableList>
+            ) : (
+              <DashboardSettledEmptyState
+                result={providerSetups}
+                emptyMessage={t("dashboard.noProviderSetups")}
+                icon={<BotIcon />}
+              />
+            )}
+          </DashboardPanelContent>
+        </Card>
+
+        <DashboardSidebarCard
+          title={t("forms.createProviderSetup")}
+          description={workspaceScope.label}
+          icon={<BotIcon className="size-4 text-muted-foreground" />}
+        >
+          <CreateProviderSetupForm workspaceId={activeWorkspace?.id} />
+        </DashboardSidebarCard>
+      </div>
+    </section>
+  )
+}
+
+function AdvancedSection(props: DashboardSectionContentProps) {
+  return (
+    <div className="grid gap-6">
+      <ModelsSection {...props} />
+      <CredentialsSection {...props} />
+      <DeploymentsSection {...props} />
+    </div>
   )
 }
 
@@ -676,6 +778,12 @@ function DeploymentsSection({
   modelCatalogList,
   providerCredentialList,
 }: DashboardSectionContentProps) {
+  const activeModelCatalogList = modelCatalogList.filter(
+    (modelCatalog) => modelCatalog.status === "active"
+  )
+  const activeProviderCredentialList = providerCredentialList.filter(
+    (credential) => credential.status === "active"
+  )
   const workspaceScope = getWorkspaceScope(activeWorkspace, t)
   const activeDeploymentCount = modelDeploymentList.filter(
     (deployment) => deployment.status === "active"
@@ -747,8 +855,8 @@ function DeploymentsSection({
         >
           <CreateModelDeploymentForm
             workspaceId={activeWorkspace?.id}
-            modelCatalogs={modelCatalogList}
-            providerCredentials={providerCredentialList}
+            modelCatalogs={activeModelCatalogList}
+            providerCredentials={activeProviderCredentialList}
           />
         </DashboardSidebarCard>
       </div>

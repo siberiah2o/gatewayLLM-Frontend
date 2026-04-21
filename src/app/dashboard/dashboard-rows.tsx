@@ -1,7 +1,13 @@
 import {
+  ActivateModelCatalogButton,
+  ActivateModelDeploymentButton,
+  ActivateProviderCredentialButton,
   DeactivateModelCatalogButton,
   DeactivateModelDeploymentButton,
   DeactivateProviderCredentialButton,
+  DeleteModelCatalogButton,
+  DeleteModelDeploymentButton,
+  DeleteProviderCredentialButton,
   EditModelDeploymentDialog,
   ManageModelPermissionsDialog,
   RevokeAPIKeyButton,
@@ -15,6 +21,7 @@ import type {
   ModelCatalog,
   ModelDeployment,
   ProviderCredential,
+  ProviderSetup,
   RegistrationRequest,
   WorkspaceMember,
 } from "@/lib/gatewayllm"
@@ -156,6 +163,8 @@ export function ModelCatalogRow({
   modelCatalog: ModelCatalog
   t: Translator
 }) {
+  const canDeactivate = modelCatalog.status === "active"
+
   return (
     <DashboardRow className="xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto] xl:items-center">
       <DashboardPrimaryCell
@@ -180,10 +189,12 @@ export function ModelCatalogRow({
         </DashboardMonoDetailText>
       </DashboardRowMeta>
       <DashboardActionCell label={t("dashboard.actions")}>
-        <DeactivateModelCatalogButton
-          modelCatalogID={modelCatalog.id}
-          disabled={modelCatalog.status !== "active"}
-        />
+        {canDeactivate ? (
+          <DeactivateModelCatalogButton modelCatalogID={modelCatalog.id} />
+        ) : (
+          <ActivateModelCatalogButton modelCatalogID={modelCatalog.id} />
+        )}
+        <DeleteModelCatalogButton modelCatalogID={modelCatalog.id} />
       </DashboardActionCell>
     </DashboardRow>
   )
@@ -196,6 +207,8 @@ export function ProviderCredentialRow({
   credential: ProviderCredential
   t: Translator
 }) {
+  const canDeactivate = credential.status === "active"
+
   return (
     <DashboardRow className="xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto] xl:items-center">
       <DashboardPrimaryCell
@@ -205,11 +218,10 @@ export function ProviderCredentialRow({
             <div className="truncate font-medium">
               {credential.credential_name}
             </div>
-            <StatusBadge>
-              {credential.secret_configured
-                ? localizeValue(t, credential.status)
-                : t("dashboard.missingSecret")}
-            </StatusBadge>
+            <StatusBadge>{localizeValue(t, credential.status)}</StatusBadge>
+            {credential.secret_configured ? null : (
+              <StatusBadge>{t("dashboard.missingSecret")}</StatusBadge>
+            )}
           </div>
         }
       >
@@ -224,10 +236,12 @@ export function ProviderCredentialRow({
         </DashboardMonoDetailText>
       </DashboardRowMeta>
       <DashboardActionCell label={t("dashboard.actions")}>
-        <DeactivateProviderCredentialButton
-          credentialID={credential.id}
-          disabled={credential.status !== "active"}
-        />
+        {canDeactivate ? (
+          <DeactivateProviderCredentialButton credentialID={credential.id} />
+        ) : (
+          <ActivateProviderCredentialButton credentialID={credential.id} />
+        )}
+        <DeleteProviderCredentialButton credentialID={credential.id} />
       </DashboardActionCell>
     </DashboardRow>
   )
@@ -244,6 +258,17 @@ export function ModelDeploymentRow({
   providerCredentials: ProviderCredential[]
   t: Translator
 }) {
+  const canDeactivate = deployment.status === "active"
+  const editableModelCatalogs = modelCatalogs.filter(
+    (modelCatalog) =>
+      modelCatalog.status === "active" ||
+      modelCatalog.id === deployment.model_catalog_id
+  )
+  const editableProviderCredentials = providerCredentials.filter(
+    (credential) =>
+      credential.status === "active" || credential.id === deployment.credential_id
+  )
+
   return (
     <DashboardRow className="xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,0.9fr)_minmax(14rem,1fr)_auto] xl:items-center">
       <DashboardPrimaryCell
@@ -280,13 +305,70 @@ export function ModelDeploymentRow({
       <DashboardActionCell label={t("dashboard.actions")}>
         <EditModelDeploymentDialog
           deployment={deployment}
-          modelCatalogs={modelCatalogs}
-          providerCredentials={providerCredentials}
+          modelCatalogs={editableModelCatalogs}
+          providerCredentials={editableProviderCredentials}
         />
-        <DeactivateModelDeploymentButton
-          deploymentID={deployment.id}
-          disabled={deployment.status !== "active"}
-        />
+        {canDeactivate ? (
+          <DeactivateModelDeploymentButton deploymentID={deployment.id} />
+        ) : (
+          <ActivateModelDeploymentButton deploymentID={deployment.id} />
+        )}
+        <DeleteModelDeploymentButton deploymentID={deployment.id} />
+      </DashboardActionCell>
+    </DashboardRow>
+  )
+}
+
+export function ProviderSetupRow({
+  setup,
+  t,
+}: {
+  setup: ProviderSetup
+  t: Translator
+}) {
+  const canDeactivate = setup.status === "active"
+
+  return (
+    <DashboardRow className="xl:grid-cols-[minmax(10rem,0.8fr)_minmax(12rem,1fr)_minmax(14rem,1.1fr)_minmax(12rem,0.9fr)_minmax(10rem,0.8fr)_auto] xl:items-center">
+      <DashboardPrimaryCell
+        label={t("forms.provider")}
+        title={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="truncate font-medium">
+              {setup.provider_display_name || setup.provider}
+            </div>
+            <StatusBadge>{localizeValue(t, setup.status)}</StatusBadge>
+          </div>
+        }
+      >
+        <DashboardMonoDetailText>{setup.id}</DashboardMonoDetailText>
+      </DashboardPrimaryCell>
+      <DashboardRowMeta label={t("forms.model")}>
+        <span className="truncate font-medium">{setup.model_name}</span>
+        <DashboardDetailText>{setup.deployment_name}</DashboardDetailText>
+      </DashboardRowMeta>
+      <DashboardRowMeta label={t("forms.endpointUrl")}>
+        <span className="truncate font-medium">{setup.endpoint_url}</span>
+        <DashboardDetailText>{setup.region}</DashboardDetailText>
+      </DashboardRowMeta>
+      <DashboardRowMeta label={t("forms.credential")}>
+        <span className="truncate font-medium">{setup.credential.name}</span>
+        {!setup.credential.secret_configured ? (
+          <DashboardDetailText>{t("dashboard.missingSecret")}</DashboardDetailText>
+        ) : null}
+      </DashboardRowMeta>
+      <DashboardRowMeta label={t("dashboard.updatedAt")}>
+        <DashboardMonoDetailText className="font-medium text-foreground/80">
+          {formatDashboardDate(setup.updated_at, t("dashboard.notSet"))}
+        </DashboardMonoDetailText>
+      </DashboardRowMeta>
+      <DashboardActionCell label={t("dashboard.actions")}>
+        {canDeactivate ? (
+          <DeactivateModelDeploymentButton deploymentID={setup.id} />
+        ) : (
+          <ActivateModelDeploymentButton deploymentID={setup.id} />
+        )}
+        <DeleteModelDeploymentButton deploymentID={setup.id} />
       </DashboardActionCell>
     </DashboardRow>
   )

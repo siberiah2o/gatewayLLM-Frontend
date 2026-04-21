@@ -215,6 +215,42 @@ export type ModelCatalogList = {
   data: ModelCatalog[]
 }
 
+export type ModelCatalogProviderOption = {
+  provider: string
+  display_name: string
+  model_count: number
+  default_model_placeholder?: string
+  default_endpoint_url?: string
+  default_region?: string
+}
+
+export type ModelCatalogOption = {
+  canonical_name: string
+  provider: string
+  source: string
+  source_provider?: string
+  default_endpoint_url?: string
+  default_region?: string
+  modes?: string[]
+  input_modalities?: string[]
+  output_modalities?: string[]
+  supports_vision?: boolean
+  supports_function_calling?: boolean
+  supports_tool_choice?: boolean
+  supports_reasoning?: boolean
+  supports_audio_input?: boolean
+  supports_audio_output?: boolean
+  max_input_tokens?: number
+  max_output_tokens?: number
+}
+
+export type ModelCatalogOptions = {
+  object: string
+  source: string
+  providers: ModelCatalogProviderOption[]
+  models: ModelCatalogOption[]
+}
+
 export type ProviderCredential = {
   workspace_id: string
   id: string
@@ -252,6 +288,47 @@ export type ModelDeployment = {
 export type ModelDeploymentList = {
   object: string
   data: ModelDeployment[]
+}
+
+export type ProviderSetupCredential = {
+  id: string
+  name: string
+  secret_configured: boolean
+}
+
+export type ProviderSetupModelCatalog = {
+  id: string
+  pricing_rules: Record<string, unknown>
+}
+
+export type ProviderSetupRefs = {
+  model_catalog_id: string
+  credential_id: string
+  deployment_id: string
+}
+
+export type ProviderSetup = {
+  id: string
+  workspace_id: string
+  provider: string
+  provider_display_name: string
+  model_name: string
+  deployment_name: string
+  endpoint_url: string
+  region: string
+  priority: number
+  weight: number
+  status: string
+  credential: ProviderSetupCredential
+  model_catalog: ProviderSetupModelCatalog
+  refs: ProviderSetupRefs
+  created_at: string
+  updated_at: string
+}
+
+export type ProviderSetupList = {
+  object: string
+  data: ProviderSetup[]
 }
 
 export function gatewayBaseURL() {

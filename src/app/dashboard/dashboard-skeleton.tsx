@@ -40,6 +40,10 @@ export function DashboardSectionSkeleton({
       return <RegistrationSectionSkeleton />
     case "api-keys":
       return <ApiKeysSectionSkeleton />
+    case "provider-setups":
+      return <ProviderSetupsSectionSkeleton />
+    case "advanced":
+      return <AdvancedSectionSkeleton />
     case "models":
       return <ModelsSectionSkeleton />
     case "credentials":
@@ -90,6 +94,68 @@ function WorkspacesSectionSkeleton() {
         </DashboardStackContent>
       </Card>
     </section>
+  )
+}
+
+function ProviderSetupsSectionSkeleton() {
+  return (
+    <section className="grid gap-3">
+      <SummaryCardSkeleton count={2} />
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+        <Card>
+          <PanelHeaderSkeleton titleWidth="w-40" />
+          <DashboardPanelContent>
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <DashboardRow
+                  key={index}
+                  className="gap-3 p-3 xl:grid-cols-[minmax(10rem,0.8fr)_minmax(12rem,1fr)_minmax(14rem,1.1fr)_minmax(12rem,0.9fr)_minmax(10rem,0.8fr)_auto]"
+                >
+                  <PrimaryBlockSkeleton
+                    titleWidth="w-24"
+                    detailWidths={["w-36"]}
+                  />
+                  <PrimaryBlockSkeleton
+                    titleWidth="w-32"
+                    detailWidths={["w-28"]}
+                  />
+                  <PrimaryBlockSkeleton
+                    titleWidth="w-44"
+                    detailWidths={["w-20"]}
+                  />
+                  <PrimaryBlockSkeleton
+                    titleWidth="w-28"
+                    detailWidths={["w-18"]}
+                  />
+                  <PrimaryBlockSkeleton
+                    titleWidth="w-24"
+                    detailWidths={[]}
+                  />
+                  <ActionClusterSkeleton widths={["w-20", "w-20"]} />
+                </DashboardRow>
+              ))}
+            </div>
+          </DashboardPanelContent>
+        </Card>
+
+        <SidebarCardSkeleton
+          titleWidth="w-36"
+          descriptionWidth="w-24"
+          fields={8}
+        />
+      </div>
+    </section>
+  )
+}
+
+function AdvancedSectionSkeleton() {
+  return (
+    <div className="grid gap-6">
+      <ModelsSectionSkeleton />
+      <CredentialsSectionSkeleton />
+      <DeploymentsSectionSkeleton />
+    </div>
   )
 }
 

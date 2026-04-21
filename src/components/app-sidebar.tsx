@@ -57,19 +57,14 @@ export function AppSidebar({
     ...(canManageModels
       ? [
           {
-            title: t("nav.catalogs"),
-            url: "/dashboard/models",
-            section: "models" as const,
+            title: t("nav.providerSetups"),
+            url: "/dashboard/provider-setups",
+            section: "provider-setups" as const,
           },
           {
-            title: t("nav.credentials"),
-            url: "/dashboard/credentials",
-            section: "credentials" as const,
-          },
-          {
-            title: t("nav.deployments"),
-            url: "/dashboard/deployments",
-            section: "deployments" as const,
+            title: t("nav.advanced"),
+            url: "/dashboard/advanced",
+            section: "advanced" as const,
           },
         ]
       : []),
@@ -138,7 +133,7 @@ export function AppSidebar({
       },
       {
         title: t("nav.models"),
-        url: "/dashboard/models",
+        url: "/dashboard/provider-setups",
         icon: <BotIcon />,
         isActive: modelItems.some((item) => item.section === currentSection),
         items: modelItems,

@@ -12,6 +12,7 @@ import {
   type ModelCatalogList,
   type ModelDeploymentList,
   type ProviderCredentialList,
+  type ProviderSetupList,
   type ReadyResponse,
   type RegistrationRequestList,
   type UserList,
@@ -29,6 +30,8 @@ import {
 } from "./dashboard-data"
 import type { DashboardSection } from "./dashboard-routes"
 import { DashboardSectionContent } from "./dashboard-sections"
+
+const RESOURCE_LIST_LIMIT = 100
 
 export async function DashboardPage({
   section = "status",
@@ -72,13 +75,18 @@ export async function DashboardPage({
   const needsStatus = section === "status"
   const needsModelCatalogs =
     section === "members" ||
+    section === "advanced" ||
     section === "models" ||
     section === "deployments" ||
     section === "chat-smoke"
   const needsProviderCredentials =
-    section === "credentials" || section === "deployments"
+    section === "advanced" ||
+    section === "credentials" ||
+    section === "deployments"
+  const needsProviderSetups = section === "provider-setups"
   const needsModelDeployments =
     section === "status" ||
+    section === "advanced" ||
     section === "deployments" ||
     section === "chat-smoke"
 
@@ -98,6 +106,7 @@ export async function DashboardPage({
     registrationRequests,
     modelCatalogs,
     providerCredentials,
+    providerSetups,
     modelDeployments,
   ] = await Promise.all([
     loadWorkspaceResource(
@@ -169,7 +178,7 @@ export async function DashboardPage({
         gatewayRequest<ModelCatalogList>(
           `/control/v1/model-catalogs?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&status=active&limit=20`,
+          )}&limit=${RESOURCE_LIST_LIMIT}`,
           { token }
         )
     ),
@@ -181,7 +190,19 @@ export async function DashboardPage({
         gatewayRequest<ProviderCredentialList>(
           `/control/v1/provider-credentials?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&status=active&limit=20`,
+          )}&limit=${RESOURCE_LIST_LIMIT}`,
+          { token }
+        )
+    ),
+    loadWorkspaceResource(
+      needsProviderSetups,
+      activeWorkspace,
+      noWorkspaceMessage,
+      (workspace) =>
+        gatewayRequest<ProviderSetupList>(
+          `/control/v1/provider-setups?workspace_id=${encodeURIComponent(
+            workspace.id
+          )}&limit=${RESOURCE_LIST_LIMIT}`,
           { token }
         )
     ),
@@ -193,7 +214,7 @@ export async function DashboardPage({
         gatewayRequest<ModelDeploymentList>(
           `/control/v1/model-deployments?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&status=active&limit=20`,
+          )}&limit=${RESOURCE_LIST_LIMIT}`,
           { token }
         )
     ),
@@ -216,12 +237,19 @@ export async function DashboardPage({
   const providerCredentialList = providerCredentials.ok
     ? providerCredentials.data.data
     : []
+  const providerSetupList = providerSetups.ok ? providerSetups.data.data : []
   const modelDeploymentList = modelDeployments.ok
     ? modelDeployments.data.data
     : []
+  const activeModelCatalogList = modelCatalogList.filter(
+    (modelCatalog) => modelCatalog.status === "active"
+  )
+  const activeModelDeploymentList = modelDeploymentList.filter(
+    (deployment) => deployment.status === "active"
+  )
   const chatSmokeModel =
-    modelDeploymentList[0]?.model_canonical_name ??
-    modelCatalogList[0]?.canonical_name ??
+    activeModelDeploymentList[0]?.model_canonical_name ??
+    activeModelCatalogList[0]?.canonical_name ??
     "gpt-4o-mini"
   const showUserManagement =
     section === "users" || showPrivilegedSection(activeWorkspace, workspaceUsers)
@@ -263,6 +291,8 @@ export async function DashboardPage({
       modelCatalogList={modelCatalogList}
       providerCredentials={providerCredentials}
       providerCredentialList={providerCredentialList}
+      providerSetups={providerSetups}
+      providerSetupList={providerSetupList}
       modelDeployments={modelDeployments}
       modelDeploymentList={modelDeploymentList}
       chatSmokeModel={chatSmokeModel}

@@ -38,7 +38,12 @@ export async function PATCH(
       body.priority === undefined ? current.priority : Number(body.priority)
     const weight = body.weight === undefined ? current.weight : Number(body.weight)
     const deploymentName = body.deployment_name?.trim() || current.deployment_name
-    const endpointURL = body.endpoint_url?.trim() || current.endpoint_url
+    const endpointURL =
+      body.endpoint_url === undefined
+        ? current.endpoint_url
+        : body.endpoint_url.trim()
+    const region =
+      body.region === undefined ? current.region : body.region.trim()
 
     if (status !== "active" && status !== "inactive") {
       return badRequest("Status must be active or inactive.")
@@ -61,7 +66,7 @@ export async function PATCH(
           body.model_catalog_id?.trim() || current.model_catalog_id,
         credential_id: body.credential_id?.trim() || current.credential_id,
         deployment_name: deploymentName,
-        region: body.region?.trim() || current.region,
+        region,
         endpoint_url: endpointURL,
         priority,
         weight,
