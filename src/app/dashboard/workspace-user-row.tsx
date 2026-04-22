@@ -1,7 +1,7 @@
 import {
   DeleteWorkspaceUserDialog,
   EditWorkspaceUserDialog,
-} from "@/components/dashboard-actions"
+} from "@/components/dashboard-actions/users"
 import type { User } from "@/lib/gatewayllm"
 import {
   DashboardActionCell,
@@ -14,19 +14,24 @@ import {
   localizeValue,
   type Translator,
 } from "./dashboard-ui"
+import type { DashboardPaginationState } from "./dashboard-pagination"
 
 export function WorkspaceUsersTable({
   users,
   workspaceId,
+  pagination,
   t,
 }: {
   users: User[]
   workspaceId?: string
+  pagination?: DashboardPaginationState
   t: Translator
 }) {
   return (
     <DashboardTableList
       className="xl:grid-cols-[minmax(10rem,0.95fr)_minmax(12rem,1fr)_minmax(12rem,0.85fr)_auto]"
+      paginationId="workspace_users"
+      pagination={pagination}
       columns={[
         { label: t("dashboard.name") },
         { label: t("dashboard.email") },

@@ -19,7 +19,11 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status") || "pending"
     const limit = searchParams.get("limit") || "20"
+    const offset = searchParams.get("offset")?.trim()
     const query = new URLSearchParams({ status, limit })
+    if (offset) {
+      query.set("offset", offset)
+    }
 
     const requests = await gatewayRequest<RegistrationRequestList>(
       `/control/v1/workspaces/${encodeURIComponent(

@@ -28,15 +28,22 @@ import {
   skippedResult,
   type Settled,
 } from "./dashboard-data"
+import {
+  parseDashboardPagination,
+  type DashboardPaginationState,
+  type DashboardSearchParams,
+} from "./dashboard-pagination"
 import type { DashboardSection } from "./dashboard-routes"
 import { DashboardSectionContent } from "./dashboard-sections"
 
-const RESOURCE_LIST_LIMIT = 100
+const RESOURCE_LIST_LIMIT = 200
 
 export async function DashboardPage({
   section = "status",
+  searchParams,
 }: {
   section?: DashboardSection
+  searchParams?: DashboardSearchParams
 }) {
   const cookieStore = await cookies()
   const headerStore = await headers()
@@ -89,6 +96,37 @@ export async function DashboardPage({
     section === "advanced" ||
     section === "deployments" ||
     section === "chat-smoke"
+  const workspaceUsersPage = parseDashboardPagination(
+    searchParams,
+    "workspace_users"
+  )
+  const membersPage = parseDashboardPagination(searchParams, "members")
+  const apiKeysPage = parseDashboardPagination(searchParams, "api_keys")
+  const providerSetupsPage = parseDashboardPagination(
+    searchParams,
+    "provider_setups"
+  )
+  const modelCatalogsPage = parseDashboardPagination(
+    searchParams,
+    "model_catalogs"
+  )
+  const providerCredentialsPage = parseDashboardPagination(
+    searchParams,
+    "provider_credentials"
+  )
+  const modelDeploymentsPage = parseDashboardPagination(
+    searchParams,
+    "model_deployments"
+  )
+  const pageWorkspaceUsers = section === "users"
+  const pageMembers = section === "members"
+  const pageApiKeys = section === "api-keys"
+  const pageProviderSetups = section === "provider-setups"
+  const pageModelCatalogs = section === "models" || section === "advanced"
+  const pageProviderCredentials =
+    section === "credentials" || section === "advanced"
+  const pageModelDeployments =
+    section === "deployments" || section === "advanced"
 
   const [health, ready] = needsStatus
     ? await Promise.all([
@@ -122,14 +160,14 @@ export async function DashboardPage({
         )
     ),
     loadWorkspaceResource(
-      section === "api-keys",
+      section === "api-keys" || section === "chat-smoke",
       activeWorkspace,
       noWorkspaceMessage,
       (workspace) =>
         gatewayRequest<APIKeyList>(
           `/control/v1/me/api-keys?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&status=active&limit=20`,
+          )}&status=active&${paginationQuery(apiKeysPage, pageApiKeys)}`,
           { token }
         )
     ),
@@ -153,7 +191,7 @@ export async function DashboardPage({
         gatewayRequest<UserList>(
           `/control/v1/workspaces/${encodeURIComponent(
             workspace.id
-          )}/users?limit=50`,
+          )}/users?${paginationQuery(workspaceUsersPage, pageWorkspaceUsers)}`,
           { token }
         )
     ),
@@ -165,7 +203,7 @@ export async function DashboardPage({
         gatewayRequest<WorkspaceMemberList>(
           `/control/v1/workspaces/${encodeURIComponent(
             workspace.id
-          )}/members?limit=20`,
+          )}/members?${paginationQuery(membersPage, pageMembers)}`,
           { token }
         )
     ),
@@ -178,7 +216,7 @@ export async function DashboardPage({
         gatewayRequest<ModelCatalogList>(
           `/control/v1/model-catalogs?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&limit=${RESOURCE_LIST_LIMIT}`,
+          )}&${paginationQuery(modelCatalogsPage, pageModelCatalogs)}`,
           { token }
         )
     ),
@@ -190,7 +228,10 @@ export async function DashboardPage({
         gatewayRequest<ProviderCredentialList>(
           `/control/v1/provider-credentials?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&limit=${RESOURCE_LIST_LIMIT}`,
+          )}&${paginationQuery(
+            providerCredentialsPage,
+            pageProviderCredentials
+          )}`,
           { token }
         )
     ),
@@ -202,7 +243,7 @@ export async function DashboardPage({
         gatewayRequest<ProviderSetupList>(
           `/control/v1/provider-setups?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&limit=${RESOURCE_LIST_LIMIT}`,
+          )}&${paginationQuery(providerSetupsPage, pageProviderSetups)}`,
           { token }
         )
     ),
@@ -214,11 +255,40 @@ export async function DashboardPage({
         gatewayRequest<ModelDeploymentList>(
           `/control/v1/model-deployments?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&limit=${RESOURCE_LIST_LIMIT}`,
+          )}&${paginationQuery(modelDeploymentsPage, pageModelDeployments)}`,
           { token }
         )
     ),
   ])
+
+  const [pagedApiKeys, apiKeysPagination] = finalizePaginatedResult(
+    apiKeys,
+    apiKeysPage,
+    pageApiKeys
+  )
+  const [pagedWorkspaceUsers, workspaceUsersPagination] =
+    finalizePaginatedResult(workspaceUsers, workspaceUsersPage, pageWorkspaceUsers)
+  const [pagedWorkspaceMembers, membersPagination] = finalizePaginatedResult(
+    workspaceMembers,
+    membersPage,
+    pageMembers
+  )
+  const [pagedModelCatalogs, modelCatalogsPagination] =
+    finalizePaginatedResult(modelCatalogs, modelCatalogsPage, pageModelCatalogs)
+  const [pagedProviderCredentials, providerCredentialsPagination] =
+    finalizePaginatedResult(
+      providerCredentials,
+      providerCredentialsPage,
+      pageProviderCredentials
+    )
+  const [pagedProviderSetups, providerSetupsPagination] =
+    finalizePaginatedResult(providerSetups, providerSetupsPage, pageProviderSetups)
+  const [pagedModelDeployments, modelDeploymentsPagination] =
+    finalizePaginatedResult(
+      modelDeployments,
+      modelDeploymentsPage,
+      pageModelDeployments
+    )
 
   const pendingRegistrationRequests =
     needsStatus || section === "registration"
@@ -229,17 +299,23 @@ export async function DashboardPage({
         )
       : registrationRequests
 
-  const workspaceUserList = workspaceUsers.ok ? workspaceUsers.data.data : []
-  const workspaceMemberList = workspaceMembers.ok
-    ? workspaceMembers.data.data
+  const workspaceUserList = pagedWorkspaceUsers.ok
+    ? pagedWorkspaceUsers.data.data
     : []
-  const modelCatalogList = modelCatalogs.ok ? modelCatalogs.data.data : []
-  const providerCredentialList = providerCredentials.ok
-    ? providerCredentials.data.data
+  const workspaceMemberList = pagedWorkspaceMembers.ok
+    ? pagedWorkspaceMembers.data.data
     : []
-  const providerSetupList = providerSetups.ok ? providerSetups.data.data : []
-  const modelDeploymentList = modelDeployments.ok
-    ? modelDeployments.data.data
+  const modelCatalogList = pagedModelCatalogs.ok
+    ? pagedModelCatalogs.data.data
+    : []
+  const providerCredentialList = pagedProviderCredentials.ok
+    ? pagedProviderCredentials.data.data
+    : []
+  const providerSetupList = pagedProviderSetups.ok
+    ? pagedProviderSetups.data.data
+    : []
+  const modelDeploymentList = pagedModelDeployments.ok
+    ? pagedModelDeployments.data.data
     : []
   const activeModelCatalogList = modelCatalogList.filter(
     (modelCatalog) => modelCatalog.status === "active"
@@ -280,21 +356,30 @@ export async function DashboardPage({
       health={health}
       ready={ready}
       balance={balance}
-      apiKeys={apiKeys}
+      apiKeys={pagedApiKeys}
       dailyUsage={dailyUsage}
-      workspaceUsers={workspaceUsers}
+      workspaceUsers={pagedWorkspaceUsers}
       workspaceUserList={workspaceUserList}
-      workspaceMembers={workspaceMembers}
+      workspaceMembers={pagedWorkspaceMembers}
       workspaceMemberList={workspaceMemberList}
       registrationRequests={pendingRegistrationRequests}
-      modelCatalogs={modelCatalogs}
+      modelCatalogs={pagedModelCatalogs}
       modelCatalogList={modelCatalogList}
-      providerCredentials={providerCredentials}
+      providerCredentials={pagedProviderCredentials}
       providerCredentialList={providerCredentialList}
-      providerSetups={providerSetups}
+      providerSetups={pagedProviderSetups}
       providerSetupList={providerSetupList}
-      modelDeployments={modelDeployments}
+      modelDeployments={pagedModelDeployments}
       modelDeploymentList={modelDeploymentList}
+      tablePagination={{
+        workspace_users: workspaceUsersPagination,
+        members: membersPagination,
+        api_keys: apiKeysPagination,
+        provider_setups: providerSetupsPagination,
+        model_catalogs: modelCatalogsPagination,
+        provider_credentials: providerCredentialsPagination,
+        model_deployments: modelDeploymentsPagination,
+      }}
       chatSmokeModel={chatSmokeModel}
       showUserManagement={showUserManagement}
       showMemberManagement={showMemberManagement}
@@ -324,7 +409,7 @@ async function loadRegistrationRequestsForWorkspaces(
         gatewayRequest<RegistrationRequestList>(
           `/control/v1/workspaces/${encodeURIComponent(
             workspace.id
-          )}/registration-requests?status=pending&limit=20`,
+          )}/registration-requests?status=pending&limit=${RESOURCE_LIST_LIMIT}`,
           { token }
         )
       )
@@ -349,4 +434,54 @@ async function loadRegistrationRequestsForWorkspaces(
       data: successful.flatMap((result) => result.data.data),
     },
   }
+}
+
+type ParsedDashboardPagination = ReturnType<typeof parseDashboardPagination>
+
+function paginationQuery(
+  pagination: ParsedDashboardPagination,
+  enabled: boolean
+) {
+  const params = new URLSearchParams({
+    limit: String(enabled ? pagination.requestLimit : RESOURCE_LIST_LIMIT),
+  })
+
+  if (enabled && pagination.offset > 0) {
+    params.set("offset", String(pagination.offset))
+  }
+
+  return params.toString()
+}
+
+function finalizePaginatedResult<T extends { data: unknown[] }>(
+  result: Settled<T>,
+  pagination: ParsedDashboardPagination,
+  enabled: boolean
+): [Settled<T>, DashboardPaginationState | undefined] {
+  if (!enabled || !result.ok) {
+    return [result, undefined]
+  }
+
+  const pageItems = result.data.data.slice(0, pagination.pageSize)
+  const hasNext =
+    result.data.data.length > pagination.pageSize ||
+    (pagination.pageSize >= RESOURCE_LIST_LIMIT &&
+      result.data.data.length >= pagination.pageSize)
+
+  return [
+    {
+      ok: true,
+      data: {
+        ...result.data,
+        data: pageItems,
+      } as T,
+    },
+    {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      offset: pagination.offset,
+      itemCount: pageItems.length,
+      hasNext,
+    },
+  ]
 }

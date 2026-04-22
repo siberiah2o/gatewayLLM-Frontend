@@ -1,7 +1,7 @@
-export const locales = ["en", "zh"] as const
-export type Locale = (typeof locales)[number]
+export const locales = ["en", "zh"] as const;
+export type Locale = (typeof locales)[number];
 
-type Dictionary = Record<string, string>
+type Dictionary = Record<string, string>;
 
 export const dictionaries: Record<Locale, Dictionary> = {
   en: {
@@ -57,7 +57,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "nav.catalogs": "Catalogs",
     "nav.credentials": "Credentials",
     "nav.deployments": "Deployments",
-    "nav.smokeTest": "Smoke test",
+    "nav.smokeTest": "Model debugger",
     "nav.access": "Access",
     "nav.users": "Users",
     "nav.members": "Members",
@@ -140,7 +140,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.noApiKeys": "No personal API keys.",
     "dashboard.providerSetupsTitle": "Model access setups",
     "dashboard.providerSetupsDescription":
-      "Configure provider, route, credential, and endpoint in one place.",
+      "Configure provider, route, secret, and endpoint in one place.",
     "dashboard.noProviderSetups": "No model access setups.",
     "dashboard.modelsTitle": "Model catalogs",
     "dashboard.modelsDescription":
@@ -154,9 +154,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.deploymentsDescription":
       "Routing targets for GatewayLLM data-plane requests.",
     "dashboard.noDeployments": "No model deployments.",
-    "dashboard.chatSmokeTitle": "Chat smoke test",
+    "dashboard.chatSmokeTitle": "Model debugger",
     "dashboard.chatSmokeDescription":
-      "Send a non-streaming request through /v1/chat/completions.",
+      "Run connectivity checks, coding prompts, and inspect raw gateway diagnostics.",
     "dashboard.dailyUsageTitle": "Daily usage",
     "dashboard.dailyUsageDescription":
       "Last 30 days for the first visible workspace.",
@@ -166,10 +166,26 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.region": "Region",
     "dashboard.priority": "Priority",
     "dashboard.weight": "Weight",
+    "dashboard.latency": "Latency",
+    "dashboard.responseModel": "Returned model",
+    "dashboard.finishReason": "Finish reason",
+    "dashboard.executedAt": "Executed at",
+    "dashboard.responseHeaders": "Response headers",
+    "dashboard.promptTokens": "Prompt tokens",
+    "dashboard.completionTokens": "Completion tokens",
+    "dashboard.totalTokens": "Total tokens",
+    "dashboard.resultCount": "Result count",
     "dashboard.offline": "offline",
     "dashboard.unknown": "unknown",
     "dashboard.missingSecret": "missing secret",
     "dashboard.via": "via",
+    "dashboard.rowsPerPage": "Rows",
+    "dashboard.paginationRange": "{start}-{end} of {total}",
+    "dashboard.paginationOpenRange": "{start}-{end}{more}",
+    "dashboard.paginationPage": "Page {page} of {pages}",
+    "dashboard.paginationPageSimple": "Page {page}",
+    "dashboard.previousPage": "Previous page",
+    "dashboard.nextPage": "Next page",
     "values.active": "active",
     "values.inactive": "inactive",
     "values.pending": "pending",
@@ -202,6 +218,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "actions.approving": "Approving...",
     "actions.reject": "Reject",
     "actions.rejecting": "Rejecting...",
+    "actions.copy": "Copy",
     "actions.copied": "Copied",
     "actions.copyKey": "Copy key",
     "actions.view": "View",
@@ -311,7 +328,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.createCredentialFailed": "Could not create provider credential.",
     "forms.createProviderSetup": "Create setup",
     "forms.createProviderSetupFailed": "Could not create model access setup.",
-    "forms.autoFilledDefaults": "Auto-filled defaults",
+    "forms.credentialName": "Key name",
     "forms.deploymentName": "Deployment name",
     "forms.advancedOptions": "Advanced options",
     "forms.deploymentPrerequisite":
@@ -323,8 +340,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.deploymentDefaultsHelp":
       "Defaults come from the backend model registry. You can override them.",
     "forms.loadingDeploymentDefaults": "Loading deployment defaults...",
-    "forms.loadDeploymentDefaultsFailed":
-      "Could not load deployment defaults.",
+    "forms.loadDeploymentDefaultsFailed": "Could not load deployment defaults.",
     "forms.noMatchingCredentials":
       "No active credentials match the selected model provider.",
     "forms.registrySuggestedValue": "Registry default: {value}",
@@ -332,16 +348,95 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.createDeploymentFailed": "Could not create model deployment.",
     "forms.updateDeploymentFailed": "Could not update model deployment.",
     "forms.editDeployment": "Edit deployment",
+    "forms.playgroundConfigurations": "Configurations",
+    "forms.playgroundTitle": "Test Key",
+    "forms.playgroundAccessSection": "Access",
+    "forms.playgroundRoutingSection": "Routing",
+    "forms.playgroundInferenceSection": "Inference",
+    "forms.keySource": "Virtual key source",
+    "forms.keySourceSession": "Current UI session",
+    "forms.keySourceManual": "Manual API key",
+    "forms.manualApiKey": "Manual API key",
+    "forms.manualApiKeyHelp":
+      "Paste a virtual key directly for one-off playground testing.",
+    "forms.customProxyBaseUrl": "Custom proxy base URL",
+    "forms.customProxyBaseUrlHelp":
+      "Used for generated code examples. Leave empty to use a placeholder base URL.",
+    "forms.endpointType": "Endpoint type",
+    "forms.selectModel": "Select model",
+    "forms.selectModelHelp":
+      "Choose from saved suggestions or fetch the full model list.",
+    "forms.selectModelDisabledHelp":
+      "Listing models does not require selecting a model.",
+    "forms.playgroundEmptyTitle": "Start a conversation",
+    "forms.playgroundEmptyDescription":
+      "Send a message or switch the endpoint to list the models available to this key.",
+    "forms.messagePlaceholder":
+      "Type your message... (Shift+Enter for new line)",
+    "forms.modelsPlaceholder":
+      "Listing models does not require a prompt. Press send to inspect available models.",
+    "forms.getCode": "Get Code",
+    "forms.clearChat": "Clear Chat",
+    "forms.generatedCode": "Generated code",
+    "forms.generatedCodeDescription":
+      "OpenAI-compatible examples based on the current playground configuration.",
+    "forms.generatedCurl": "cURL example",
+    "forms.generatedJavascript": "JavaScript example",
     "forms.gatewayApiKey": "Gateway API key",
+    "forms.gatewayApiKeyHelp":
+      "Paste a workspace API key to test the data-plane route.",
+    "forms.loadApiKeyFailed": "Could not load API key.",
     "forms.model": "Model",
     "forms.temperature": "Temperature",
     "forms.prompt": "Prompt",
+    "forms.debugModeSingle": "Single",
+    "forms.debugModeCompare": "Compare",
+    "forms.debugSuggestedModels": "Suggested models",
+    "forms.debugPromptPresets": "Prompt presets",
+    "forms.debugPromptPresetsHelp":
+      "Quick-fill a validation prompt, then edit it as needed.",
+    "forms.debugPresetConnectivity": "Connectivity",
+    "forms.debugPresetConnectivityText":
+      "Reply with one short sentence confirming the gateway and selected model are reachable.",
+    "forms.debugPresetCode": "Code generation",
+    "forms.debugPresetCodeText":
+      "Write a Python function named `slugify` that converts a title into a URL slug and show one example call.",
+    "forms.debugPresetBugfix": "Bug fix",
+    "forms.debugPresetBugfixText":
+      "Explain the bug in this Python snippet and provide a corrected version:\n\n```python\nnumbers = [1, 2, 3]\nfor index in range(len(numbers) + 1):\n    print(numbers[index])\n```",
     "forms.defaultPrompt":
       "Reply with one short sentence confirming GatewayLLM is reachable.",
-    "forms.listModels": "List models",
+    "forms.listModels": "List available models",
     "forms.listModelsFailed": "Could not list models.",
-    "forms.runSmokeTest": "Run smoke test",
-    "forms.chatSmokeFailed": "Chat smoke test failed.",
+    "forms.runSmokeTest": "Run debug request",
+    "forms.chatSmokeFailed": "Model debug request failed.",
+    "forms.debugLatestAction": "Last action",
+    "forms.debugOutput": "Output preview",
+    "forms.debugDiagnostics": "Diagnostics",
+    "forms.debugRequestPayload": "Request payload",
+    "forms.debugResponsePayload": "Response payload",
+    "forms.compareDescription":
+      "Send the same coding prompt to multiple models and inspect the responses side by side.",
+    "forms.compareModels": "Compare models",
+    "forms.compareAddModel": "Add model",
+    "forms.compareRemoveModel": "Remove model",
+    "forms.compareModelSlot": "Model {index}",
+    "forms.compareNeedModels": "Select at least 2 models to compare.",
+    "forms.comparePromptRequired": "A prompt is required for comparison.",
+    "forms.compareRun": "Run comparison",
+    "forms.compareRunning": "Comparing...",
+    "forms.compareNoResults":
+      "Run a comparison to see model outputs side by side.",
+    "forms.compareRequestFailed": "Comparison request failed.",
+    "forms.compareSelectedModels": "Selected models",
+    "forms.compareSuccessfulResponses": "Successful responses",
+    "forms.compareFastestModel": "Fastest model",
+    "forms.compareAverageLatency": "Average latency",
+    "forms.debugEmptyState":
+      "Run a model list or chat request to populate diagnostics.",
+    "forms.debugNoTextResponse":
+      "No text output was detected in the response payload.",
+    "forms.debugNoModels": "No models were returned.",
     "errors.signInRequired": "Sign in is required.",
     "errors.gatewayUnavailable": "GatewayLLM backend is unavailable.",
     "errors.unexpectedGateway": "Unexpected gateway error",
@@ -368,8 +463,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "errors.workspaceCredentialNameRequired":
       "Workspace, model catalog, credential, and name are required.",
     "errors.priorityWeightIntegers": "Priority and weight must be integers.",
-    "errors.priorityNonNegative":
-      "Priority must be a non-negative integer.",
+    "errors.priorityNonNegative": "Priority must be a non-negative integer.",
     "errors.weightNonNegative": "Weight must be a non-negative integer.",
     "errors.workspaceNameEmailPasswordRequired":
       "Workspace, name, email, and password are required.",
@@ -430,7 +524,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "nav.catalogs": "模型目录",
     "nav.credentials": "凭据",
     "nav.deployments": "部署",
-    "nav.smokeTest": "连通性测试",
+    "nav.smokeTest": "模型调试",
     "nav.access": "访问控制",
     "nav.users": "用户",
     "nav.members": "成员",
@@ -508,7 +602,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.noApiKeys": "没有个人 API 密钥。",
     "dashboard.providerSetupsTitle": "模型接入",
     "dashboard.providerSetupsDescription":
-      "在一个入口里配置 provider、模型路由、凭据和端点。",
+      "在一个入口里配置 provider、模型路由、密钥和端点。",
     "dashboard.noProviderSetups": "没有模型接入项。",
     "dashboard.modelsTitle": "模型目录",
     "dashboard.modelsDescription": "当前工作区可用的模型定义。",
@@ -519,8 +613,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.deploymentsTitle": "模型部署",
     "dashboard.deploymentsDescription": "GatewayLLM 数据平面请求的路由目标。",
     "dashboard.noDeployments": "没有模型部署。",
-    "dashboard.chatSmokeTitle": "聊天连通性测试",
-    "dashboard.chatSmokeDescription": "通过 /v1/chat/completions 发送非流式请求。",
+    "dashboard.chatSmokeTitle": "模型调试",
+    "dashboard.chatSmokeDescription":
+      "运行连通性检查、代码提示词调试，并查看原始网关诊断信息。",
     "dashboard.dailyUsageTitle": "每日用量",
     "dashboard.dailyUsageDescription": "第一个可见工作区最近 30 天的数据。",
     "dashboard.noDailyUsage": "没有返回每日用量。",
@@ -529,10 +624,26 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.region": "区域",
     "dashboard.priority": "优先级",
     "dashboard.weight": "权重",
+    "dashboard.latency": "耗时",
+    "dashboard.responseModel": "返回模型",
+    "dashboard.finishReason": "结束原因",
+    "dashboard.executedAt": "执行时间",
+    "dashboard.responseHeaders": "响应头",
+    "dashboard.promptTokens": "输入 tokens",
+    "dashboard.completionTokens": "输出 tokens",
+    "dashboard.totalTokens": "总 tokens",
+    "dashboard.resultCount": "结果数量",
     "dashboard.offline": "离线",
     "dashboard.unknown": "未知",
     "dashboard.missingSecret": "缺少密钥",
     "dashboard.via": "通过",
+    "dashboard.rowsPerPage": "每页",
+    "dashboard.paginationRange": "{start}-{end} / {total}",
+    "dashboard.paginationOpenRange": "{start}-{end}{more}",
+    "dashboard.paginationPage": "第 {page} / {pages} 页",
+    "dashboard.paginationPageSimple": "第 {page} 页",
+    "dashboard.previousPage": "上一页",
+    "dashboard.nextPage": "下一页",
     "values.active": "活跃",
     "values.inactive": "停用",
     "values.pending": "待处理",
@@ -565,6 +676,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "actions.approving": "批准中...",
     "actions.reject": "拒绝",
     "actions.rejecting": "拒绝中...",
+    "actions.copy": "复制",
     "actions.copied": "已复制",
     "actions.copyKey": "复制密钥",
     "actions.view": "查看",
@@ -597,7 +709,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.createApiKey": "创建 API 密钥",
     "forms.createApiKeyFailed": "无法创建 API 密钥。",
     "forms.saveKeyNow": "请立即保存此密钥。",
-    "forms.apiKeyUnavailable": "这个密钥创建于可重复查看能力启用前，请重新创建后再查看。",
+    "forms.apiKeyUnavailable":
+      "这个密钥创建于可重复查看能力启用前，请重新创建后再查看。",
     "forms.revokeApiKeyFailed": "无法撤销 API 密钥。",
     "forms.activateCatalogConfirm": "启用这个模型目录？",
     "forms.activateCredentialConfirm": "启用这个供应商凭据？",
@@ -638,7 +751,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.registryProvidersHelp":
       "选择注册表里的 provider 回填输入框，或者保留你手动输入的 provider。",
     "forms.registryMatches": "注册表匹配",
-    "forms.registryMatchesHelp": "可选择注册表匹配项回填模型名，也可以保留自定义规范名。",
+    "forms.registryMatchesHelp":
+      "可选择注册表匹配项回填模型名，也可以保留自定义规范名。",
     "forms.registryRouteExample": "注册表路由示例：{value}",
     "forms.loadingModelCatalogOptions": "正在加载模型注册表...",
     "forms.loadModelCatalogOptionsFailed": "无法加载模型注册表。",
@@ -668,7 +782,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.createCredentialFailed": "无法创建供应商凭据。",
     "forms.createProviderSetup": "创建接入项",
     "forms.createProviderSetupFailed": "无法创建模型接入项。",
-    "forms.autoFilledDefaults": "自动填充",
+    "forms.credentialName": "密钥名称",
     "forms.deploymentName": "部署名称",
     "forms.advancedOptions": "高级选项",
     "forms.deploymentPrerequisite": "请先创建模型目录和供应商凭据。",
@@ -686,15 +800,83 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.createDeploymentFailed": "无法创建模型部署。",
     "forms.updateDeploymentFailed": "无法更新模型部署。",
     "forms.editDeployment": "编辑部署",
+    "forms.playgroundConfigurations": "配置项",
+    "forms.playgroundTitle": "测试 Key",
+    "forms.playgroundAccessSection": "访问凭据",
+    "forms.playgroundRoutingSection": "路由设置",
+    "forms.playgroundInferenceSection": "推理参数",
+    "forms.keySource": "虚拟 Key 来源",
+    "forms.keySourceSession": "当前 UI 会话",
+    "forms.keySourceManual": "手动输入 API Key",
+    "forms.manualApiKey": "手动 API Key",
+    "forms.manualApiKeyHelp": "直接粘贴虚拟 Key，做一次性 playground 测试。",
+    "forms.customProxyBaseUrl": "自定义代理 Base URL",
+    "forms.customProxyBaseUrlHelp": "用于生成代码示例；留空时会使用占位地址。",
+    "forms.endpointType": "端点类型",
+    "forms.selectModel": "选择模型",
+    "forms.selectModelHelp": "可从已有建议中选择，也可以拉取完整模型列表。",
+    "forms.selectModelDisabledHelp": "列模型时无需选择模型。",
+    "forms.playgroundEmptyTitle": "开始一次对话",
+    "forms.playgroundEmptyDescription":
+      "发送一条消息，或把端点切到列模型来查看当前 Key 可访问的模型。",
+    "forms.messagePlaceholder": "输入消息...（Shift+Enter 换行）",
+    "forms.modelsPlaceholder": "列模型不需要提示词，点击发送即可查看可用模型。",
+    "forms.getCode": "获取代码",
+    "forms.clearChat": "清空对话",
+    "forms.generatedCode": "生成代码",
+    "forms.generatedCodeDescription":
+      "基于当前 playground 配置生成的 OpenAI 兼容调用示例。",
+    "forms.generatedCurl": "cURL 示例",
+    "forms.generatedJavascript": "JavaScript 示例",
     "forms.gatewayApiKey": "网关 API 密钥",
+    "forms.gatewayApiKeyHelp": "粘贴一个工作区 API 密钥，测试数据平面路由。",
+    "forms.loadApiKeyFailed": "无法加载 API 密钥。",
     "forms.model": "模型",
     "forms.temperature": "温度",
     "forms.prompt": "提示词",
+    "forms.debugModeSingle": "单模型",
+    "forms.debugModeCompare": "对比",
+    "forms.debugSuggestedModels": "建议模型",
+    "forms.debugPromptPresets": "提示词预设",
+    "forms.debugPromptPresetsHelp": "先快速填充一个校验提示词，再按需修改。",
+    "forms.debugPresetConnectivity": "连通性",
+    "forms.debugPresetConnectivityText":
+      "用一句简短的话确认网关和当前模型都可访问。",
+    "forms.debugPresetCode": "代码生成",
+    "forms.debugPresetCodeText":
+      "编写一个名为 `slugify` 的 Python 函数，把标题转换成 URL slug，并给出一个调用示例。",
+    "forms.debugPresetBugfix": "问题修复",
+    "forms.debugPresetBugfixText":
+      "解释下面这段 Python 代码的 bug，并给出修复版本：\n\n```python\nnumbers = [1, 2, 3]\nfor index in range(len(numbers) + 1):\n    print(numbers[index])\n```",
     "forms.defaultPrompt": "用一句简短的话确认 GatewayLLM 可访问。",
-    "forms.listModels": "列出模型",
+    "forms.listModels": "列出可用模型",
     "forms.listModelsFailed": "无法列出模型。",
-    "forms.runSmokeTest": "运行连通性测试",
-    "forms.chatSmokeFailed": "聊天连通性测试失败。",
+    "forms.runSmokeTest": "运行调试请求",
+    "forms.chatSmokeFailed": "模型调试请求失败。",
+    "forms.debugLatestAction": "最近操作",
+    "forms.debugOutput": "输出预览",
+    "forms.debugDiagnostics": "诊断信息",
+    "forms.debugRequestPayload": "请求载荷",
+    "forms.debugResponsePayload": "响应载荷",
+    "forms.compareDescription":
+      "把同一个编程提示词发送给多个模型，并排查看响应和诊断结果。",
+    "forms.compareModels": "对比模型",
+    "forms.compareAddModel": "添加模型",
+    "forms.compareRemoveModel": "移除模型",
+    "forms.compareModelSlot": "模型 {index}",
+    "forms.compareNeedModels": "至少选择 2 个模型进行对比。",
+    "forms.comparePromptRequired": "对比模式需要填写提示词。",
+    "forms.compareRun": "运行对比",
+    "forms.compareRunning": "对比中...",
+    "forms.compareNoResults": "运行一次对比后，这里会并排展示模型输出。",
+    "forms.compareRequestFailed": "模型对比请求失败。",
+    "forms.compareSelectedModels": "已选模型",
+    "forms.compareSuccessfulResponses": "成功响应数",
+    "forms.compareFastestModel": "最快模型",
+    "forms.compareAverageLatency": "平均耗时",
+    "forms.debugEmptyState": "运行一次列模型或聊天请求后，这里会展示诊断信息。",
+    "forms.debugNoTextResponse": "响应载荷里没有识别到可直接展示的文本输出。",
+    "forms.debugNoModels": "没有返回可用模型。",
     "errors.signInRequired": "需要先登录。",
     "errors.gatewayUnavailable": "GatewayLLM 后端不可用。",
     "errors.unexpectedGateway": "网关返回了未预期的错误",
@@ -708,7 +890,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "errors.emailPasswordRequired": "邮箱和密码都是必填项。",
     "errors.roleAdminMember": "角色必须是管理员或成员。",
     "errors.statusActiveInactive": "状态必须是活跃或停用。",
-    "errors.workspaceModelProviderRequired": "工作区、模型名称和供应商都是必填项。",
+    "errors.workspaceModelProviderRequired":
+      "工作区、模型名称和供应商都是必填项。",
     "errors.pricingNumbers": "价格必须是数字。",
     "errors.workspaceProviderNameSecretRequired":
       "工作区、供应商、名称和密钥都是必填项。",
@@ -721,10 +904,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "errors.weightNonNegative": "权重必须是非负整数。",
     "errors.workspaceNameEmailPasswordRequired":
       "工作区、姓名、邮箱和密码都是必填项。",
-    "errors.emailPasswordDisplayNameRequired": "邮箱、密码和显示名称都是必填项。",
+    "errors.emailPasswordDisplayNameRequired":
+      "邮箱、密码和显示名称都是必填项。",
     "errors.signOutFailed": "无法退出 GatewayLLM。",
   },
-}
+};
 
 const errorMessageKeys: Record<string, string> = {
   "Sign in is required.": "errors.signInRequired",
@@ -760,34 +944,34 @@ const errorMessageKeys: Record<string, string> = {
   "Email, password, and display name are required.":
     "errors.emailPasswordDisplayNameRequired",
   "Could not sign out from GatewayLLM.": "errors.signOutFailed",
-}
+};
 
 export function normalizeLocale(value?: string | null): Locale {
-  return value?.toLowerCase().startsWith("zh") ? "zh" : "en"
+  return value?.toLowerCase().startsWith("zh") ? "zh" : "en";
 }
 
 export function translate(
   locale: Locale,
   key: string,
-  values?: Record<string, string | number>
+  values?: Record<string, string | number>,
 ) {
-  const template = dictionaries[locale][key] ?? dictionaries.en[key] ?? key
+  const template = dictionaries[locale][key] ?? dictionaries.en[key] ?? key;
 
   return values
     ? template.replace(/\{(\w+)\}/g, (_, name) => String(values[name] ?? ""))
-    : template
+    : template;
 }
 
 export function translateKnownError(
   locale: Locale,
   message: string | null | undefined,
-  fallback: string
+  fallback: string,
 ) {
   if (!message) {
-    return fallback
+    return fallback;
   }
 
-  const key = errorMessageKeys[message]
+  const key = errorMessageKeys[message];
 
-  return key ? translate(locale, key) : message
+  return key ? translate(locale, key) : message;
 }

@@ -26,10 +26,14 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const status = searchParams.get("status")
     const limit = searchParams.get("limit") || "50"
+    const offset = searchParams.get("offset")?.trim()
     const query = new URLSearchParams({ limit })
 
     if (status) {
       query.set("status", status)
+    }
+    if (offset) {
+      query.set("offset", offset)
     }
 
     const users = await gatewayRequest<UserList>(

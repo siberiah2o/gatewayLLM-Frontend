@@ -15,6 +15,8 @@ import type { Workspace } from "@/lib/gatewayllm"
 import { cn } from "@/lib/utils"
 import { Building2Icon, InboxIcon } from "lucide-react"
 import type { ReactNode } from "react"
+import type { DashboardPaginationState } from "./dashboard-pagination"
+import { DashboardTablePagination } from "./dashboard-table-pagination"
 
 export type Translator = (
   key: string,
@@ -226,7 +228,7 @@ export function EmptyState({
 
 export function StatusBadge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex h-5 items-center rounded-md border px-1.5 text-[0.72rem] font-medium">
+    <span className="inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-[0.72rem] font-medium">
       {children}
     </span>
   )
@@ -238,7 +240,10 @@ export function DashboardRow({
 }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("grid gap-2.5 rounded-lg border p-2.5 text-sm", className)}
+      className={cn(
+        "grid min-w-0 gap-2.5 rounded-lg border p-2.5 text-sm",
+        className
+      )}
       {...props}
     />
   )
@@ -284,7 +289,10 @@ export function DashboardDetailText({
 }: React.ComponentProps<"span">) {
   return (
     <span
-      className={cn("block truncate text-xs text-muted-foreground", className)}
+      className={cn(
+        "block min-w-0 max-w-full truncate text-xs text-muted-foreground",
+        className
+      )}
       {...props}
     />
   )
@@ -297,7 +305,7 @@ export function DashboardMonoDetailText({
   return (
     <span
       className={cn(
-        "block truncate font-mono text-xs tabular-nums text-muted-foreground",
+        "block min-w-0 max-w-full truncate font-mono text-xs tabular-nums text-muted-foreground",
         className
       )}
       {...props}
@@ -352,12 +360,15 @@ export function DashboardTableHeader({
   return (
     <div
       className={cn(
-        "hidden xl:grid xl:gap-2.5 xl:px-2.5 xl:text-[0.72rem] xl:font-medium xl:text-muted-foreground",
+        "hidden min-w-0 xl:grid xl:gap-2.5 xl:px-2.5 xl:text-[0.72rem] xl:font-medium xl:text-muted-foreground",
         className
       )}
     >
       {columns.map((column) => (
-        <div key={column.label} className={column.className}>
+        <div
+          key={column.label}
+          className={cn("min-w-0 truncate", column.className)}
+        >
           {column.label}
         </div>
       ))}
@@ -368,16 +379,22 @@ export function DashboardTableHeader({
 export function DashboardTableList({
   columns,
   className,
+  paginationId = "table",
+  pagination,
   children,
 }: {
   columns: DashboardTableColumn[]
   className?: string
+  paginationId?: string
+  pagination?: DashboardPaginationState
   children: ReactNode
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <DashboardTableHeader columns={columns} className={className} />
-      {children}
+      <DashboardTablePagination paginationId={paginationId} pagination={pagination}>
+        {children}
+      </DashboardTablePagination>
     </div>
   )
 }
@@ -390,9 +407,9 @@ export function DashboardRowMeta({
   children: ReactNode
 }) {
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 overflow-hidden">
       <DashboardMobileLabel label={label} />
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+      <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 [&>*]:min-w-0 [&>*]:max-w-full">
         {children}
       </div>
     </div>

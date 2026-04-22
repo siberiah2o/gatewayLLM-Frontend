@@ -22,6 +22,7 @@ import type {
   WorkspaceMemberList,
 } from "@/lib/gatewayllm"
 import type { Settled } from "./dashboard-data"
+import type { DashboardPaginationState } from "./dashboard-pagination"
 import type { DashboardSection } from "./dashboard-routes"
 import type { Translator } from "./dashboard-ui"
 
@@ -50,6 +51,7 @@ export type DashboardSectionContentProps = {
   providerSetupList: ProviderSetup[]
   modelDeployments: Settled<ModelDeploymentList>
   modelDeploymentList: ModelDeployment[]
+  tablePagination: Record<string, DashboardPaginationState | undefined>
   chatSmokeModel: string
   showUserManagement: boolean
   showMemberManagement: boolean

@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const params = new URLSearchParams()
 
-    for (const key of ["workspace_id", "provider", "status", "limit"]) {
+    for (const key of ["workspace_id", "provider", "status", "limit", "offset"]) {
       const value = searchParams.get(key)?.trim()
       if (value) {
         params.set(key, value)

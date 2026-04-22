@@ -1,30 +1,31 @@
+import { CreateAPIKeyForm } from "@/components/dashboard-actions/api-keys";
+import { ChatSmokeTestForm } from "@/components/dashboard-actions/chat-smoke";
+import { CreateModelDeploymentForm } from "@/components/dashboard-actions/deployments";
 import {
-  ChatSmokeTestForm,
-  CreateAPIKeyForm,
   CreateModelCatalogForm,
-  CreateModelDeploymentForm,
   CreateProviderCredentialForm,
   CreateProviderSetupForm,
+} from "@/components/dashboard-actions/model-registry";
+import {
   CreateWorkspaceForm,
   CreateWorkspaceUserDialog,
-} from "@/components/dashboard-actions"
+} from "@/components/dashboard-actions/workspace";
 import {
   Card,
   CardAction,
   CardDescription,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   BotIcon,
   ClipboardListIcon,
   KeyRoundIcon,
-  MessageSquareTextIcon,
   ShieldCheckIcon,
   UserCheckIcon,
   UserPlusIcon,
   UsersRoundIcon,
-} from "lucide-react"
-import type { ReactNode } from "react"
+} from "lucide-react";
+import type { ReactNode } from "react";
 import {
   DashboardDetailText,
   DashboardMonoDetailText,
@@ -43,7 +44,7 @@ import {
   WorkspaceRow,
   getWorkspaceScope,
   localizeValue,
-} from "./dashboard-ui"
+} from "./dashboard-ui";
 import {
   APIKeyRow,
   ModelCatalogRow,
@@ -52,47 +53,61 @@ import {
   ProviderSetupRow,
   RegistrationRequestRow,
   WorkspaceMemberRow,
-} from "./dashboard-rows"
-import { AccountSection } from "./dashboard-account-section"
-import type { Settled } from "./dashboard-data"
-import type { DashboardSectionContentProps } from "./dashboard-section-types"
-import { WorkspaceUsersTable } from "./workspace-user-row"
+} from "./dashboard-rows";
+import { AccountSection } from "./dashboard-account-section";
+import { AdvancedResourceTabs } from "./advanced-resource-tabs";
+import type { Settled } from "./dashboard-data";
+import type { DashboardSectionContentProps } from "./dashboard-section-types";
+import { WorkspaceUsersTable } from "./workspace-user-row";
 
 export function DashboardSectionContent(props: DashboardSectionContentProps) {
   switch (props.section) {
     case "status":
-      return <StatusSection {...props} />
+      return <StatusSection {...props} />;
     case "usage":
-      return <UsageSection {...props} />
+      return <UsageSection {...props} />;
     case "workspaces":
-      return <WorkspacesSection {...props} />
+      return <WorkspacesSection {...props} />;
     case "account":
-      return <AccountSection {...props} />
+      return <AccountSection {...props} />;
     case "users":
-      return <UsersSection {...props} />
+      return <UsersSection {...props} />;
     case "members":
-      return <MembersSection {...props} />
+      return <MembersSection {...props} />;
     case "registration":
-      return <RegistrationSection {...props} />
+      return <RegistrationSection {...props} />;
     case "api-keys":
-      return <ApiKeysSection {...props} />
+      return <ApiKeysSection {...props} />;
     case "provider-setups":
-      return <ProviderSetupsSection {...props} />
+      return <ProviderSetupsSection {...props} />;
     case "advanced":
-      return <AdvancedSection {...props} />
+      return <AdvancedSection {...props} />;
     case "models":
-      return <ModelsSection {...props} />
+      return <ModelsSection {...props} />;
     case "credentials":
-      return <CredentialsSection {...props} />
+      return <CredentialsSection {...props} />;
     case "deployments":
-      return <DeploymentsSection {...props} />
+      return <DeploymentsSection {...props} />;
     case "chat-smoke":
-      return <ChatSmokeSection {...props} />
+      return <ChatSmokeSection {...props} />;
   }
 }
 
 function getSettledMessage<T>(result: Settled<T>, successMessage: string) {
-  return result.ok ? successMessage : result.error
+  return result.ok ? successMessage : result.error;
+}
+
+function getCountLabel(
+  count: number,
+  pagination: DashboardSectionContentProps["tablePagination"][string],
+) {
+  if (!pagination) {
+    return String(count);
+  }
+
+  const loadedCount = pagination.offset + count;
+
+  return pagination.hasNext ? `${loadedCount}+` : String(loadedCount);
 }
 
 function DashboardSettledMetric<T>({
@@ -102,11 +117,11 @@ function DashboardSettledMetric<T>({
   detail,
   fallbackValue,
 }: {
-  label: string
-  result: Settled<T>
-  value: (data: T) => string
-  detail: string | ((data: T) => string)
-  fallbackValue: string
+  label: string;
+  result: Settled<T>;
+  value: (data: T) => string;
+  detail: string | ((data: T) => string);
+  fallbackValue: string;
 }) {
   return (
     <MetricCard
@@ -120,7 +135,7 @@ function DashboardSettledMetric<T>({
           : result.error
       }
     />
-  )
+  );
 }
 
 function DashboardSettledEmptyState<T>({
@@ -128,16 +143,13 @@ function DashboardSettledEmptyState<T>({
   emptyMessage,
   icon,
 }: {
-  result: Settled<T>
-  emptyMessage: string
-  icon?: ReactNode
+  result: Settled<T>;
+  emptyMessage: string;
+  icon?: ReactNode;
 }) {
   return (
-    <EmptyState
-      message={getSettledMessage(result, emptyMessage)}
-      icon={icon}
-    />
-  )
+    <EmptyState message={getSettledMessage(result, emptyMessage)} icon={icon} />
+  );
 }
 
 function StatusSection({
@@ -216,7 +228,7 @@ function StatusSection({
           value={(data) =>
             String(
               data.data.filter((deployment) => deployment.status === "active")
-                .length
+                .length,
             )
           }
           detail={t("dashboard.activeDeployments")}
@@ -231,19 +243,18 @@ function StatusSection({
         fallbackValue="$0"
       />
     </section>
-  )
+  );
 }
 
-function WorkspacesSection({
-  t,
-  workspaceList,
-}: DashboardSectionContentProps) {
+function WorkspacesSection({ t, workspaceList }: DashboardSectionContentProps) {
   return (
     <section className="grid gap-3">
       <Card id="workspaces">
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.workspaces")}</CardTitle>
-          <CardDescription>{t("dashboard.workspacesDescription")}</CardDescription>
+          <CardDescription>
+            {t("dashboard.workspacesDescription")}
+          </CardDescription>
         </DashboardPanelHeader>
         <DashboardStackContent>
           <CreateWorkspaceForm />
@@ -257,7 +268,7 @@ function WorkspacesSection({
         </DashboardStackContent>
       </Card>
     </section>
-  )
+  );
 }
 
 function UsersSection({
@@ -265,8 +276,9 @@ function UsersSection({
   activeWorkspace,
   workspaceUsers,
   workspaceUserList,
+  tablePagination,
 }: DashboardSectionContentProps) {
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t);
 
   return (
     <section className="grid gap-3">
@@ -276,7 +288,10 @@ function UsersSection({
             icon={<UsersRoundIcon className="size-4" />}
             label={t("dashboard.users")}
             value={String(workspaceUserList.length)}
-            detail={getSettledMessage(workspaceUsers, t("dashboard.workspaceUsers"))}
+            detail={getSettledMessage(
+              workspaceUsers,
+              t("dashboard.workspaceUsers"),
+            )}
           />
           <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
         </DashboardSummaryGrid>
@@ -287,14 +302,22 @@ function UsersSection({
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.usersTitle")}</CardTitle>
             <CardAction>
-              <StatusBadge>{String(workspaceUserList.length)}</StatusBadge>
+              <StatusBadge>
+                {getCountLabel(
+                  workspaceUserList.length,
+                  tablePagination.workspace_users,
+                )}
+              </StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
           <DashboardPanelContent>
-            {workspaceUsers.ok && workspaceUserList.length > 0 ? (
+            {workspaceUsers.ok &&
+            (workspaceUserList.length > 0 ||
+              tablePagination.workspace_users) ? (
               <WorkspaceUsersTable
                 users={workspaceUserList}
                 workspaceId={activeWorkspace?.id}
+                pagination={tablePagination.workspace_users}
                 t={t}
               />
             ) : (
@@ -311,14 +334,14 @@ function UsersSection({
           description={workspaceScope.label}
           icon={<UserPlusIcon className="size-4 text-muted-foreground" />}
         >
-            <CreateWorkspaceUserDialog workspaceId={activeWorkspace?.id} />
-            <div className="text-sm text-muted-foreground">
-              {t("dashboard.usersDescription")}
-            </div>
+          <CreateWorkspaceUserDialog workspaceId={activeWorkspace?.id} />
+          <div className="text-sm text-muted-foreground">
+            {t("dashboard.usersDescription")}
+          </div>
         </DashboardSidebarCard>
       </div>
     </section>
-  )
+  );
 }
 
 function MembersSection({
@@ -327,13 +350,14 @@ function MembersSection({
   workspaceMembers,
   workspaceMemberList,
   modelCatalogList,
+  tablePagination,
 }: DashboardSectionContentProps) {
   const assignableModelCatalogList = modelCatalogList.filter(
-    (modelCatalog) => modelCatalog.status === "active"
-  )
+    (modelCatalog) => modelCatalog.status === "active",
+  );
   const activeMemberCount = workspaceMemberList.filter(
-    (member) => member.status === "active"
-  ).length
+    (member) => member.status === "active",
+  ).length;
 
   return (
     <section className="grid gap-3">
@@ -343,7 +367,10 @@ function MembersSection({
             icon={<UserCheckIcon className="size-4" />}
             label={t("dashboard.members")}
             value={String(activeMemberCount)}
-            detail={getSettledMessage(workspaceMembers, t("dashboard.workspaceMembers"))}
+            detail={getSettledMessage(
+              workspaceMembers,
+              t("dashboard.workspaceMembers"),
+            )}
           />
           <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
         </DashboardSummaryGrid>
@@ -352,13 +379,21 @@ function MembersSection({
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.membersTitle")}</CardTitle>
           <CardAction>
-            <StatusBadge>{String(workspaceMemberList.length)}</StatusBadge>
+            <StatusBadge>
+              {getCountLabel(
+                workspaceMemberList.length,
+                tablePagination.members,
+              )}
+            </StatusBadge>
           </CardAction>
         </DashboardPanelHeader>
         <DashboardPanelContent>
-          {workspaceMembers.ok && workspaceMemberList.length > 0 ? (
+          {workspaceMembers.ok &&
+          (workspaceMemberList.length > 0 || tablePagination.members) ? (
             <DashboardTableList
               className="xl:grid-cols-[minmax(12rem,1fr)_5rem_minmax(12rem,0.7fr)_minmax(26rem,1fr)]"
+              paginationId="members"
+              pagination={tablePagination.members}
               columns={[
                 { label: t("dashboard.name") },
                 { label: t("forms.role") },
@@ -385,7 +420,7 @@ function MembersSection({
         </DashboardPanelContent>
       </Card>
     </section>
-  )
+  );
 }
 
 function RegistrationSection({
@@ -395,7 +430,7 @@ function RegistrationSection({
 }: DashboardSectionContentProps) {
   const registrationRequestList = registrationRequests.ok
     ? registrationRequests.data.data
-    : []
+    : [];
 
   return (
     <section className="grid gap-3">
@@ -407,7 +442,7 @@ function RegistrationSection({
             value={String(registrationRequestList.length)}
             detail={getSettledMessage(
               registrationRequests,
-              t("dashboard.registrationRequests")
+              t("dashboard.registrationRequests"),
             )}
           />
           <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
@@ -425,6 +460,7 @@ function RegistrationSection({
           {registrationRequests.ok && registrationRequestList.length > 0 ? (
             <DashboardTableList
               className="xl:grid-cols-[minmax(12rem,1fr)_minmax(0,1fr)_minmax(12rem,0.8fr)_auto]"
+              paginationId="registration"
               columns={[
                 { label: t("dashboard.name") },
                 { label: t("dashboard.email") },
@@ -449,19 +485,20 @@ function RegistrationSection({
         </DashboardPanelContent>
       </Card>
     </section>
-  )
+  );
 }
 
 function ApiKeysSection({
   t,
   activeWorkspace,
   apiKeys,
+  tablePagination,
 }: DashboardSectionContentProps) {
-  const apiKeyList = apiKeys.ok ? apiKeys.data.data : []
+  const apiKeyList = apiKeys.ok ? apiKeys.data.data : [];
   const activeKeyCount = apiKeyList.filter(
-    (apiKey) => apiKey.status === "active"
-  ).length
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
+    (apiKey) => apiKey.status === "active",
+  ).length;
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t);
 
   return (
     <section className="grid gap-3">
@@ -482,13 +519,17 @@ function ApiKeysSection({
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.apiKeysListTitle")}</CardTitle>
             <CardAction>
-              <StatusBadge>{String(apiKeyList.length)}</StatusBadge>
+              <StatusBadge>
+                {getCountLabel(apiKeyList.length, tablePagination.api_keys)}
+              </StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
           <DashboardPanelContent>
-            {apiKeyList.length > 0 ? (
+            {apiKeyList.length > 0 || tablePagination.api_keys ? (
               <DashboardTableList
                 className="xl:grid-cols-[minmax(10rem,0.95fr)_minmax(0,1.2fr)_minmax(12rem,0.95fr)_minmax(10rem,0.85fr)_auto]"
+                paginationId="api_keys"
+                pagination={tablePagination.api_keys}
                 columns={[
                   { label: t("dashboard.name") },
                   { label: t("dashboard.apiKeyId") },
@@ -522,7 +563,7 @@ function ApiKeysSection({
         </DashboardSidebarCard>
       </div>
     </section>
-  )
+  );
 }
 
 function ProviderSetupsSection({
@@ -530,46 +571,37 @@ function ProviderSetupsSection({
   activeWorkspace,
   providerSetups,
   providerSetupList,
+  tablePagination,
 }: DashboardSectionContentProps) {
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
-  const activeSetupCount = providerSetupList.filter(
-    (setup) => setup.status === "active"
-  ).length
+  const workspaceScope = getWorkspaceScope(activeWorkspace, t);
 
   return (
     <section className="grid gap-3">
-      <Card id="provider-setups">
-        <DashboardSummaryGrid>
-          <DashboardSummaryTile
-            icon={<BotIcon className="size-4" />}
-            label={t("dashboard.providerSetupsTitle")}
-            value={String(activeSetupCount)}
-            detail={getSettledMessage(
-              providerSetups,
-              t("dashboard.providerSetupsDescription")
-            )}
-          />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
-        </DashboardSummaryGrid>
-      </Card>
-
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
-        <Card>
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_clamp(22rem,30vw,28rem)]">
+        <Card className="min-w-0">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.providerSetupsTitle")}</CardTitle>
             <CardAction>
-              <StatusBadge>{String(providerSetupList.length)}</StatusBadge>
+              <StatusBadge>
+                {getCountLabel(
+                  providerSetupList.length,
+                  tablePagination.provider_setups,
+                )}
+              </StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
           <DashboardPanelContent>
-            {providerSetups.ok && providerSetupList.length > 0 ? (
+            {providerSetups.ok &&
+            (providerSetupList.length > 0 ||
+              tablePagination.provider_setups) ? (
               <DashboardTableList
-                className="xl:grid-cols-[minmax(10rem,0.8fr)_minmax(12rem,1fr)_minmax(14rem,1.1fr)_minmax(12rem,0.9fr)_minmax(10rem,0.8fr)_auto]"
+                className="xl:grid-cols-[minmax(6.5rem,0.8fr)_minmax(7rem,0.9fr)_minmax(0,1.1fr)_minmax(7.25rem,0.75fr)_auto]"
+                paginationId="provider_setups"
+                pagination={tablePagination.provider_setups}
                 columns={[
                   { label: t("forms.provider") },
                   { label: t("forms.model") },
                   { label: t("forms.endpointUrl") },
-                  { label: t("forms.credential") },
                   { label: t("dashboard.updatedAt") },
                   {
                     label: t("dashboard.actions"),
@@ -600,70 +632,153 @@ function ProviderSetupsSection({
         </DashboardSidebarCard>
       </div>
     </section>
-  )
+  );
 }
 
 function AdvancedSection(props: DashboardSectionContentProps) {
   return (
-    <div className="grid gap-6">
-      <ModelsSection {...props} />
-      <CredentialsSection {...props} />
-      <DeploymentsSection {...props} />
-    </div>
-  )
+    <AdvancedResourceTabs
+      ariaLabel={props.t("nav.advanced")}
+      labels={{
+        models: props.t("dashboard.modelsTitle"),
+        credentials: props.t("dashboard.credentialsTitle"),
+        deployments: props.t("dashboard.deploymentsTitle"),
+      }}
+      counts={{
+        models: getCountLabel(
+          props.modelCatalogList.length,
+          props.tablePagination.model_catalogs,
+        ),
+        credentials: getCountLabel(
+          props.providerCredentialList.length,
+          props.tablePagination.provider_credentials,
+        ),
+        deployments: getCountLabel(
+          props.modelDeploymentList.length,
+          props.tablePagination.model_deployments,
+        ),
+      }}
+      models={
+        <ModelsSection
+          {...props}
+          showSummary={false}
+          showCreateForm={false}
+          showActions={false}
+        />
+      }
+      credentials={
+        <CredentialsSection
+          {...props}
+          showSummary={false}
+          showCreateForm={false}
+          showActions={false}
+        />
+      }
+      deployments={
+        <DeploymentsSection
+          {...props}
+          showSummary={false}
+          showCreateForm={false}
+          showActions={false}
+        />
+      }
+    />
+  );
 }
+
+type AdvancedResourceSectionOptions = {
+  showSummary?: boolean;
+  showCreateForm?: boolean;
+  showActions?: boolean;
+};
 
 function ModelsSection({
   t,
   activeWorkspace,
   modelCatalogs,
   modelCatalogList,
-}: DashboardSectionContentProps) {
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
-  const activeModelCount = modelCatalogList.filter(
-    (modelCatalog) => modelCatalog.status === "active"
-  ).length
+  tablePagination,
+  showSummary = true,
+  showCreateForm = true,
+  showActions = true,
+}: DashboardSectionContentProps & AdvancedResourceSectionOptions) {
+  const workspaceScope = showCreateForm
+    ? getWorkspaceScope(activeWorkspace, t)
+    : undefined;
+  const activeModelCount = showSummary
+    ? modelCatalogList.filter(
+        (modelCatalog) => modelCatalog.status === "active",
+      ).length
+    : 0;
 
   return (
     <section className="grid gap-3">
-      <Card id="models">
-        <DashboardSummaryGrid>
-          <DashboardSummaryTile
-            icon={<BotIcon className="size-4" />}
-            label={t("dashboard.modelsTitle")}
-            value={String(activeModelCount)}
-            detail={getSettledMessage(modelCatalogs, t("dashboard.activeModels"))}
-          />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
-        </DashboardSummaryGrid>
-      </Card>
+      {showSummary ? (
+        <Card id="models">
+          <DashboardSummaryGrid>
+            <DashboardSummaryTile
+              icon={<BotIcon className="size-4" />}
+              label={t("dashboard.modelsTitle")}
+              value={String(activeModelCount)}
+              detail={getSettledMessage(
+                modelCatalogs,
+                t("dashboard.activeModels"),
+              )}
+            />
+            <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+          </DashboardSummaryGrid>
+        </Card>
+      ) : null}
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
-        <Card>
+      <div
+        className={
+          showCreateForm
+            ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]"
+            : "grid gap-3"
+        }
+      >
+        <Card className="min-w-0">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.modelsTitle")}</CardTitle>
             <CardAction>
-              <StatusBadge>{String(modelCatalogList.length)}</StatusBadge>
+              <StatusBadge>
+                {getCountLabel(
+                  modelCatalogList.length,
+                  tablePagination.model_catalogs,
+                )}
+              </StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
           <DashboardPanelContent>
-            {modelCatalogs.ok && modelCatalogList.length > 0 ? (
+            {modelCatalogs.ok &&
+            (modelCatalogList.length > 0 || tablePagination.model_catalogs) ? (
               <DashboardTableList
-                className="xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto]"
+                className={
+                  showActions
+                    ? "xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto]"
+                    : "xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)]"
+                }
+                paginationId="model_catalogs"
+                pagination={tablePagination.model_catalogs}
                 columns={[
                   { label: t("dashboard.name") },
                   { label: t("forms.provider") },
                   { label: t("dashboard.createdAt") },
-                  {
-                    label: t("dashboard.actions"),
-                    className: "text-right",
-                  },
+                  ...(showActions
+                    ? [
+                        {
+                          label: t("dashboard.actions"),
+                          className: "text-right",
+                        },
+                      ]
+                    : []),
                 ]}
               >
                 {modelCatalogList.map((modelCatalog) => (
                   <ModelCatalogRow
                     key={modelCatalog.id}
                     modelCatalog={modelCatalog}
+                    showActions={showActions}
                     t={t}
                   />
                 ))}
@@ -678,16 +793,18 @@ function ModelsSection({
           </DashboardPanelContent>
         </Card>
 
-        <DashboardSidebarCard
-          title={t("forms.createModel")}
-          description={workspaceScope.label}
-          icon={<BotIcon className="size-4 text-muted-foreground" />}
-        >
-          <CreateModelCatalogForm workspaceId={activeWorkspace?.id} />
-        </DashboardSidebarCard>
+        {showCreateForm ? (
+          <DashboardSidebarCard
+            title={t("forms.createModel")}
+            description={workspaceScope?.label}
+            icon={<BotIcon className="size-4 text-muted-foreground" />}
+          >
+            <CreateModelCatalogForm workspaceId={activeWorkspace?.id} />
+          </DashboardSidebarCard>
+        ) : null}
       </div>
     </section>
-  )
+  );
 }
 
 function CredentialsSection({
@@ -695,55 +812,89 @@ function CredentialsSection({
   activeWorkspace,
   providerCredentials,
   providerCredentialList,
-}: DashboardSectionContentProps) {
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
-  const activeCredentialCount = providerCredentialList.filter(
-    (credential) => credential.status === "active"
-  ).length
+  tablePagination,
+  showSummary = true,
+  showCreateForm = true,
+  showActions = true,
+}: DashboardSectionContentProps & AdvancedResourceSectionOptions) {
+  const workspaceScope = showCreateForm
+    ? getWorkspaceScope(activeWorkspace, t)
+    : undefined;
+  const activeCredentialCount = showSummary
+    ? providerCredentialList.filter(
+        (credential) => credential.status === "active",
+      ).length
+    : 0;
 
   return (
     <section className="grid gap-3">
-      <Card id="credentials">
-        <DashboardSummaryGrid>
-          <DashboardSummaryTile
-            icon={<KeyRoundIcon className="size-4" />}
-            label={t("dashboard.credentialsTitle")}
-            value={String(activeCredentialCount)}
-            detail={getSettledMessage(
-              providerCredentials,
-              t("dashboard.credentialsDescription")
-            )}
-          />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
-        </DashboardSummaryGrid>
-      </Card>
+      {showSummary ? (
+        <Card id="credentials">
+          <DashboardSummaryGrid>
+            <DashboardSummaryTile
+              icon={<KeyRoundIcon className="size-4" />}
+              label={t("dashboard.credentialsTitle")}
+              value={String(activeCredentialCount)}
+              detail={getSettledMessage(
+                providerCredentials,
+                t("dashboard.credentialsDescription"),
+              )}
+            />
+            <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+          </DashboardSummaryGrid>
+        </Card>
+      ) : null}
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
-        <Card>
+      <div
+        className={
+          showCreateForm
+            ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]"
+            : "grid gap-3"
+        }
+      >
+        <Card className="min-w-0">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.credentialsTitle")}</CardTitle>
             <CardAction>
-              <StatusBadge>{String(providerCredentialList.length)}</StatusBadge>
+              <StatusBadge>
+                {getCountLabel(
+                  providerCredentialList.length,
+                  tablePagination.provider_credentials,
+                )}
+              </StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
           <DashboardPanelContent>
-            {providerCredentials.ok && providerCredentialList.length > 0 ? (
+            {providerCredentials.ok &&
+            (providerCredentialList.length > 0 ||
+              tablePagination.provider_credentials) ? (
               <DashboardTableList
-                className="xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto]"
+                className={
+                  showActions
+                    ? "xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)_auto]"
+                    : "xl:grid-cols-[minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(12rem,0.8fr)]"
+                }
+                paginationId="provider_credentials"
+                pagination={tablePagination.provider_credentials}
                 columns={[
                   { label: t("dashboard.name") },
                   { label: t("forms.provider") },
                   { label: t("dashboard.createdAt") },
-                  {
-                    label: t("dashboard.actions"),
-                    className: "text-right",
-                  },
+                  ...(showActions
+                    ? [
+                        {
+                          label: t("dashboard.actions"),
+                          className: "text-right",
+                        },
+                      ]
+                    : []),
                 ]}
               >
                 {providerCredentialList.map((credential) => (
                   <ProviderCredentialRow
                     key={credential.id}
                     credential={credential}
+                    showActions={showActions}
                     t={t}
                   />
                 ))}
@@ -758,16 +909,18 @@ function CredentialsSection({
           </DashboardPanelContent>
         </Card>
 
-        <DashboardSidebarCard
-          title={t("forms.createCredential")}
-          description={workspaceScope.label}
-          icon={<KeyRoundIcon className="size-4 text-muted-foreground" />}
-        >
-          <CreateProviderCredentialForm workspaceId={activeWorkspace?.id} />
-        </DashboardSidebarCard>
+        {showCreateForm ? (
+          <DashboardSidebarCard
+            title={t("forms.createCredential")}
+            description={workspaceScope?.label}
+            icon={<KeyRoundIcon className="size-4 text-muted-foreground" />}
+          >
+            <CreateProviderCredentialForm workspaceId={activeWorkspace?.id} />
+          </DashboardSidebarCard>
+        ) : null}
       </div>
     </section>
-  )
+  );
 }
 
 function DeploymentsSection({
@@ -777,55 +930,91 @@ function DeploymentsSection({
   modelDeploymentList,
   modelCatalogList,
   providerCredentialList,
-}: DashboardSectionContentProps) {
-  const activeModelCatalogList = modelCatalogList.filter(
-    (modelCatalog) => modelCatalog.status === "active"
-  )
-  const activeProviderCredentialList = providerCredentialList.filter(
-    (credential) => credential.status === "active"
-  )
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t)
-  const activeDeploymentCount = modelDeploymentList.filter(
-    (deployment) => deployment.status === "active"
-  ).length
+  tablePagination,
+  showSummary = true,
+  showCreateForm = true,
+  showActions = true,
+}: DashboardSectionContentProps & AdvancedResourceSectionOptions) {
+  const activeModelCatalogList = showCreateForm
+    ? modelCatalogList.filter(
+        (modelCatalog) => modelCatalog.status === "active",
+      )
+    : [];
+  const activeProviderCredentialList = showCreateForm
+    ? providerCredentialList.filter(
+        (credential) => credential.status === "active",
+      )
+    : [];
+  const workspaceScope = showCreateForm
+    ? getWorkspaceScope(activeWorkspace, t)
+    : undefined;
+  const activeDeploymentCount = showSummary
+    ? modelDeploymentList.filter((deployment) => deployment.status === "active")
+        .length
+    : 0;
 
   return (
     <section className="grid gap-3">
-      <Card id="deployments">
-        <DashboardSummaryGrid>
-          <DashboardSummaryTile
-            icon={<ShieldCheckIcon className="size-4" />}
-            label={t("dashboard.deploymentsTitle")}
-            value={String(activeDeploymentCount)}
-            detail={getSettledMessage(
-              modelDeployments,
-              t("dashboard.deploymentsDescription")
-            )}
-          />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
-        </DashboardSummaryGrid>
-      </Card>
+      {showSummary ? (
+        <Card id="deployments">
+          <DashboardSummaryGrid>
+            <DashboardSummaryTile
+              icon={<ShieldCheckIcon className="size-4" />}
+              label={t("dashboard.deploymentsTitle")}
+              value={String(activeDeploymentCount)}
+              detail={getSettledMessage(
+                modelDeployments,
+                t("dashboard.deploymentsDescription"),
+              )}
+            />
+            <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
+          </DashboardSummaryGrid>
+        </Card>
+      ) : null}
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
-        <Card>
+      <div
+        className={
+          showCreateForm
+            ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]"
+            : "grid gap-3"
+        }
+      >
+        <Card className="min-w-0">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.deploymentsTitle")}</CardTitle>
             <CardAction>
-              <StatusBadge>{String(modelDeploymentList.length)}</StatusBadge>
+              <StatusBadge>
+                {getCountLabel(
+                  modelDeploymentList.length,
+                  tablePagination.model_deployments,
+                )}
+              </StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
           <DashboardPanelContent>
-            {modelDeployments.ok && modelDeploymentList.length > 0 ? (
+            {modelDeployments.ok &&
+            (modelDeploymentList.length > 0 ||
+              tablePagination.model_deployments) ? (
               <DashboardTableList
-                className="xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,0.9fr)_minmax(14rem,1fr)_auto]"
+                className={
+                  showActions
+                    ? "xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,0.9fr)_minmax(14rem,1fr)_auto]"
+                    : "xl:grid-cols-[minmax(12rem,1fr)_minmax(12rem,0.9fr)_minmax(14rem,1fr)]"
+                }
+                paginationId="model_deployments"
+                pagination={tablePagination.model_deployments}
                 columns={[
                   { label: t("dashboard.name") },
                   { label: t("forms.model") },
                   { label: t("dashboard.region") },
-                  {
-                    label: t("dashboard.actions"),
-                    className: "text-right",
-                  },
+                  ...(showActions
+                    ? [
+                        {
+                          label: t("dashboard.actions"),
+                          className: "text-right",
+                        },
+                      ]
+                    : []),
                 ]}
               >
                 {modelDeploymentList.map((deployment) => (
@@ -834,6 +1023,7 @@ function DeploymentsSection({
                     deployment={deployment}
                     modelCatalogs={modelCatalogList}
                     providerCredentials={providerCredentialList}
+                    showActions={showActions}
                     t={t}
                   />
                 ))}
@@ -848,52 +1038,55 @@ function DeploymentsSection({
           </DashboardPanelContent>
         </Card>
 
-        <DashboardSidebarCard
-          title={t("forms.createDeployment")}
-          description={workspaceScope.label}
-          icon={<ShieldCheckIcon className="size-4 text-muted-foreground" />}
-        >
-          <CreateModelDeploymentForm
-            workspaceId={activeWorkspace?.id}
-            modelCatalogs={activeModelCatalogList}
-            providerCredentials={activeProviderCredentialList}
-          />
-        </DashboardSidebarCard>
+        {showCreateForm ? (
+          <DashboardSidebarCard
+            title={t("forms.createDeployment")}
+            description={workspaceScope?.label}
+            icon={<ShieldCheckIcon className="size-4 text-muted-foreground" />}
+          >
+            <CreateModelDeploymentForm
+              workspaceId={activeWorkspace?.id}
+              modelCatalogs={activeModelCatalogList}
+              providerCredentials={activeProviderCredentialList}
+            />
+          </DashboardSidebarCard>
+        ) : null}
       </div>
     </section>
-  )
+  );
 }
 
 function ChatSmokeSection({
-  t,
-  activeWorkspace,
   chatSmokeModel,
+  apiKeys,
+  modelCatalogList,
+  modelDeploymentList,
 }: DashboardSectionContentProps) {
-  return (
-    <section className="grid gap-3">
-      <Card id="chat-smoke">
-        <DashboardSummaryGrid>
-          <DashboardSummaryTile
-            icon={<MessageSquareTextIcon className="size-4" />}
-            label={t("dashboard.chatSmokeTitle")}
-            value={chatSmokeModel}
-            detail={t("forms.model")}
-          />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
-        </DashboardSummaryGrid>
-      </Card>
+  const modelSuggestions = [
+    ...new Set(
+      [
+        ...modelDeploymentList
+          .filter((deployment) => deployment.status === "active")
+          .map((deployment) => deployment.model_canonical_name),
+        ...modelCatalogList
+          .filter((modelCatalog) => modelCatalog.status === "active")
+          .map((modelCatalog) => modelCatalog.canonical_name),
+      ].filter(Boolean),
+    ),
+  ];
+  const apiKeyOptions = apiKeys.ok
+    ? apiKeys.data.data.filter((apiKey) => apiKey.status === "active")
+    : [];
 
-      <Card>
-        <DashboardPanelHeader>
-          <CardTitle>{t("dashboard.chatSmokeTitle")}</CardTitle>
-          <CardDescription>{t("dashboard.chatSmokeDescription")}</CardDescription>
-        </DashboardPanelHeader>
-        <DashboardPanelContent>
-          <ChatSmokeTestForm defaultModel={chatSmokeModel} />
-        </DashboardPanelContent>
-      </Card>
+  return (
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <ChatSmokeTestForm
+        defaultModel={chatSmokeModel}
+        apiKeys={apiKeyOptions}
+        modelSuggestions={modelSuggestions}
+      />
     </section>
-  )
+  );
 }
 
 function UsageSection({ t, dailyUsage }: DashboardSectionContentProps) {
@@ -938,5 +1131,5 @@ function UsageSection({ t, dailyUsage }: DashboardSectionContentProps) {
         </DashboardStackContent>
       </Card>
     </section>
-  )
+  );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 import { badRequest, gatewayErrorResponse, unauthorized } from "@/lib/api-route"
 import { gatewayURL } from "@/lib/gatewayllm"
+import { createModelDebugResult, parseMaybeJSON } from "@/lib/model-debug"
 import { getSessionToken } from "@/lib/session"
 
 type ModelsBody = {
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
       return badRequest("API key is required.")
     }
 
+    const startedAt = Date.now()
     const backendResponse = await fetch(gatewayURL("/v1/models"), {
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -31,6 +33,7 @@ export async function POST(request: Request) {
     })
 
     const text = await backendResponse.text()
+    const latencyMs = Date.now() - startedAt
     const requestUID = backendResponse.headers.get("x-request-uid")
     const responseHeaders = new Headers()
 
@@ -39,12 +42,21 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      {
-        backend_status: backendResponse.status,
-        content_type: backendResponse.headers.get("content-type"),
-        request_uid: requestUID,
+      createModelDebugResult({
+        action: "list-models",
+        endpoint: "/v1/models",
+        method: "GET",
+        backendStatus: backendResponse.status,
+        contentType: backendResponse.headers.get("content-type"),
+        latencyMs,
+        requestUID,
+        request: {
+          endpoint: "/v1/models",
+          method: "GET",
+        },
         response: parseMaybeJSON(text),
-      },
+        responseHeaders: backendResponse.headers,
+      }),
       {
         status: backendResponse.status,
         headers: responseHeaders,
@@ -52,17 +64,5 @@ export async function POST(request: Request) {
     )
   } catch (error) {
     return gatewayErrorResponse(error)
-  }
-}
-
-function parseMaybeJSON(text: string) {
-  if (!text) {
-    return null
-  }
-
-  try {
-    return JSON.parse(text) as unknown
-  } catch {
-    return text
   }
 }
