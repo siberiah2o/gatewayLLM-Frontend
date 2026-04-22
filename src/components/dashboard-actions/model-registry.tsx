@@ -53,6 +53,7 @@ import {
   formatTokenCount,
   joinValues,
   modelCapabilities,
+  suggestedValueText,
   useRegistryProviderOptions,
 } from "./registry-shared"
 
@@ -776,6 +777,8 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
     selectedRegistryModel?.default_region ??
     selectedProviderOption?.default_region ??
     ""
+  const isEndpointRequired =
+    normalizedSelectedProvider === "openai_compatible" && !suggestedEndpointURL
   const generatedDeploymentName = modelName.trim()
     ? `${modelName.trim()}-default`
     : ""
@@ -908,6 +911,10 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
     }
     if (!selectedProvider.trim() || !modelName.trim()) {
       setError(t("errors.workspaceModelProviderRequired"))
+      return
+    }
+    if (isEndpointRequired && !endpointURL.trim()) {
+      setError(t("errors.endpointUrlRequiredForOpenAICompatible"))
       return
     }
 
@@ -1149,6 +1156,63 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
 
         <FieldSet className="grid gap-3 rounded-lg border p-3">
           <FieldLegend>{t("forms.advancedOptions")}</FieldLegend>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="provider-setup-endpoint-url">
+                {t("forms.endpointUrl")}
+              </FieldLabel>
+              <Input
+                id="provider-setup-endpoint-url"
+                name="endpoint-url"
+                type="url"
+                value={endpointURL}
+                onChange={(event) => {
+                  setEndpointURL(event.currentTarget.value)
+                  setSuccess(undefined)
+                  setError(undefined)
+                }}
+                disabled={!workspaceId}
+                required={isEndpointRequired}
+              />
+              <FieldDescription>
+                {suggestedValueText({
+                  isLoading: isLoadingModelOptions,
+                  registryValue: suggestedEndpointURL,
+                  fallbackKey: "forms.deploymentDefaultsHelp",
+                  t,
+                })}
+              </FieldDescription>
+              {isEndpointRequired ? (
+                <FieldDescription>
+                  {t("forms.endpointUrlRequiredForOpenAICompatible")}
+                </FieldDescription>
+              ) : null}
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="provider-setup-region">
+                {t("dashboard.region")}
+              </FieldLabel>
+              <Input
+                id="provider-setup-region"
+                name="region"
+                value={region}
+                onChange={(event) => {
+                  setRegion(event.currentTarget.value)
+                  setSuccess(undefined)
+                  setError(undefined)
+                }}
+                disabled={!workspaceId}
+              />
+              <FieldDescription>
+                {suggestedValueText({
+                  isLoading: isLoadingModelOptions,
+                  registryValue: suggestedRegion,
+                  fallbackKey: "forms.deploymentDefaultsHelp",
+                  t,
+                })}
+              </FieldDescription>
+            </Field>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="provider-setup-priority">

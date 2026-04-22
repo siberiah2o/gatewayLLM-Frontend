@@ -20,12 +20,15 @@ export {
   ActivateModelCatalogButton,
   ActivateModelDeploymentButton,
   ActivateProviderCredentialButton,
+  ActivateProviderSetupButton,
   DeactivateModelCatalogButton,
   DeactivateModelDeploymentButton,
   DeactivateProviderCredentialButton,
+  DeactivateProviderSetupButton,
   DeleteModelCatalogButton,
   DeleteModelDeploymentButton,
   DeleteProviderCredentialButton,
+  DeleteProviderSetupButton,
 } from "./dashboard-actions/resource-actions"
 export { ReviewRegistrationRequestActions } from "./dashboard-actions/registration"
 export {

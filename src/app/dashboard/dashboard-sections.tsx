@@ -57,6 +57,7 @@ import {
 import { AccountSection } from "./dashboard-account-section";
 import { AdvancedResourceTabs } from "./advanced-resource-tabs";
 import type { Settled } from "./dashboard-data";
+import { ModelAccessTabs } from "./model-access-tabs";
 import type { DashboardSectionContentProps } from "./dashboard-section-types";
 import { WorkspaceUsersTable } from "./workspace-user-row";
 
@@ -574,63 +575,71 @@ function ProviderSetupsSection({
   tablePagination,
 }: DashboardSectionContentProps) {
   const workspaceScope = getWorkspaceScope(activeWorkspace, t);
+  const providerSetupCount = getCountLabel(
+    providerSetupList.length,
+    tablePagination.provider_setups,
+  );
 
   return (
     <section className="grid gap-3">
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_clamp(22rem,30vw,28rem)]">
-        <Card className="min-w-0">
-          <DashboardPanelHeader>
-            <CardTitle>{t("dashboard.providerSetupsTitle")}</CardTitle>
-            <CardAction>
-              <StatusBadge>
-                {getCountLabel(
-                  providerSetupList.length,
-                  tablePagination.provider_setups,
-                )}
-              </StatusBadge>
-            </CardAction>
-          </DashboardPanelHeader>
-          <DashboardPanelContent>
-            {providerSetups.ok &&
-            (providerSetupList.length > 0 ||
-              tablePagination.provider_setups) ? (
-              <DashboardTableList
-                className="xl:grid-cols-[minmax(6.5rem,0.8fr)_minmax(7rem,0.9fr)_minmax(0,1.1fr)_minmax(7.25rem,0.75fr)_auto]"
-                paginationId="provider_setups"
-                pagination={tablePagination.provider_setups}
-                columns={[
-                  { label: t("forms.provider") },
-                  { label: t("forms.model") },
-                  { label: t("forms.endpointUrl") },
-                  { label: t("dashboard.updatedAt") },
-                  {
-                    label: t("dashboard.actions"),
-                    className: "text-right",
-                  },
-                ]}
-              >
-                {providerSetupList.map((setup) => (
-                  <ProviderSetupRow key={setup.id} setup={setup} t={t} />
-                ))}
-              </DashboardTableList>
-            ) : (
-              <DashboardSettledEmptyState
-                result={providerSetups}
-                emptyMessage={t("dashboard.noProviderSetups")}
-                icon={<BotIcon />}
-              />
-            )}
-          </DashboardPanelContent>
-        </Card>
-
-        <DashboardSidebarCard
-          title={t("forms.createProviderSetup")}
-          description={workspaceScope.label}
-          icon={<BotIcon className="size-4 text-muted-foreground" />}
-        >
-          <CreateProviderSetupForm workspaceId={activeWorkspace?.id} />
-        </DashboardSidebarCard>
-      </div>
+      <ModelAccessTabs
+        ariaLabel={t("dashboard.providerSetupsTitle")}
+        labels={{
+          "all-models": t("dashboard.allModelsTab"),
+          "add-model": t("dashboard.addModelTab"),
+        }}
+        allModelsCount={providerSetupCount}
+        allModels={
+          <Card className="min-w-0">
+            <DashboardPanelHeader>
+              <CardTitle>{t("dashboard.allModelsTab")}</CardTitle>
+              <CardDescription>
+                {t("dashboard.providerSetupsDescription")}
+              </CardDescription>
+            </DashboardPanelHeader>
+            <DashboardPanelContent>
+              {providerSetups.ok &&
+              (providerSetupList.length > 0 ||
+                tablePagination.provider_setups) ? (
+                <DashboardTableList
+                  className="xl:grid-cols-[minmax(6.5rem,0.8fr)_minmax(7rem,0.9fr)_minmax(0,1.1fr)_minmax(7.25rem,0.75fr)_auto]"
+                  paginationId="provider_setups"
+                  pagination={tablePagination.provider_setups}
+                  columns={[
+                    { label: t("forms.provider") },
+                    { label: t("forms.modelRoute") },
+                    { label: t("forms.endpointUrl") },
+                    { label: t("dashboard.updatedAt") },
+                    {
+                      label: t("dashboard.actions"),
+                      className: "text-right",
+                    },
+                  ]}
+                >
+                  {providerSetupList.map((setup) => (
+                    <ProviderSetupRow key={setup.id} setup={setup} t={t} />
+                  ))}
+                </DashboardTableList>
+              ) : (
+                <DashboardSettledEmptyState
+                  result={providerSetups}
+                  emptyMessage={t("dashboard.noProviderSetups")}
+                  icon={<BotIcon />}
+                />
+              )}
+            </DashboardPanelContent>
+          </Card>
+        }
+        addModel={
+          <DashboardSidebarCard
+            title={t("forms.createProviderSetup")}
+            description={workspaceScope.label}
+            icon={<BotIcon className="size-4 text-muted-foreground" />}
+          >
+            <CreateProviderSetupForm workspaceId={activeWorkspace?.id} />
+          </DashboardSidebarCard>
+        }
+      />
     </section>
   );
 }

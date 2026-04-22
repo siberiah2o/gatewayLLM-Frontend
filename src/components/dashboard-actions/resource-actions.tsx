@@ -120,6 +120,54 @@ export function DeleteProviderCredentialButton({
   )
 }
 
+export function ActivateProviderSetupButton({
+  setupID,
+  disabled,
+}: {
+  setupID: string
+  disabled?: boolean
+}) {
+  return (
+    <ActivateResourceButton
+      endpoint={`/api/control/provider-setups/${encodeURIComponent(setupID)}`}
+      confirmationKey="forms.activateProviderSetupConfirm"
+      disabled={disabled}
+    />
+  )
+}
+
+export function DeactivateProviderSetupButton({
+  setupID,
+  disabled,
+}: {
+  setupID: string
+  disabled?: boolean
+}) {
+  return (
+    <DeactivateResourceButton
+      endpoint={`/api/control/provider-setups/${encodeURIComponent(setupID)}`}
+      confirmationKey="forms.deactivateProviderSetupConfirm"
+      disabled={disabled}
+    />
+  )
+}
+
+export function DeleteProviderSetupButton({
+  setupID,
+  disabled,
+}: {
+  setupID: string
+  disabled?: boolean
+}) {
+  return (
+    <DeleteResourceButton
+      endpoint={`/api/control/provider-setups/${encodeURIComponent(setupID)}`}
+      confirmationKey="forms.deleteProviderSetupConfirm"
+      disabled={disabled}
+    />
+  )
+}
+
 export function ActivateModelDeploymentButton({
   deploymentID,
   disabled,

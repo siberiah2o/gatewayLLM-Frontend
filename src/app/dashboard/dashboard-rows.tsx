@@ -7,12 +7,15 @@ import {
   ActivateModelCatalogButton,
   ActivateModelDeploymentButton,
   ActivateProviderCredentialButton,
+  ActivateProviderSetupButton,
   DeactivateModelCatalogButton,
   DeactivateModelDeploymentButton,
   DeactivateProviderCredentialButton,
+  DeactivateProviderSetupButton,
   DeleteModelCatalogButton,
   DeleteModelDeploymentButton,
   DeleteProviderCredentialButton,
+  DeleteProviderSetupButton,
 } from "@/components/dashboard-actions/resource-actions"
 import { ReviewRegistrationRequestActions } from "@/components/dashboard-actions/registration"
 import {
@@ -383,9 +386,11 @@ export function ProviderSetupRow({
       >
         {!setup.credential.secret_configured ? (
           <DashboardDetailText>{t("dashboard.missingSecret")}</DashboardDetailText>
-        ) : null}
+        ) : (
+          <DashboardDetailText>{setup.credential.name}</DashboardDetailText>
+        )}
       </DashboardPrimaryCell>
-      <DashboardRowMeta label={t("forms.model")}>
+      <DashboardRowMeta label={t("forms.modelRoute")}>
         <span className="truncate font-medium" title={setup.model_name}>
           {setup.model_name}
         </span>
@@ -407,11 +412,11 @@ export function ProviderSetupRow({
       </DashboardRowMeta>
       <DashboardActionCell label={t("dashboard.actions")}>
         {canDeactivate ? (
-          <DeactivateModelDeploymentButton deploymentID={setup.id} />
+          <DeactivateProviderSetupButton setupID={setup.id} />
         ) : (
-          <ActivateModelDeploymentButton deploymentID={setup.id} />
+          <ActivateProviderSetupButton setupID={setup.id} />
         )}
-        <DeleteModelDeploymentButton deploymentID={setup.id} />
+        <DeleteProviderSetupButton setupID={setup.id} />
       </DashboardActionCell>
     </DashboardRow>
   )
