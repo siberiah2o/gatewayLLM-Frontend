@@ -215,6 +215,7 @@ type StreamState = {
   }
   finishReasons: Map<number, string>
   outputByChoice: Map<number, string>
+  reasoningByChoice: Map<number, string>
 }
 
 function createStreamState(): StreamState {
@@ -225,6 +226,7 @@ function createStreamState(): StreamState {
     usage: undefined,
     finishReasons: new Map(),
     outputByChoice: new Map(),
+    reasoningByChoice: new Map(),
   }
 }
 
@@ -293,11 +295,19 @@ function consumeStreamEvent(block: string, state: StreamState) {
 
     const choiceIndex = asNumber(choiceRecord.index) ?? index
     const text = extractStreamText(choiceRecord)
+    const reasoning = extractStreamReasoning(choiceRecord)
 
     if (text) {
       state.outputByChoice.set(
         choiceIndex,
         `${state.outputByChoice.get(choiceIndex) ?? ""}${text}`
+      )
+    }
+
+    if (reasoning) {
+      state.reasoningByChoice.set(
+        choiceIndex,
+        `${state.reasoningByChoice.get(choiceIndex) ?? ""}${reasoning}`
       )
     }
 
@@ -310,16 +320,28 @@ function consumeStreamEvent(block: string, state: StreamState) {
 }
 
 function buildStreamResponse(state: StreamState, requestedModel: string) {
-  const choices = [...state.outputByChoice.entries()]
-    .sort((left, right) => left[0] - right[0])
-    .map(([index, content]) => ({
+  const choiceIndexes = [
+    ...new Set([
+      ...state.outputByChoice.keys(),
+      ...state.reasoningByChoice.keys(),
+      ...state.finishReasons.keys(),
+    ]),
+  ].sort((left, right) => left - right)
+
+  const choices = choiceIndexes.map((index) => {
+    const content = state.outputByChoice.get(index) ?? ""
+    const reasoning = state.reasoningByChoice.get(index)
+
+    return {
       index,
       message: {
         role: "assistant",
         content,
+        ...(reasoning ? { reasoning_content: reasoning } : {}),
       },
       finish_reason: state.finishReasons.get(index) ?? null,
-    }))
+    }
+  })
 
   return {
     object: state.object ?? "chat.completion",
@@ -338,6 +360,104 @@ function extractStreamText(choice: Record<string, unknown>) {
     extractTextValue(choice.text) ??
     null
   )
+}
+
+function extractStreamReasoning(choice: Record<string, unknown>) {
+  const delta = asRecord(choice.delta)
+  const message = asRecord(choice.message)
+
+  return mergeTextParts(
+    extractReasoningValue(delta),
+    extractReasoningValue(message),
+    extractReasoningValue(choice)
+  )
+}
+
+function extractReasoningValue(record: Record<string, unknown> | null) {
+  if (!record) {
+    return null
+  }
+
+  return mergeTextParts(
+    extractTextValue(record.reasoning_content),
+    extractTextValue(record.reasoningContent),
+    extractTextValue(record.reasoning),
+    extractTextValue(record.thinking),
+    extractTextValue(record.thought),
+    extractTextValue(record.thoughts),
+    extractThinkingBlocks(record.thinking_blocks),
+    extractThinkingBlocks(record.thinkingBlocks),
+    extractReasoningItems(record.reasoning_items),
+    extractReasoningItems(record.reasoningItems),
+    extractReasoningItems(record.reasoning_details),
+    extractReasoningItems(record.reasoningDetails)
+  )
+}
+
+function extractThinkingBlocks(value: unknown) {
+  const items = asArray(value)
+  const parts = items
+    .map((item) => {
+      const record = asRecord(item)
+
+      if (!record || record.type === "redacted_thinking") {
+        return null
+      }
+
+      return (
+        extractTextValue(record.thinking) ??
+        extractTextValue(record.text) ??
+        extractTextValue(record.content) ??
+        null
+      )
+    })
+    .filter((item): item is string => Boolean(item))
+
+  return parts.length > 0 ? parts.join("") : null
+}
+
+function extractReasoningItems(value: unknown) {
+  const items = asArray(value)
+  const parts = items
+    .map((item) => {
+      const record = asRecord(item)
+
+      if (!record) {
+        return extractTextValue(item)
+      }
+
+      if (record.type === "redacted_thinking") {
+        return null
+      }
+
+      return mergeTextParts(
+        extractTextValue(record.summary),
+        extractTextValue(record.text),
+        extractTextValue(record.content),
+        extractTextValue(record.reasoning),
+        extractTextValue(record.reasoning_content),
+        extractTextValue(record.thinking)
+      )
+    })
+    .filter((item): item is string => Boolean(item))
+
+  return parts.length > 0 ? parts.join("\n\n") : null
+}
+
+function mergeTextParts(...values: Array<string | null | undefined>) {
+  const parts: string[] = []
+
+  values.forEach((value) => {
+    const normalized = value?.trim()
+
+    if (!normalized) {
+      return
+    }
+
+    parts.push(normalized)
+  })
+
+  return parts.length > 0 ? parts.join("\n\n") : null
 }
 
 function extractTextValue(value: unknown): string | null {

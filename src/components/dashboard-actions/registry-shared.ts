@@ -115,6 +115,44 @@ export function suggestedValueText({
   return t(fallbackKey)
 }
 
+export function endpointURLPlaceholder({
+  providerOption,
+  suggestedEndpointURL,
+}: {
+  providerOption?: ModelCatalogProviderOption
+  suggestedEndpointURL?: string
+}) {
+  return suggestedEndpointURL || providerOption?.endpoint_url_placeholder
+}
+
+export function endpointURLHelp({
+  provider,
+  providerOption,
+  endpointURLPlaceholder,
+  t,
+}: {
+  provider?: string
+  providerOption?: ModelCatalogProviderOption
+  endpointURLPlaceholder?: string
+  t: ReturnType<typeof useI18n>["t"]
+}) {
+  const normalizedProvider = provider?.trim().toLowerCase()
+  const placeholder =
+    endpointURLPlaceholder ?? providerOption?.endpoint_url_placeholder
+
+  if (normalizedProvider === "azure" || normalizedProvider === "azure_ai") {
+    return t("forms.azureEndpointUrlHelp")
+  }
+
+  if (placeholder) {
+    return t("forms.endpointUrlPlaceholderHelp", {
+      value: placeholder,
+    })
+  }
+
+  return undefined
+}
+
 export function encodeRegistryModelValue(option: ModelCatalogOption | undefined) {
   if (!option) {
     return ""

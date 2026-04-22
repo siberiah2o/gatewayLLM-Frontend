@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { useI18n } from "@/components/i18n-provider";
 import type { SessionUser, Workspace } from "@/lib/gatewayllm";
+import { cn } from "@/lib/utils";
 import {
   dashboardSectionTitleKey,
   normalizeDashboardSection,
@@ -41,11 +42,12 @@ export function DashboardShell({
   const { t } = useI18n();
   const selectedSegment = useSelectedLayoutSegment();
   const section = resolveDashboardSection(selectedSegment);
+  const isChatSmokeSection = section === "chat-smoke";
 
   return (
-    <SidebarProvider>
+    <SidebarProvider className={isChatSmokeSection ? "h-svh overflow-hidden" : undefined}>
       <AppSidebar user={user} workspaces={workspaces} activeSection={section} />
-      <SidebarInset>
+      <SidebarInset className={isChatSmokeSection ? "min-h-0 h-svh overflow-hidden" : "min-h-0"}>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
           <div className="flex w-full min-w-0 items-center justify-between gap-3 px-4">
             <div className="flex min-w-0 items-center gap-2">
@@ -75,7 +77,14 @@ export function DashboardShell({
             <LanguageSwitcher className="shrink-0" />
           </div>
         </header>
-        <main className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+        <main
+          className={cn(
+            "flex min-h-0 flex-1 flex-col p-4",
+            isChatSmokeSection
+              ? "overflow-hidden"
+              : "gap-4",
+          )}
+        >
           {children}
         </main>
       </SidebarInset>

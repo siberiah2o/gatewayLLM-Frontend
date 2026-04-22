@@ -42,11 +42,16 @@ import {
   errorText,
   responseError,
 } from "./shared"
-import { suggestedValueText } from "./registry-shared"
+import {
+  endpointURLHelp,
+  endpointURLPlaceholder,
+  suggestedValueText,
+} from "./registry-shared"
 
 type DeploymentRegistryDefaults = {
   suggestedEndpointURL: string
   suggestedRegion: string
+  endpointURLPlaceholder: string
   isLoading: boolean
   error?: string
 }
@@ -64,6 +69,7 @@ function useDeploymentRegistryDefaults({
   const [defaults, setDefaults] = useState<DeploymentRegistryDefaults>({
     suggestedEndpointURL: "",
     suggestedRegion: "",
+    endpointURLPlaceholder: "",
     isLoading: false,
   })
 
@@ -112,13 +118,20 @@ function useDeploymentRegistryDefaults({
           return
         }
 
+        const suggestedEndpointURL =
+          modelOption?.default_endpoint_url ??
+          providerOption?.default_endpoint_url ??
+          ""
+
         setDefaults({
-          suggestedEndpointURL:
-            modelOption?.default_endpoint_url ??
-            providerOption?.default_endpoint_url ??
-            "",
+          suggestedEndpointURL,
           suggestedRegion:
             modelOption?.default_region ?? providerOption?.default_region ?? "",
+          endpointURLPlaceholder:
+            endpointURLPlaceholder({
+              providerOption,
+              suggestedEndpointURL,
+            }) ?? "",
           isLoading: false,
         })
       } catch (loadError) {
@@ -129,6 +142,7 @@ function useDeploymentRegistryDefaults({
         setDefaults({
           suggestedEndpointURL: "",
           suggestedRegion: "",
+          endpointURLPlaceholder: "",
           isLoading: false,
           error: errorText(loadError, t("forms.loadDeploymentDefaultsFailed")),
         })
@@ -146,6 +160,7 @@ function useDeploymentRegistryDefaults({
     return {
       suggestedEndpointURL: "",
       suggestedRegion: "",
+      endpointURLPlaceholder: "",
       isLoading: false,
     } satisfies DeploymentRegistryDefaults
   }
@@ -196,6 +211,11 @@ export function CreateModelDeploymentForm({
   const deploymentDefaults = useDeploymentRegistryDefaults({
     enabled: Boolean(workspaceId && selectedModelCatalog),
     modelCatalog: selectedModelCatalog,
+    t,
+  })
+  const deploymentEndpointURLHelp = endpointURLHelp({
+    provider: selectedModelCatalog?.provider,
+    endpointURLPlaceholder: deploymentDefaults.endpointURLPlaceholder,
     t,
   })
   const canCreate =
@@ -428,6 +448,7 @@ export function CreateModelDeploymentForm({
               setError(undefined)
             }}
             disabled={!workspaceId || modelCatalogs.length === 0}
+            placeholder={deploymentDefaults.endpointURLPlaceholder || undefined}
           />
           <FieldDescription>
             {suggestedValueText({
@@ -437,6 +458,9 @@ export function CreateModelDeploymentForm({
               t,
             })}
           </FieldDescription>
+          {deploymentEndpointURLHelp ? (
+            <FieldDescription>{deploymentEndpointURLHelp}</FieldDescription>
+          ) : null}
         </Field>
         <div className="grid gap-3 sm:grid-cols-3">
           <Field>
@@ -554,6 +578,11 @@ export function EditModelDeploymentDialog({
   const deploymentDefaults = useDeploymentRegistryDefaults({
     enabled: open && Boolean(selectedModelCatalog),
     modelCatalog: selectedModelCatalog,
+    t,
+  })
+  const deploymentEndpointURLHelp = endpointURLHelp({
+    provider: selectedModelCatalog?.provider,
+    endpointURLPlaceholder: deploymentDefaults.endpointURLPlaceholder,
     t,
   })
   const generatedDeploymentName = selectedModelCatalog
@@ -799,6 +828,7 @@ export function EditModelDeploymentDialog({
                   setEndpointURL(event.currentTarget.value)
                   setError(undefined)
                 }}
+                placeholder={deploymentDefaults.endpointURLPlaceholder || undefined}
               />
               <FieldDescription>
                 {suggestedValueText({
@@ -808,6 +838,9 @@ export function EditModelDeploymentDialog({
                   t,
                 })}
               </FieldDescription>
+              {deploymentEndpointURLHelp ? (
+                <FieldDescription>{deploymentEndpointURLHelp}</FieldDescription>
+              ) : null}
             </Field>
             <div className="grid gap-3 sm:grid-cols-4">
               <Field>

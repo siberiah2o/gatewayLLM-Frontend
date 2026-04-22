@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type ComponentProps,
   type KeyboardEvent,
   type ReactNode,
   useEffect,
@@ -11,43 +12,43 @@ import {
 import {
   BotIcon,
   CheckIcon,
-  ChevronUpIcon,
+  ChevronRightIcon,
   ClipboardListIcon,
   CopyIcon,
   KeyRoundIcon,
   Loader2Icon,
+  MessageSquareTextIcon,
   PlusIcon,
+  SendHorizontalIcon,
   SettingsIcon,
   Trash2Icon,
+  UserRoundIcon,
 } from "lucide-react";
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  CardAction,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Field,
-  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -61,8 +62,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Empty,
+  EmptyContent,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useI18n } from "@/components/i18n-provider";
 import { translateKnownError } from "@/lib/i18n";
 import {
@@ -90,6 +105,7 @@ type ChatTranscriptEntry =
       align: "start" | "end";
       label?: string;
       content: string;
+      reasoning?: string | null;
       tone?: "default" | "primary" | "danger";
       footer?: string | null;
     }
@@ -104,26 +120,29 @@ type ChatTranscriptEntry =
 
 export function ChatSmokeTestForm({
   defaultModel,
+  gatewayBaseUrl,
   apiKeys = [],
   modelSuggestions = [],
 }: {
   defaultModel: string;
+  gatewayBaseUrl: string;
   apiKeys?: APIKey[];
   modelSuggestions?: string[];
 }) {
   const { t } = useI18n();
+  const initialModel = preferPlaygroundModel(defaultModel, modelSuggestions);
   const outputPanelRef = useRef<HTMLDivElement>(null);
+  const promptTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [apiKey, setApiKey] = useState("");
   const [selectedApiKeyID, setSelectedApiKeyID] = useState("");
   const [keySource, setKeySource] = useState<PlaygroundKeySource>(
     apiKeys.length > 0 ? "session" : "manual",
   );
   const [manualApiKey, setManualApiKey] = useState("");
-  const [customProxyBaseUrl, setCustomProxyBaseUrl] = useState("");
   const [endpointType, setEndpointType] =
     useState<PlaygroundEndpoint>("chat-completions");
   const [apiKeyLoadError, setApiKeyLoadError] = useState<string>();
-  const [model, setModel] = useState(defaultModel);
+  const [model, setModel] = useState(initialModel);
   const [prompt, setPrompt] = useState(() => t("forms.defaultPrompt"));
   const [temperature, setTemperature] = useState("0.2");
   const [listedModels, setListedModels] = useState<string[]>([]);
@@ -151,14 +170,12 @@ export function ChatSmokeTestForm({
     ? selectedApiKeyID
     : (activeApiKeys[0]?.id ?? "");
   const apiKeySelectOptions = createApiKeySelectOptions(activeApiKeys);
-  const availableModelSuggestions = [
-    ...new Set(modelSuggestions.filter(Boolean)),
-  ];
-  const availableModelOptions = uniqueDebugValues([
+  const availableModelSuggestions = sanitizePlaygroundModels(modelSuggestions);
+  const availableModelOptions = sanitizePlaygroundModels([
     ...listedModels,
     ...availableModelSuggestions,
   ]);
-  const availableModels = uniqueDebugValues([
+  const availableModels = sanitizePlaygroundModels([
     ...(result?.extracted_models ?? extractDebugModels(result?.response)),
     ...listedModels,
   ]);
@@ -198,20 +215,25 @@ export function ChatSmokeTestForm({
     ...availableModelOptions,
     ...availableModels,
   ]);
+  const effectiveModel = preferPlaygroundModel(model, [
+    defaultModel,
+    ...availableModelOptions,
+    ...availableModels,
+  ]);
   const currentEndpointPath =
     endpointType === "models" ? "/v1/models" : "/v1/chat/completions";
-  const codeBaseUrl = normalizePlaygroundBaseUrl(customProxyBaseUrl);
+  const codeBaseUrl = normalizePlaygroundBaseUrl(gatewayBaseUrl);
   const curlSnippet = buildCurlSnippet({
     baseUrl: codeBaseUrl,
     endpointType,
-    model,
+    model: effectiveModel,
     prompt,
     temperature,
   });
   const javascriptSnippet = buildJavaScriptSnippet({
     baseUrl: codeBaseUrl,
     endpointType,
-    model,
+    model: effectiveModel,
     prompt,
     temperature,
   });
@@ -220,9 +242,11 @@ export function ChatSmokeTestForm({
     : isBusy || isStreamingResponse
       ? t("actions.running")
       : t("dashboard.notSet");
+  const selectedModelValue =
+    effectiveModel || defaultModel || t("dashboard.notSet");
   const requestedModelValue =
     summary?.requested_model ??
-    (lastSubmittedModel.trim() || model.trim() || t("dashboard.notSet"));
+    (lastSubmittedModel.trim() || selectedModelValue);
   const responseModelValue = summary?.response_model ?? requestedModelValue;
   const latestActionValue = summary
     ? formatDebugAction(t, summary)
@@ -239,6 +263,8 @@ export function ChatSmokeTestForm({
   const transcriptHasContent = transcript.length > 0;
   const canClearSession =
     transcriptHasContent || Boolean(result) || Boolean(error);
+  const isPromptComposerExpanded =
+    endpointType === "models" || prompt.length > 100 || prompt.includes("\n");
   const diagnosticRows = [
     {
       label: t("forms.endpointType"),
@@ -283,6 +309,16 @@ export function ChatSmokeTestForm({
 
     outputPanelRef.current.scrollTop = outputPanelRef.current.scrollHeight;
   }, [isStreamingResponse, transcript]);
+
+  useEffect(() => {
+    const textarea = promptTextareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
+  }, [endpointType, prompt]);
 
   useEffect(() => {
     if (effectiveKeySource !== "session") {
@@ -377,7 +413,7 @@ export function ChatSmokeTestForm({
   }
 
   async function runChatRequest() {
-    const nextModel = model.trim();
+    const nextModel = effectiveModel.trim();
     const nextPrompt = prompt.trim();
 
     if (!nextModel || !nextPrompt) {
@@ -434,28 +470,51 @@ export function ChatSmokeTestForm({
       if (contentType.includes("text/event-stream") && response.body) {
         setIsStreamingResponse(true);
         let streamedOutput = "";
+        let streamedReasoning = "";
 
         const payload = await readChatSmokeStream(response, {
           onText: (chunk) => {
             streamedOutput = `${streamedOutput}${chunk}`;
-            setStreamedText(streamedOutput);
+            const preview = splitEmbeddedReasoning(streamedOutput);
+            const displayText = preview.content || streamedOutput;
+            const reasoning = mergeReasoningText(
+              streamedReasoning,
+              preview.reasoning,
+            );
+
+            setStreamedText(displayText);
             patchTranscriptEntry(assistantEntryID, {
-              content: streamedOutput || t("actions.running"),
+              content: displayText || t("actions.running"),
+              reasoning,
+            });
+          },
+          onReasoning: (chunk) => {
+            streamedReasoning = `${streamedReasoning}${chunk}`;
+            patchTranscriptEntry(assistantEntryID, {
+              reasoning: streamedReasoning,
             });
           },
         });
 
         setResult(payload);
-        const finalText =
+        const rawFinalText =
           streamedOutput ||
           payload.extracted_text ||
           extractDebugText(payload.response) ||
           t("forms.debugNoTextResponse");
+        const finalParts = splitEmbeddedReasoning(rawFinalText);
+        const finalText = finalParts.content || t("forms.debugNoTextResponse");
+        const finalReasoning = mergeReasoningText(
+          streamedReasoning,
+          extractDebugReasoning(payload.response),
+          finalParts.reasoning,
+        );
 
         setStreamedText(finalText);
         patchTranscriptEntry(assistantEntryID, {
           label: payload.summary?.response_model ?? nextModel,
           content: finalText,
+          reasoning: finalReasoning,
           tone: payload.summary && !payload.summary.ok ? "danger" : "default",
           footer: formatTokenUsageNote(t, payload.usage),
         });
@@ -465,8 +524,14 @@ export function ChatSmokeTestForm({
           .catch(() => ({}))) as ChatSmokeResponse;
 
         setResult(payload);
-        const responseText =
+        const rawResponseText =
           payload.extracted_text ?? extractDebugText(payload.response);
+        const responseParts = splitEmbeddedReasoning(rawResponseText ?? "");
+        const responseText = responseParts.content || rawResponseText;
+        const reasoning = mergeReasoningText(
+          extractDebugReasoning(payload.response),
+          responseParts.reasoning,
+        );
         const errorMessage = chatSmokeError(
           payload,
           t("forms.chatSmokeFailed"),
@@ -479,6 +544,7 @@ export function ChatSmokeTestForm({
         patchTranscriptEntry(assistantEntryID, {
           label: payload.summary?.response_model ?? nextModel,
           content: finalText,
+          reasoning: response.ok ? reasoning : null,
           tone: response.ok ? "default" : "danger",
           footer: response.ok
             ? formatTokenUsageNote(t, payload.usage)
@@ -547,7 +613,7 @@ export function ChatSmokeTestForm({
         .json()
         .catch(() => ({}))) as ChatSmokeResponse;
 
-      const nextModels = uniqueDebugValues(
+      const nextModels = sanitizePlaygroundModels(
         payload.extracted_models ?? extractDebugModels(payload.response),
       );
 
@@ -618,33 +684,95 @@ export function ChatSmokeTestForm({
     event.currentTarget.form?.requestSubmit();
   }
 
+  function renderComposerActionMenu() {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="rounded-full hover:bg-accent"
+              aria-label={t("forms.playgroundConfigurations")}
+            />
+          }
+        >
+          <PlusIcon className="size-5 text-muted-foreground" />
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent align="start" className="w-64 rounded-lg p-1.5">
+          <DropdownMenuGroup className="space-y-1">
+            {promptPresets.map((preset) => (
+              <DropdownMenuItem
+                key={preset.id}
+                className="rounded-md"
+                onClick={() => {
+                  setEndpointType("chat-completions");
+                  setPrompt(preset.prompt);
+                }}
+              >
+                <MessageSquareTextIcon className="opacity-60" />
+                {preset.label}
+              </DropdownMenuItem>
+            ))}
+
+            <DropdownMenuItem
+              className="rounded-md"
+              disabled={isBusy || !canUseSelectedApiKey}
+              onClick={() => {
+                setEndpointType("models");
+                void runModelListRequest();
+              }}
+            >
+              {isListingModels ? (
+                <Loader2Icon className="animate-spin opacity-60" />
+              ) : (
+                <ClipboardListIcon className="opacity-60" />
+              )}
+              {t("forms.listModels")}
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="rounded-md"
+              onClick={() => setIsCodeDialogOpen(true)}
+            >
+              <ClipboardListIcon className="opacity-60" />
+              {t("forms.getCode")}
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="rounded-md"
+              variant="destructive"
+              disabled={!canClearSession}
+              onClick={clearSession}
+            >
+              <Trash2Icon className="opacity-60" />
+              {t("forms.clearChat")}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
   return (
-    <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
-      <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[20rem_minmax(0,1fr)]">
+    <TooltipProvider delay={300}>
+      <form
+        className="flex h-full min-h-0 flex-1 flex-col overflow-hidden text-sm"
+        onSubmit={handleSubmit}
+      >
+      <div className="grid h-full min-h-0 flex-1 gap-3 overflow-y-auto xl:grid-cols-[17.5rem_minmax(0,1fr)] xl:overflow-hidden">
         <Card
           size="sm"
-          className="min-h-0 border-border/60 bg-card/95 xl:h-full"
+          className="min-h-0 rounded-lg border-border/70 bg-card/95 py-0 shadow-sm xl:h-full xl:overflow-hidden"
         >
-          <CardHeader className="border-b bg-muted/20">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <SettingsIcon className="size-4 text-muted-foreground" />
-              {t("forms.playgroundConfigurations")}
-            </CardTitle>
-            <CardDescription>
-              {summary?.endpoint ?? currentEndpointPath}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto py-1">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto p-2.5">
             <PlaygroundConfigSection
               icon={<KeyRoundIcon className="size-4" />}
               title={t("forms.playgroundAccessSection")}
-              description={
-                effectiveKeySource === "manual"
-                  ? t("forms.manualApiKeyHelp")
-                  : t("forms.gatewayApiKeyHelp")
-              }
             >
-              <FieldGroup className="gap-4">
+              <FieldGroup className="gap-3">
                 <Field>
                   <FieldLabel id="playground-key-source-label">
                     {t("forms.keySource")}
@@ -721,9 +849,6 @@ export function ChatSmokeTestForm({
                         </SelectGroup>
                       </SelectContent>
                     </Select>
-                    <FieldDescription>
-                      {t("forms.gatewayApiKeyHelp")}
-                    </FieldDescription>
                     <FieldError>{apiKeyLoadError}</FieldError>
                   </Field>
                 ) : (
@@ -740,9 +865,6 @@ export function ChatSmokeTestForm({
                         setManualApiKey(event.currentTarget.value)
                       }
                     />
-                    <FieldDescription>
-                      {t("forms.manualApiKeyHelp")}
-                    </FieldDescription>
                   </Field>
                 )}
               </FieldGroup>
@@ -750,28 +872,9 @@ export function ChatSmokeTestForm({
 
             <PlaygroundConfigSection
               icon={<SettingsIcon className="size-4" />}
-              title={t("forms.playgroundRoutingSection")}
-              description={summary?.endpoint ?? currentEndpointPath}
+              title={`${t("forms.playgroundRoutingSection")} / ${t("forms.playgroundInferenceSection")}`}
             >
-              <FieldGroup className="gap-4">
-                <Field>
-                  <FieldLabel htmlFor="custom-proxy-base-url">
-                    {t("forms.customProxyBaseUrl")}
-                  </FieldLabel>
-                  <Input
-                    id="custom-proxy-base-url"
-                    type="url"
-                    value={customProxyBaseUrl}
-                    placeholder="https://your-proxy.example.com"
-                    onChange={(event) =>
-                      setCustomProxyBaseUrl(event.currentTarget.value)
-                    }
-                  />
-                  <FieldDescription>
-                    {t("forms.customProxyBaseUrlHelp")}
-                  </FieldDescription>
-                </Field>
-
+              <FieldGroup className="gap-3">
                 <Field>
                   <FieldLabel id="playground-endpoint-type-label">
                     {t("forms.endpointType")}
@@ -796,7 +899,12 @@ export function ChatSmokeTestForm({
                       aria-labelledby="playground-endpoint-type-label"
                       className="w-full"
                     >
-                      <SelectValue />
+                      <span
+                        data-slot="select-value"
+                        className="flex flex-1 items-center text-left"
+                      >
+                        {currentEndpointPath}
+                      </span>
                     </SelectTrigger>
                     <SelectContent align="start">
                       <SelectGroup>
@@ -808,28 +916,17 @@ export function ChatSmokeTestForm({
                     </SelectContent>
                   </Select>
                 </Field>
-              </FieldGroup>
-            </PlaygroundConfigSection>
-
-            <PlaygroundConfigSection
-              icon={<BotIcon className="size-4" />}
-              title={t("forms.playgroundInferenceSection")}
-              description={
-                endpointType === "models"
-                  ? t("forms.selectModelDisabledHelp")
-                  : t("forms.selectModelHelp")
-              }
-            >
-              <FieldGroup className="gap-4">
                 <Field>
                   <div className="flex items-center justify-between gap-2">
                     <FieldLabel id="chat-model-label">
                       {t("forms.selectModel")}
                     </FieldLabel>
-                    <Button
+                    <PlaygroundIconButton
+                      label={t("forms.listModels")}
                       type="button"
                       variant="ghost"
-                      size="xs"
+                      size="icon-xs"
+                      className="rounded-md"
                       disabled={isBusy || !canUseSelectedApiKey}
                       onClick={() => {
                         setEndpointType("models");
@@ -841,12 +938,11 @@ export function ChatSmokeTestForm({
                       ) : (
                         <ClipboardListIcon />
                       )}
-                      {t("forms.listModels")}
-                    </Button>
+                    </PlaygroundIconButton>
                   </div>
                   <Select
                     items={singleModelSelectOptions}
-                    value={model.trim() || null}
+                    value={effectiveModel || null}
                     disabled={endpointType === "models"}
                     onValueChange={(value) => setModel(String(value ?? ""))}
                   >
@@ -867,11 +963,6 @@ export function ChatSmokeTestForm({
                       </SelectGroup>
                     </SelectContent>
                   </Select>
-                  <FieldDescription>
-                    {endpointType === "models"
-                      ? t("forms.selectModelDisabledHelp")
-                      : t("forms.selectModelHelp")}
-                  </FieldDescription>
                 </Field>
 
                 <Field>
@@ -895,172 +986,123 @@ export function ChatSmokeTestForm({
               </FieldGroup>
             </PlaygroundConfigSection>
 
-            <div className="rounded-lg border border-dashed bg-background/70 p-4">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <BotIcon className="size-4 text-muted-foreground" />
-                {t("forms.debugSuggestedModels")}
-              </div>
-              <div className="mt-3 text-2xl font-semibold">
-                {availableModelOptions.length.toLocaleString()}
-              </div>
-              <div className="mt-1 text-sm text-muted-foreground">
-                {t("forms.selectModelHelp")}
-              </div>
-            </div>
           </CardContent>
         </Card>
 
-        <Card className="min-h-0 flex-1 border-border/60 bg-card/95 xl:h-full">
-          <CardHeader className="border-b bg-muted/10">
-            <CardTitle>{t("forms.playgroundTitle")}</CardTitle>
-            <CardDescription>
-              {t("forms.playgroundEmptyDescription")}
-            </CardDescription>
-            <CardAction className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canClearSession}
-                onClick={clearSession}
-              >
-                <Trash2Icon data-icon="inline-start" />
-                {t("forms.clearChat")}
-              </Button>
+        <Card className="min-h-0 flex-1 rounded-lg border-border/70 bg-card/95 py-0 shadow-sm xl:h-full xl:overflow-hidden">
+          <Dialog open={isCodeDialogOpen} onOpenChange={setIsCodeDialogOpen}>
+            <DialogContent className="sm:max-w-5xl">
+                    <DialogHeader>
+                      <DialogTitle>{t("forms.generatedCode")}</DialogTitle>
+                      <DialogDescription>
+                        {t("forms.generatedCodeDescription")}
+                      </DialogDescription>
+                    </DialogHeader>
 
-              <Dialog
-                open={isCodeDialogOpen}
-                onOpenChange={setIsCodeDialogOpen}
-              >
-                <DialogTrigger
-                  render={<Button type="button" variant="outline" />}
-                >
-                  <ClipboardListIcon data-icon="inline-start" />
-                  {t("forms.getCode")}
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-5xl">
-                  <DialogHeader>
-                    <DialogTitle>{t("forms.generatedCode")}</DialogTitle>
-                    <DialogDescription>
-                      {t("forms.generatedCodeDescription")}
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="grid gap-4">
-                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-                      <ModelDebugMetric
-                        label={t("forms.endpointType")}
-                        value={summary?.endpoint ?? currentEndpointPath}
-                      />
-                      <ModelDebugMetric
-                        label={t("nav.status")}
-                        value={statusValue}
-                        tone={
-                          summary
-                            ? summary.ok
-                              ? "success"
-                              : "danger"
-                            : "default"
-                        }
-                      />
-                      <ModelDebugMetric
-                        label={t("dashboard.latency")}
-                        value={formatLatency(
-                          summary?.latency_ms,
-                          t("dashboard.notSet"),
-                        )}
-                      />
-                      <ModelDebugMetric
-                        label={t("dashboard.responseModel")}
-                        value={responseModelValue}
-                        valueClassName="break-all"
-                      />
-                      <ModelDebugMetric
-                        label={t("forms.debugLatestAction")}
-                        value={latestActionValue}
-                        valueClassName="break-all"
-                      />
-                    </div>
-
-                    <div className="grid gap-4 xl:grid-cols-2">
-                      <GeneratedSnippetCard
-                        title={t("forms.generatedCurl")}
-                        value={curlSnippet}
-                        copied={copiedPanel === "curl"}
-                        onCopy={() => copyPanelValue("curl", curlSnippet)}
-                        copyLabel={t("actions.copy")}
-                        copiedLabel={t("actions.copied")}
-                      />
-                      <GeneratedSnippetCard
-                        title={t("forms.generatedJavascript")}
-                        value={javascriptSnippet}
-                        copied={copiedPanel === "javascript"}
-                        onCopy={() =>
-                          copyPanelValue("javascript", javascriptSnippet)
-                        }
-                        copyLabel={t("actions.copy")}
-                        copiedLabel={t("actions.copied")}
-                      />
-                    </div>
-
-                    <ModelDebugKeyValueTable
-                      rows={diagnosticRows}
-                      fallback={t("dashboard.notSet")}
-                    />
-
-                    {responseHeaders.length > 0 ? (
-                      <div className="grid gap-2">
-                        <div className="text-[0.68rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                          {t("dashboard.responseHeaders")}
-                        </div>
-                        <ModelDebugHeadersTable headers={responseHeaders} />
+                    <div className="grid gap-4">
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
+                        <ModelDebugMetric
+                          label={t("forms.generatedBaseUrl")}
+                          value={codeBaseUrl}
+                          valueClassName="break-all"
+                        />
+                        <ModelDebugMetric
+                          label={t("forms.endpointType")}
+                          value={summary?.endpoint ?? currentEndpointPath}
+                        />
+                        <ModelDebugMetric
+                          label={t("nav.status")}
+                          value={statusValue}
+                          tone={
+                            summary
+                              ? summary.ok
+                                ? "success"
+                                : "danger"
+                              : "default"
+                          }
+                        />
+                        <ModelDebugMetric
+                          label={t("dashboard.latency")}
+                          value={formatLatency(
+                            summary?.latency_ms,
+                            t("dashboard.notSet"),
+                          )}
+                        />
+                        <ModelDebugMetric
+                          label={t("dashboard.responseModel")}
+                          value={responseModelValue}
+                          valueClassName="break-all"
+                        />
+                        <ModelDebugMetric
+                          label={t("forms.debugLatestAction")}
+                          value={latestActionValue}
+                          valueClassName="break-all"
+                        />
                       </div>
-                    ) : null}
 
-                    <ModelDebugJsonColumns
-                      requestTitle={t("forms.debugRequestPayload")}
-                      requestValue={requestJSON}
-                      requestCopied={copiedPanel === "request"}
-                      onRequestCopy={() =>
-                        copyPanelValue("request", requestJSON)
-                      }
-                      responseTitle={t("forms.debugResponsePayload")}
-                      responseValue={responseJSON}
-                      responseCopied={copiedPanel === "response"}
-                      onResponseCopy={() =>
-                        copyPanelValue("response", responseJSON)
-                      }
-                      emptyMessage={t("forms.debugEmptyState")}
-                      copyLabel={t("actions.copy")}
-                      copiedLabel={t("actions.copied")}
-                    />
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardAction>
-            <div className="col-span-full flex flex-wrap gap-2 pt-2">
-              <PlaygroundHeaderBadge>
-                {summary?.endpoint ?? currentEndpointPath}
-              </PlaygroundHeaderBadge>
-              <PlaygroundHeaderBadge>
-                {effectiveKeySource === "manual"
-                  ? t("forms.keySourceManual")
-                  : t("forms.keySourceSession")}
-              </PlaygroundHeaderBadge>
-              {summary ? (
-                <PlaygroundHeaderBadge tone={summary.ok ? "success" : "danger"}>
-                  {statusValue}
-                </PlaygroundHeaderBadge>
-              ) : null}
-            </div>
-          </CardHeader>
+                      <div className="grid gap-4 xl:grid-cols-2">
+                        <GeneratedSnippetCard
+                          title={t("forms.generatedCurl")}
+                          value={curlSnippet}
+                          copied={copiedPanel === "curl"}
+                          onCopy={() => copyPanelValue("curl", curlSnippet)}
+                          copyLabel={t("actions.copy")}
+                          copiedLabel={t("actions.copied")}
+                        />
+                        <GeneratedSnippetCard
+                          title={t("forms.generatedJavascript")}
+                          value={javascriptSnippet}
+                          copied={copiedPanel === "javascript"}
+                          onCopy={() =>
+                            copyPanelValue("javascript", javascriptSnippet)
+                          }
+                          copyLabel={t("actions.copy")}
+                          copiedLabel={t("actions.copied")}
+                        />
+                      </div>
 
-          <CardContent className="flex min-h-0 flex-1 flex-col gap-0 px-0">
+                      <ModelDebugKeyValueTable
+                        rows={diagnosticRows}
+                        fallback={t("dashboard.notSet")}
+                      />
+
+                      {responseHeaders.length > 0 ? (
+                        <div className="grid gap-2">
+                          <div className="text-[0.68rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                            {t("dashboard.responseHeaders")}
+                          </div>
+                          <ModelDebugHeadersTable headers={responseHeaders} />
+                        </div>
+                      ) : null}
+
+                      <ModelDebugJsonColumns
+                        requestTitle={t("forms.debugRequestPayload")}
+                        requestValue={requestJSON}
+                        requestCopied={copiedPanel === "request"}
+                        onRequestCopy={() =>
+                          copyPanelValue("request", requestJSON)
+                        }
+                        responseTitle={t("forms.debugResponsePayload")}
+                        responseValue={responseJSON}
+                        responseCopied={copiedPanel === "response"}
+                        onResponseCopy={() =>
+                          copyPanelValue("response", responseJSON)
+                        }
+                        emptyMessage={t("forms.debugEmptyState")}
+                        copyLabel={t("actions.copy")}
+                        copiedLabel={t("actions.copied")}
+                      />
+                    </div>
+            </DialogContent>
+          </Dialog>
+
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden bg-background px-0">
             <div
               ref={outputPanelRef}
-              className="min-h-[22rem] flex-1 overflow-auto bg-muted/15 px-4 py-5 sm:px-6"
+              className="min-h-0 flex-1 overflow-y-auto bg-muted/10 px-4 py-5 sm:px-6 lg:px-8"
             >
               {transcriptHasContent ? (
-                <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+                <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-6">
                   {transcript.map((entry) =>
                     entry.type === "model-list" ? (
                       <ModelDebugChatBubble
@@ -1071,7 +1113,7 @@ export function ChatSmokeTestForm({
                       >
                         {entry.models.length > 0 ? (
                           <div className="grid gap-3">
-                            <div className="text-xs font-medium text-muted-foreground">
+                            <div className="text-xs leading-5 font-medium text-muted-foreground">
                               {entry.models.length} {t("forms.listModels")}
                             </div>
                             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -1080,10 +1122,10 @@ export function ChatSmokeTestForm({
                                   key={availableModel}
                                   type="button"
                                   className={cn(
-                                    "rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors",
-                                    availableModel === model
-                                      ? "border-primary bg-primary text-primary-foreground"
-                                      : "border-border bg-background hover:bg-muted",
+                                    "rounded-lg border px-3 py-2.5 text-left text-xs leading-5 font-medium transition-all",
+                                    availableModel === effectiveModel
+                                      ? "border-primary/20 bg-primary text-primary-foreground"
+                                      : "border-border/70 bg-background/95 hover:border-foreground/15 hover:bg-muted/70",
                                   )}
                                   onClick={() => {
                                     setModel(availableModel);
@@ -1097,7 +1139,7 @@ export function ChatSmokeTestForm({
                               ))}
                             </div>
                             {entry.helper ? (
-                              <div className="text-xs text-muted-foreground">
+                              <div className="text-xs leading-5 text-muted-foreground">
                                 {entry.helper}
                               </div>
                             ) : null}
@@ -1111,6 +1153,8 @@ export function ChatSmokeTestForm({
                         key={entry.id}
                         align={entry.align}
                         label={entry.label}
+                        reasoning={entry.reasoning}
+                        reasoningLabel={t("forms.reasoningTrace")}
                         tone={entry.tone}
                         footer={entry.footer}
                       >
@@ -1120,131 +1164,204 @@ export function ChatSmokeTestForm({
                   )}
                 </div>
               ) : (
-                <Empty className="min-h-[20rem] border-none bg-transparent">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon">
-                      <BotIcon />
-                    </EmptyMedia>
-                    <EmptyTitle>{t("forms.playgroundEmptyTitle")}</EmptyTitle>
-                    <EmptyDescription className="max-w-md">
-                      {t("forms.playgroundEmptyDescription")}
-                    </EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
+                <PlaygroundEmptyStage
+                  title={t("forms.playgroundEmptyTitle")}
+                  endpointType={endpointType}
+                  presets={promptPresets}
+                  onPresetSelect={(value) => {
+                    setEndpointType("chat-completions");
+                    setPrompt(value);
+                  }}
+                />
               )}
             </div>
 
-            <div className="border-t bg-background/95 px-4 py-4 sm:px-6">
-              <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
-                {summary ? (
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                    <ModelDebugMetric
-                      label={t("nav.status")}
-                      value={statusValue}
-                      tone={summary.ok ? "success" : "danger"}
-                    />
-                    <ModelDebugMetric
-                      label={t("dashboard.latency")}
-                      value={formatLatency(
-                        summary.latency_ms,
-                        t("dashboard.notSet"),
-                      )}
-                    />
-                    <ModelDebugMetric
-                      label={t("dashboard.responseModel")}
-                      value={responseModelValue}
-                      valueClassName="break-all"
-                    />
-                    <ModelDebugMetric
-                      label={t("forms.debugLatestAction")}
-                      value={latestActionValue}
-                      valueClassName="break-all"
-                    />
+            <div className="shrink-0 border-t border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
+              <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+                {error ? (
+                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-sm leading-6 text-destructive">
+                    {error}
                   </div>
                 ) : null}
 
-                {endpointType === "chat-completions" ? (
-                  <div className="flex flex-wrap gap-2">
-                    {promptPresets.map((preset) => (
-                      <Button
-                        key={preset.id}
+                <div
+                  className={cn(
+                    "w-full cursor-text overflow-clip border border-border/80 bg-card bg-clip-padding p-2 shadow-[0_18px_44px_-32px_rgba(15,23,42,0.55)] transition-[border-color,box-shadow,border-radius] duration-200 ease-out focus-within:border-ring/60 focus-within:ring-4 focus-within:ring-ring/10 dark:bg-muted/35",
+                    isPromptComposerExpanded
+                      ? "grid rounded-[1.75rem] [grid-template-areas:'primary'_'footer'] [grid-template-columns:1fr] [grid-template-rows:auto_auto]"
+                      : "grid rounded-[1.75rem] [grid-template-areas:'leading_primary_trailing'] [grid-template-columns:auto_1fr_auto] [grid-template-rows:auto]",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex min-h-14 items-center overflow-x-hidden px-1.5",
+                      isPromptComposerExpanded ? "px-2 py-1" : "-my-2.5",
+                    )}
+                    style={{ gridArea: "primary" }}
+                  >
+                    <div className="max-h-52 flex-1 overflow-auto">
+                      <Textarea
+                        ref={promptTextareaRef}
+                        id="chat-prompt"
+                        name="chat-prompt"
+                        rows={1}
+                        className="min-h-0 max-h-40 resize-none overflow-auto rounded-none border-0 bg-transparent p-0 text-base leading-7 shadow-none placeholder:text-muted-foreground/70 focus-visible:border-transparent focus-visible:ring-0 focus-visible:ring-offset-0 disabled:bg-transparent"
+                        value={prompt}
+                        disabled={endpointType === "models"}
+                        placeholder={
+                          endpointType === "models"
+                            ? t("forms.modelsPlaceholder")
+                            : t("forms.messagePlaceholder")
+                        }
+                        onChange={(event) => setPrompt(event.currentTarget.value)}
+                        onKeyDown={handleComposerKeyDown}
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className={cn("flex items-center", {
+                      hidden: isPromptComposerExpanded,
+                    })}
+                    style={{ gridArea: "leading" }}
+                  >
+                    {renderComposerActionMenu()}
+                  </div>
+
+                  <div
+                    className={cn(
+                      "flex items-center gap-2",
+                      isPromptComposerExpanded && "mt-1 px-1.5 pt-1",
+                    )}
+                    style={{
+                      gridArea: isPromptComposerExpanded
+                        ? "footer"
+                        : "trailing",
+                    }}
+                  >
+                    {isPromptComposerExpanded ? (
+                      <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+                        {renderComposerActionMenu()}
+                        {endpointType === "chat-completions"
+                          ? promptPresets.map((preset) => (
+                              <Button
+                                key={preset.id}
+                                type="button"
+                                size="xs"
+                                variant="ghost"
+                                className="shrink-0 rounded-full border border-border/70 bg-background/80"
+                                onClick={() => {
+                                  setEndpointType("chat-completions");
+                                  setPrompt(preset.prompt);
+                                }}
+                              >
+                                {preset.label}
+                              </Button>
+                            ))
+                          : null}
+                      </div>
+                    ) : null}
+
+                    <div className="ms-auto flex items-center gap-1.5">
+                      <PlaygroundIconButton
                         type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full bg-background"
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-accent"
+                        label={t("forms.listModels")}
+                        disabled={isBusy || !canUseSelectedApiKey}
                         onClick={() => {
-                          setEndpointType("chat-completions");
-                          setPrompt(preset.prompt);
+                          setEndpointType("models");
+                          void runModelListRequest();
                         }}
                       >
-                        {preset.label}
+                        {isListingModels ? (
+                          <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
+                        ) : (
+                          <ClipboardListIcon className="size-5 text-muted-foreground" />
+                        )}
+                      </PlaygroundIconButton>
+
+                      <PlaygroundIconButton
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-accent"
+                        label={t("forms.getCode")}
+                        onClick={() => setIsCodeDialogOpen(true)}
+                      >
+                        <CopyIcon className="size-5 text-muted-foreground" />
+                      </PlaygroundIconButton>
+
+                      {canClearSession ? (
+                        <PlaygroundIconButton
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="hover:bg-accent"
+                          label={t("forms.clearChat")}
+                          onClick={clearSession}
+                        >
+                          <Trash2Icon className="size-5 text-muted-foreground" />
+                        </PlaygroundIconButton>
+                      ) : null}
+
+                      <Button
+                        type="submit"
+                        size="icon-lg"
+                        className="rounded-full shadow-[0_14px_32px_-18px_rgba(15,23,42,0.55)]"
+                        disabled={!canSubmit}
+                        aria-label={
+                          endpointType === "models"
+                            ? t("forms.listModels")
+                            : t("forms.runSmokeTest")
+                        }
+                      >
+                        {isBusy ? (
+                          <Loader2Icon className="size-5 animate-spin" />
+                        ) : endpointType === "models" ? (
+                          <ClipboardListIcon className="size-5" />
+                        ) : (
+                          <SendHorizontalIcon className="size-5" />
+                        )}
                       </Button>
-                    ))}
-                  </div>
-                ) : null}
-
-                <div className="rounded-xl border bg-background p-3 shadow-xs">
-                  <div className="flex items-end gap-3">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="shrink-0"
-                      disabled
-                    >
-                      <PlusIcon />
-                      <span className="sr-only">{t("actions.create")}</span>
-                    </Button>
-                    <Textarea
-                      id="chat-prompt"
-                      name="chat-prompt"
-                      className="min-h-[3.75rem] resize-none border-0 bg-transparent p-0 text-sm leading-6 shadow-none focus-visible:border-transparent focus-visible:ring-0"
-                      value={prompt}
-                      disabled={endpointType === "models"}
-                      placeholder={
-                        endpointType === "models"
-                          ? t("forms.modelsPlaceholder")
-                          : t("forms.messagePlaceholder")
-                      }
-                      onChange={(event) => setPrompt(event.currentTarget.value)}
-                      onKeyDown={handleComposerKeyDown}
-                    />
-                    <Button
-                      type="submit"
-                      size="icon"
-                      className="size-9 shrink-0"
-                      disabled={!canSubmit}
-                    >
-                      {isBusy ? (
-                        <Loader2Icon className="animate-spin" />
-                      ) : endpointType === "models" ? (
-                        <ClipboardListIcon />
-                      ) : (
-                        <ChevronUpIcon />
-                      )}
-                      <span className="sr-only">
-                        {endpointType === "models"
-                          ? t("forms.listModels")
-                          : t("forms.runSmokeTest")}
-                      </span>
-                    </Button>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
-                    <span>{summary?.endpoint ?? currentEndpointPath}</span>
-                    <span>{statusValue}</span>
+                    </div>
                   </div>
                 </div>
-
-                {error ? (
-                  <div className="text-sm text-destructive">{error}</div>
-                ) : null}
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-    </form>
+      </form>
+    </TooltipProvider>
+  );
+}
+
+function PlaygroundIconButton({
+  label,
+  children,
+  className,
+  ...props
+}: ComponentProps<typeof Button> & {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            className={cn("rounded-full", className)}
+            aria-label={label}
+            {...props}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -1260,44 +1377,71 @@ function PlaygroundConfigSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border bg-muted/30 p-4">
-      <div className="mb-4 space-y-1">
-        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <span className="flex size-7 items-center justify-center rounded-md border bg-background text-muted-foreground">
-            {icon}
-          </span>
-          <span>{title}</span>
-        </div>
-        {description ? (
-          <div className="text-xs leading-relaxed text-muted-foreground">
-            {description}
+    <section className="rounded-lg border border-border/70 bg-background/80 p-3">
+      <div className="mb-2.5 flex gap-2.5">
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-muted/50 text-muted-foreground">
+          {icon}
+        </span>
+        <div className="min-w-0 space-y-0.5">
+          <div className="text-sm leading-5 font-medium text-foreground">
+            {title}
           </div>
-        ) : null}
+          {description ? (
+            <div className="text-xs leading-5 text-muted-foreground">
+              {description}
+            </div>
+          ) : null}
+        </div>
       </div>
       {children}
     </section>
   );
 }
 
-function PlaygroundHeaderBadge({
-  children,
-  tone = "default",
+function PlaygroundEmptyStage({
+  title,
+  endpointType,
+  presets,
+  onPresetSelect,
 }: {
-  children: ReactNode;
-  tone?: "default" | "success" | "danger";
+  title: string;
+  endpointType: PlaygroundEndpoint;
+  presets: Array<{ id: string; label: string; prompt: string }>;
+  onPresetSelect: (value: string) => void;
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-md border bg-background px-2.5 py-1 text-xs font-medium text-foreground/80",
-        tone === "success" &&
-          "border-emerald-500/20 bg-emerald-500/10 text-emerald-700",
-        tone === "danger" &&
-          "border-destructive/20 bg-destructive/10 text-destructive",
-      )}
-    >
-      {children}
-    </span>
+    <Empty className="mx-auto min-h-full w-full max-w-3xl border-0 bg-transparent px-2 py-8">
+      <EmptyHeader className="max-w-2xl">
+        <EmptyMedia
+          variant="icon"
+          className="size-11 rounded-lg border border-border/70 bg-background text-muted-foreground"
+        >
+          <MessageSquareTextIcon className="size-5" />
+        </EmptyMedia>
+        <EmptyTitle className="text-balance text-2xl leading-9 font-semibold text-foreground whitespace-pre-wrap">
+          {title}
+        </EmptyTitle>
+      </EmptyHeader>
+
+      <EmptyContent className="max-w-2xl">
+        {endpointType === "chat-completions" ? (
+          <div className="flex flex-wrap justify-center gap-2">
+            {presets.map((preset) => (
+              <Button
+                key={preset.id}
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full bg-background/95"
+                onClick={() => onPresetSelect(preset.prompt)}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+      </EmptyContent>
+    </Empty>
   );
 }
 
@@ -1336,11 +1480,83 @@ function createPlaygroundEntryID() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+type MessageBlock =
+  | { type: "paragraph"; content: string }
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "code"; language?: string; content: string }
+  | { type: "divider" };
+
+function parseMessageBlocks(value: string): MessageBlock[] {
+  const normalized = value.replace(/\r\n?/g, "\n").trim();
+
+  if (normalized === "") {
+    return [];
+  }
+
+  const blocks: MessageBlock[] = [];
+  const codeBlockPattern = /```([\w-]+)?\n([\s\S]*?)```/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = codeBlockPattern.exec(normalized)) !== null) {
+    blocks.push(...parseTextBlocks(normalized.slice(lastIndex, match.index)));
+    blocks.push({
+      type: "code",
+      language: match[1]?.trim() || undefined,
+      content: match[2].trimEnd(),
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  blocks.push(...parseTextBlocks(normalized.slice(lastIndex)));
+
+  return blocks;
+}
+
+function parseTextBlocks(value: string): MessageBlock[] {
+  return value
+    .split(/\n{2,}/)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => {
+      const lines = segment
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+
+      if (
+        segment.replace(/[\s-]/g, "") === "" &&
+        segment.includes("-") &&
+        segment.length >= 3
+      ) {
+        return { type: "divider" } as MessageBlock;
+      }
+
+      if (lines.length > 0 && lines.every((line) => /^[-*]\s+/.test(line))) {
+        return {
+          type: "list",
+          ordered: false,
+          items: lines.map((line) => line.replace(/^[-*]\s+/, "")),
+        } as MessageBlock;
+      }
+
+      if (lines.length > 0 && lines.every((line) => /^\d+\.\s+/.test(line))) {
+        return {
+          type: "list",
+          ordered: true,
+          items: lines.map((line) => line.replace(/^\d+\.\s+/, "")),
+        } as MessageBlock;
+      }
+
+      return { type: "paragraph", content: segment } as MessageBlock;
+    });
+}
+
 function normalizePlaygroundBaseUrl(value: string) {
   const trimmed = value.trim();
 
   if (trimmed === "") {
-    return "https://your-proxy.example.com";
+    return "http://127.0.0.1:8080";
   }
 
   return trimmed.replace(/\/+$/, "");
@@ -1459,17 +1675,17 @@ function ModelDebugMetric({
   return (
     <div
       className={cn(
-        "rounded-lg border bg-background px-3 py-2.5",
+        "rounded-xl border border-border/70 bg-background/90 px-3.5 py-3 shadow-[0_14px_28px_-24px_rgba(15,23,42,0.42)]",
         tone === "success" && "border-emerald-500/20 bg-emerald-500/5",
         tone === "danger" && "border-destructive/20 bg-destructive/5",
       )}
     >
-      <div className="text-[0.68rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+      <div className="text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
         {label}
       </div>
       <div
         className={cn(
-          "mt-1 text-sm leading-tight font-semibold sm:text-[0.95rem]",
+          "mt-1.5 text-sm leading-6 font-semibold tracking-[-0.01em]",
           valueClassName,
         )}
       >
@@ -1490,39 +1706,44 @@ function ModelDebugPlaceholder({ children }: { children: ReactNode }) {
 function ModelDebugChatBubble({
   align = "start",
   label,
+  reasoning,
+  reasoningLabel = "Reasoning",
   tone = "default",
   footer,
   children,
 }: {
   align?: "start" | "end";
   label?: string;
+  reasoning?: string | null;
+  reasoningLabel?: string;
   tone?: "default" | "primary" | "danger";
   footer?: ReactNode;
   children: ReactNode;
 }) {
   const isPrimary = tone === "primary";
   const isDanger = tone === "danger";
+  const isUser = align === "end";
 
   return (
     <div
       className={cn(
-        "flex w-full",
-        align === "end" ? "justify-end" : "justify-start",
+        "flex w-full gap-3",
+        isUser ? "justify-end" : "justify-start",
       )}
     >
+      {!isUser ? <ModelDebugSpeakerAvatar align={align} tone={tone} /> : null}
       <div
         className={cn(
-          "w-full max-w-3xl rounded-xl border px-4 py-3 shadow-xs",
-          isPrimary && "border-primary bg-primary text-primary-foreground",
-          !isPrimary && !isDanger && "border-border bg-background",
-          isDanger && "border-destructive/20 bg-destructive/5",
+          "flex min-w-0 flex-col gap-2",
+          isUser
+            ? "max-w-[88%] items-end sm:max-w-[76%]"
+            : "max-w-[95%] items-start sm:max-w-[82%]",
         )}
       >
-        {label ? (
+        {label && !isUser ? (
           <div
             className={cn(
-              "mb-2 text-[0.72rem] font-medium text-muted-foreground",
-              isPrimary && "text-primary-foreground/70",
+              "px-1 text-[0.72rem] leading-4 font-medium text-muted-foreground",
               !isPrimary && !isDanger && "text-muted-foreground",
               isDanger && "text-destructive/80",
             )}
@@ -1530,20 +1751,34 @@ function ModelDebugChatBubble({
             {label}
           </div>
         ) : null}
+        {!isUser && reasoning?.trim() ? (
+          <ModelDebugReasoningTrace
+            label={reasoningLabel}
+            value={reasoning}
+          />
+        ) : null}
         <div
           className={cn(
-            "whitespace-pre-wrap break-words text-sm leading-6",
-            isPrimary && "text-primary-foreground",
-            !isPrimary && !isDanger && "text-foreground",
-            isDanger && "text-destructive",
+            "w-full overflow-hidden px-4 py-3 text-sm leading-7",
+            isPrimary &&
+              "rounded-2xl border border-transparent bg-muted text-foreground",
+            !isPrimary &&
+              !isDanger &&
+              "rounded-none border-0 bg-transparent text-foreground",
+            isDanger &&
+              "rounded-lg border border-destructive/20 bg-destructive/5 text-destructive",
           )}
         >
-          {children}
+          {typeof children === "string" ? (
+            <MessageRichContent value={children} tone={tone} />
+          ) : (
+            children
+          )}
         </div>
         {footer ? (
           <div
             className={cn(
-              "mt-2 text-[0.72rem]",
+              "px-1 text-[0.72rem] leading-4",
               isPrimary
                 ? "text-primary-foreground/75"
                 : "text-muted-foreground",
@@ -1553,6 +1788,166 @@ function ModelDebugChatBubble({
           </div>
         ) : null}
       </div>
+      {isUser ? <ModelDebugSpeakerAvatar align={align} tone={tone} /> : null}
+    </div>
+  );
+}
+
+function ModelDebugReasoningTrace({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  const reasoning = value.trim();
+
+  if (!reasoning) {
+    return null;
+  }
+
+  return (
+    <Collapsible defaultOpen className="group/reasoning w-full">
+      <div className="overflow-hidden rounded-lg border border-border/70 bg-muted/35 text-muted-foreground">
+        <CollapsibleTrigger
+          render={
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[0.72rem] leading-4 font-medium"
+            />
+          }
+        >
+          <ChevronRightIcon className="size-3.5 shrink-0 transition-transform duration-200 group-data-open/reasoning:rotate-90" />
+          <span>{label}</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="max-h-60 overflow-auto border-t border-border/70 px-3 py-2.5 text-xs leading-6">
+            <MessageRichContent value={reasoning} tone="default" />
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+function ModelDebugSpeakerAvatar({
+  align,
+  tone,
+}: {
+  align: "start" | "end";
+  tone: "default" | "primary" | "danger";
+}) {
+  const isUser = align === "end";
+  const isDanger = tone === "danger";
+
+  return (
+    <Avatar
+      size="sm"
+      className={cn(
+        "mt-1 border",
+        isUser && "border-border/70 bg-muted text-muted-foreground",
+        !isUser &&
+          !isDanger &&
+          "border-border/70 bg-background text-muted-foreground",
+        !isUser &&
+          isDanger &&
+          "border-destructive/20 bg-destructive/10 text-destructive",
+      )}
+    >
+      <AvatarFallback className="bg-transparent text-current">
+        {isUser ? (
+          <UserRoundIcon className="size-3.5" />
+        ) : (
+          <BotIcon className="size-3.5" />
+        )}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+function MessageRichContent({
+  value,
+  tone,
+}: {
+  value: string;
+  tone: "default" | "primary" | "danger";
+}) {
+  const blocks = parseMessageBlocks(value);
+
+  if (blocks.length === 0) {
+    return (
+      <div className="whitespace-pre-wrap break-words text-sm leading-7">
+        {value}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3.5 text-[0.95rem] leading-7">
+      {blocks.map((block, index) => {
+        switch (block.type) {
+          case "paragraph":
+            return (
+              <p key={index} className="whitespace-pre-wrap break-words">
+                {block.content}
+              </p>
+            );
+          case "list":
+            return block.ordered ? (
+              <ol key={index} className="space-y-1.5 list-decimal pl-5">
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex}>{item}</li>
+                ))}
+              </ol>
+            ) : (
+              <ul key={index} className="space-y-1.5 pl-5">
+                {block.items.map((item, itemIndex) => (
+                  <li key={itemIndex} className="list-disc">
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            );
+          case "divider":
+            return (
+              <Separator
+                key={index}
+                className={cn(
+                  "my-1",
+                  tone === "primary" ? "bg-primary-foreground/20" : "bg-border/70",
+                )}
+              />
+            );
+          case "code":
+            return (
+              <div
+                key={index}
+                className={cn(
+                  "overflow-hidden rounded-xl border",
+                  tone === "primary"
+                    ? "border-primary-foreground/15 bg-primary-foreground/10"
+                    : "border-border/70 bg-muted/30",
+                )}
+              >
+                {block.language ? (
+                  <div
+                    className={cn(
+                      "border-b px-3 py-2 font-mono text-[0.68rem] uppercase tracking-[0.16em]",
+                      tone === "primary"
+                        ? "border-primary-foreground/15 text-primary-foreground/70"
+                        : "border-border/70 text-muted-foreground",
+                    )}
+                  >
+                    {block.language}
+                  </div>
+                ) : null}
+                <pre className="overflow-x-auto px-3 py-3 font-mono text-[0.8rem] leading-6 whitespace-pre-wrap">
+                  {block.content}
+                </pre>
+              </div>
+            );
+        }
+      })}
     </div>
   );
 }
@@ -1725,8 +2120,10 @@ async function readChatSmokeStream(
   response: Response,
   {
     onText,
+    onReasoning,
   }: {
     onText: (chunk: string) => void;
+    onReasoning: (chunk: string) => void;
   },
 ) {
   const reader = response.body?.getReader();
@@ -1753,55 +2150,38 @@ async function readChatSmokeStream(
 
       buffer += decoder.decode(value, { stream: true });
       buffer = consumeClientSSEBuffer(buffer, ({ event, data }) => {
-        if (!data || data === "[DONE]") {
-          return;
-        }
-
-        if (event === "gateway-summary") {
-          summary = (parseMaybeJSON(data) ?? {}) as ChatSmokeResponse;
-          return;
-        }
-
-        const text = extractStreamChunkText(parseMaybeJSON(data));
-
-        if (text) {
-          onText(text);
-        }
+        summary = handleChatSmokeStreamEvent({
+          event,
+          data,
+          summary,
+          onText,
+          onReasoning,
+        });
       });
     }
 
     buffer += decoder.decode();
     buffer = consumeClientSSEBuffer(buffer, ({ event, data }) => {
-      if (!data || data === "[DONE]") {
-        return;
-      }
-
-      if (event === "gateway-summary") {
-        summary = (parseMaybeJSON(data) ?? {}) as ChatSmokeResponse;
-        return;
-      }
-
-      const text = extractStreamChunkText(parseMaybeJSON(data));
-
-      if (text) {
-        onText(text);
-      }
+      summary = handleChatSmokeStreamEvent({
+        event,
+        data,
+        summary,
+        onText,
+        onReasoning,
+      });
     });
 
     if (buffer.trim() !== "") {
       const finalEvent = parseClientSSEEvent(buffer);
 
       if (finalEvent?.data && finalEvent.data !== "[DONE]") {
-        if (finalEvent.event === "gateway-summary") {
-          summary = (parseMaybeJSON(finalEvent.data) ??
-            {}) as ChatSmokeResponse;
-        } else {
-          const text = extractStreamChunkText(parseMaybeJSON(finalEvent.data));
-
-          if (text) {
-            onText(text);
-          }
-        }
+        summary = handleChatSmokeStreamEvent({
+          event: finalEvent.event,
+          data: finalEvent.data,
+          summary,
+          onText,
+          onReasoning,
+        });
       }
     }
   } finally {
@@ -1809,6 +2189,40 @@ async function readChatSmokeStream(
   }
 
   return summary ?? ({} as ChatSmokeResponse);
+}
+
+function handleChatSmokeStreamEvent({
+  event,
+  data,
+  summary,
+  onText,
+  onReasoning,
+}: {
+  event: string;
+  data: string;
+  summary: ChatSmokeResponse | undefined;
+  onText: (chunk: string) => void;
+  onReasoning: (chunk: string) => void;
+}) {
+  if (!data || data === "[DONE]") {
+    return summary;
+  }
+
+  if (event === "gateway-summary") {
+    return (parseMaybeJSON(data) ?? {}) as ChatSmokeResponse;
+  }
+
+  const chunk = extractStreamChunk(parseMaybeJSON(data));
+
+  if (chunk.reasoning) {
+    onReasoning(chunk.reasoning);
+  }
+
+  if (chunk.content) {
+    onText(chunk.content);
+  }
+
+  return summary;
 }
 
 function consumeClientSSEBuffer(
@@ -1864,42 +2278,159 @@ function parseClientSSEEvent(block: string) {
   };
 }
 
-function extractStreamChunkText(value: unknown): string | null {
+function extractStreamChunk(value: unknown) {
   if (!value || typeof value !== "object") {
-    return null;
+    return {
+      content: "",
+      reasoning: "",
+    };
   }
 
   const response = value as Record<string, unknown>;
   const choices = Array.isArray(response.choices) ? response.choices : [];
+  const contentParts: string[] = [];
+  const reasoningParts: string[] = [];
 
-  return choices
-    .map((choice) => {
-      if (!choice || typeof choice !== "object") {
+  choices.forEach((choice) => {
+    if (!choice || typeof choice !== "object") {
+      return;
+    }
+
+    const record = choice as Record<string, unknown>;
+    const content = extractChoiceVisibleText(record);
+    const reasoning = extractChoiceReasoning(record);
+
+    if (content) {
+      contentParts.push(content);
+    }
+
+    if (reasoning) {
+      reasoningParts.push(reasoning);
+    }
+  });
+
+  return {
+    content: contentParts.join(""),
+    reasoning: reasoningParts.join(""),
+  };
+}
+
+function extractChoiceVisibleText(choice: Record<string, unknown>) {
+  const message =
+    choice.message && typeof choice.message === "object"
+      ? (choice.message as Record<string, unknown>)
+      : null;
+  const delta =
+    choice.delta && typeof choice.delta === "object"
+      ? (choice.delta as Record<string, unknown>)
+      : null;
+
+  return (
+    extractNestedText(message?.content) ??
+    extractNestedText(delta?.content) ??
+    extractNestedText(choice.content) ??
+    extractNestedText(choice.text) ??
+    extractNestedText(message?.text) ??
+    null
+  );
+}
+
+function extractChoiceReasoning(choice: Record<string, unknown>) {
+  const message =
+    choice.message && typeof choice.message === "object"
+      ? (choice.message as Record<string, unknown>)
+      : null;
+  const delta =
+    choice.delta && typeof choice.delta === "object"
+      ? (choice.delta as Record<string, unknown>)
+      : null;
+
+  return mergeReasoningText(
+    extractReasoningText(delta),
+    extractReasoningText(message),
+    extractReasoningText(choice),
+  );
+}
+
+function extractReasoningText(record?: Record<string, unknown> | null) {
+  if (!record) {
+    return null;
+  }
+
+  return mergeReasoningText(
+    extractNestedText(record.reasoning_content),
+    extractNestedText(record.reasoningContent),
+    extractNestedText(record.reasoning),
+    extractNestedText(record.thinking),
+    extractNestedText(record.thought),
+    extractNestedText(record.thoughts),
+    extractThinkingBlocks(record.thinking_blocks),
+    extractThinkingBlocks(record.thinkingBlocks),
+    extractReasoningItems(record.reasoning_items),
+    extractReasoningItems(record.reasoningItems),
+    extractReasoningItems(record.reasoning_details),
+    extractReasoningItems(record.reasoningDetails),
+  );
+}
+
+function extractThinkingBlocks(value: unknown) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const parts = value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
         return null;
       }
 
-      const record = choice as Record<string, unknown>;
+      const record = item as Record<string, unknown>;
+
+      if (record.type === "redacted_thinking") {
+        return null;
+      }
 
       return (
-        extractDebugText({
-          choices: [record],
-        }) ??
-        extractDebugText({
-          choices: [
-            {
-              message: {
-                content:
-                  typeof record.text === "string"
-                    ? record.text
-                    : extractNestedText(record.delta),
-              },
-            },
-          ],
-        })
+        extractNestedText(record.thinking) ??
+        extractNestedText(record.text) ??
+        extractNestedText(record.content) ??
+        null
       );
     })
-    .filter((chunk): chunk is string => Boolean(chunk))
-    .join("");
+    .filter((item): item is string => Boolean(item));
+
+  return parts.length > 0 ? parts.join("") : null;
+}
+
+function extractReasoningItems(value: unknown) {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const parts = value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return extractNestedText(item);
+      }
+
+      const record = item as Record<string, unknown>;
+
+      if (record.type === "redacted_thinking") {
+        return null;
+      }
+
+      return mergeReasoningText(
+        extractNestedText(record.summary),
+        extractNestedText(record.text),
+        extractNestedText(record.content),
+        extractNestedText(record.reasoning),
+        extractNestedText(record.reasoning_content),
+        extractNestedText(record.thinking),
+      );
+    })
+    .filter((item): item is string => Boolean(item));
+
+  return parts.length > 0 ? parts.join("\n\n") : null;
 }
 
 function extractNestedText(value: unknown): string | null {
@@ -1934,6 +2465,76 @@ function extractNestedText(value: unknown): string | null {
   }
 
   return extractNestedText(record.content ?? record.text);
+}
+
+function extractDebugReasoning(value: unknown): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const response = value as Record<string, unknown>;
+  const choices = Array.isArray(response.choices) ? response.choices : [];
+  const choiceReasoning = choices
+    .map((choice) =>
+      choice && typeof choice === "object"
+        ? extractChoiceReasoning(choice as Record<string, unknown>)
+        : null,
+    )
+    .filter((item): item is string => Boolean(item));
+  const outputReasoning = extractReasoningItems(response.output);
+
+  return mergeReasoningText(...choiceReasoning, outputReasoning);
+}
+
+function splitEmbeddedReasoning(value: string) {
+  const reasoningParts: string[] = [];
+  const content = value
+    .replace(
+      /<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/gi,
+      (_match, reasoning: string) => {
+        if (reasoning.trim()) {
+          reasoningParts.push(reasoning.trim());
+        }
+
+        return "";
+      },
+    )
+    .trim();
+
+  return {
+    content,
+    reasoning: reasoningParts.length > 0 ? reasoningParts.join("\n\n") : null,
+  };
+}
+
+function mergeReasoningText(...values: Array<string | null | undefined>) {
+  const parts: string[] = [];
+
+  values.forEach((value) => {
+    const normalized = value?.trim();
+
+    if (!normalized) {
+      return;
+    }
+
+    const isDuplicate = parts.some(
+      (part) => part === normalized || part.includes(normalized),
+    );
+
+    if (isDuplicate) {
+      return;
+    }
+
+    for (let index = parts.length - 1; index >= 0; index -= 1) {
+      if (normalized.includes(parts[index])) {
+        parts.splice(index, 1);
+      }
+    }
+
+    parts.push(normalized);
+  });
+
+  return parts.length > 0 ? parts.join("\n\n") : null;
 }
 
 function formatDebugAction(
@@ -2080,8 +2681,65 @@ function uniqueDebugValues(values: Array<string | null | undefined>) {
   ] as string[];
 }
 
+function sanitizePlaygroundModels(values: Array<string | null | undefined>) {
+  const unique = uniqueDebugValues(values);
+  const normalized = new Set(unique.map((value) => value.toLowerCase()));
+
+  return unique.filter(
+    (value) => !resolveLegacyPlaygroundAlias(value, normalized),
+  );
+}
+
+function preferPlaygroundModel(
+  value: string | null | undefined,
+  candidates: Array<string | null | undefined>,
+) {
+  const normalizedValue = value?.trim() ?? "";
+
+  if (normalizedValue === "") {
+    return "";
+  }
+
+  const normalizedCandidates = new Set(
+    uniqueDebugValues([normalizedValue, ...candidates]).map((item) =>
+      item.toLowerCase(),
+    ),
+  );
+
+  return (
+    resolveLegacyPlaygroundAlias(normalizedValue, normalizedCandidates) ??
+    normalizedValue
+  );
+}
+
+function resolveLegacyPlaygroundAlias(
+  value: string,
+  candidates: Set<string>,
+): string | null {
+  const normalizedValue = value.trim();
+  const slashIndex = normalizedValue.indexOf("/");
+
+  if (slashIndex <= 0 || slashIndex >= normalizedValue.length - 1) {
+    return null;
+  }
+
+  const provider = normalizedValue.slice(0, slashIndex).trim().toLowerCase();
+  const actualModel = normalizedValue.slice(slashIndex + 1).trim();
+
+  if (actualModel === "" || !candidates.has(actualModel.toLowerCase())) {
+    return null;
+  }
+
+  switch (provider) {
+    case "deepseek":
+      return actualModel;
+    default:
+      return null;
+  }
+}
+
 function createDebugSelectOptions(values: Array<string | null | undefined>) {
-  return uniqueDebugValues(values).map((value) => ({
+  return sanitizePlaygroundModels(values).map((value) => ({
     label: value,
     value,
   }));

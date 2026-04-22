@@ -13,6 +13,7 @@ import type {
   ProviderSetupList,
   ReadyResponse,
   RegistrationRequestList,
+  RequestLogList,
   SessionUser,
   User,
   UserList,
@@ -38,6 +39,7 @@ export type DashboardSectionContentProps = {
   balance: Settled<Balance>
   apiKeys: Settled<APIKeyList>
   dailyUsage: Settled<DailyUsageList>
+  requestLogs: Settled<RequestLogList>
   workspaceUsers: Settled<UserList>
   workspaceUserList: User[]
   workspaceMembers: Settled<WorkspaceMemberList>
@@ -53,6 +55,7 @@ export type DashboardSectionContentProps = {
   modelDeploymentList: ModelDeployment[]
   tablePagination: Record<string, DashboardPaginationState | undefined>
   chatSmokeModel: string
+  chatSmokeBaseUrl: string
   showUserManagement: boolean
   showMemberManagement: boolean
   showRegistration: boolean

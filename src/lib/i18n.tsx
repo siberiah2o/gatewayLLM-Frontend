@@ -50,10 +50,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "nav.overview": "Overview",
     "nav.status": "Status",
     "nav.usage": "Usage",
+    "nav.logs": "Logs",
     "nav.workspaces": "Workspaces",
     "nav.models": "Models",
     "nav.providerSetups": "Provider setups",
-    "nav.advanced": "Advanced",
     "nav.catalogs": "Catalogs",
     "nav.credentials": "Credentials",
     "nav.deployments": "Deployments",
@@ -163,7 +163,43 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.dailyUsageDescription":
       "Last 30 days for the first visible workspace.",
     "dashboard.noDailyUsage": "No daily usage returned.",
+    "dashboard.requestLogsTitle": "API call logs",
+    "dashboard.requestLogsDescription":
+      "Recent model API calls for the first visible workspace.",
+    "dashboard.noRequestLogs": "No API call logs returned.",
+    "dashboard.requestLogDetailsTitle": "API call details",
+    "dashboard.noRequestAttempts": "No request attempts recorded.",
+    "dashboard.requestPayload": "Request payload",
+    "dashboard.latestResponsePayload": "Latest response payload",
+    "dashboard.attemptOutputs": "Attempt outputs",
+    "dashboard.responseContentType": "Content type",
+    "dashboard.noRequestPayload": "No request payload stored.",
+    "dashboard.noResponsePayload": "No response payload stored.",
+    "dashboard.loadingRequestLog": "Loading original request and response payloads...",
+    "dashboard.failedRequestLog": "Failed to load request log details.",
     "dashboard.requestsTokens": "{requests} requests - {tokens} tokens",
+    "dashboard.requestUID": "Request UID",
+    "dashboard.provider": "Provider",
+    "dashboard.apiKey": "API key",
+    "dashboard.requestStartedAt": "Started",
+    "dashboard.firstTokenAt": "First token",
+    "dashboard.firstTokenLatency": "First-token latency",
+    "dashboard.firstTokenLatencyMin": "Min first-token latency",
+    "dashboard.firstTokenLatencyMax": "Max first-token latency",
+    "dashboard.requestLogSort": "Sort",
+    "dashboard.requestLogSortRecent": "Latest first",
+    "dashboard.requestLogSortFirstTokenLatencyAsc":
+      "First-token latency: low to high",
+    "dashboard.requestLogSortFirstTokenLatencyDesc":
+      "First-token latency: high to low",
+    "dashboard.completedAt": "Completed",
+    "dashboard.spend": "Spend",
+    "dashboard.attempts": "Attempts",
+    "dashboard.traceID": "Trace ID",
+    "dashboard.clientIP": "Client IP",
+    "dashboard.stream": "Stream",
+    "dashboard.yes": "Yes",
+    "dashboard.no": "No",
     "dashboard.protectedOwner": "Protected owner",
     "dashboard.region": "Region",
     "dashboard.priority": "Priority",
@@ -227,6 +263,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "actions.viewKey": "View key",
     "actions.running": "Running...",
     "actions.loading": "Loading...",
+    "actions.apply": "Apply",
     "actions.selectAll": "Select all",
     "actions.clear": "Clear",
     "actions.created": "Created {name}.",
@@ -343,7 +380,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.credential": "Credential",
     "forms.endpointUrl": "Endpoint URL",
     "forms.endpointUrlRequiredForOpenAICompatible":
-      "OpenAI-compatible providers need an explicit endpoint URL when no registry default is available.",
+      "Providers need an explicit endpoint URL when no registry default is available.",
+    "forms.endpointUrlPlaceholderHelp": "Example endpoint: {value}",
+    "forms.azureEndpointUrlHelp":
+      "Azure accepts the resource root too; GatewayLLM appends /openai/v1 automatically.",
     "forms.deploymentDefaultsHelp":
       "Defaults come from the backend model registry. You can override them.",
     "forms.loadingDeploymentDefaults": "Loading deployment defaults...",
@@ -375,6 +415,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "Choose from saved suggestions or fetch the full model list.",
     "forms.selectModelDisabledHelp":
       "Listing models does not require selecting a model.",
+    "forms.reasoningTrace": "Reasoning trace",
     "forms.playgroundEmptyTitle": "Start a conversation",
     "forms.playgroundEmptyDescription":
       "Send a message or switch the endpoint to list the models available to this key.",
@@ -384,6 +425,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "Listing models does not require a prompt. Press send to inspect available models.",
     "forms.getCode": "Get Code",
     "forms.clearChat": "Clear Chat",
+    "forms.generatedBaseUrl": "Base URL",
     "forms.generatedCode": "Generated code",
     "forms.generatedCodeDescription":
       "OpenAI-compatible examples based on the current playground configuration.",
@@ -470,7 +512,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "errors.workspaceCredentialNameRequired":
       "Workspace, model catalog, credential, and name are required.",
     "errors.endpointUrlRequiredForOpenAICompatible":
-      "Endpoint URL is required for the openai_compatible provider.",
+      "Endpoint URL is required when the selected provider has no default endpoint.",
     "errors.priorityWeightIntegers": "Priority and weight must be integers.",
     "errors.priorityNonNegative": "Priority must be a non-negative integer.",
     "errors.weightNonNegative": "Weight must be a non-negative integer.",
@@ -526,10 +568,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "nav.overview": "概览",
     "nav.status": "状态",
     "nav.usage": "用量",
+    "nav.logs": "日志",
     "nav.workspaces": "工作区",
     "nav.models": "模型",
     "nav.providerSetups": "模型接入",
-    "nav.advanced": "高级",
     "nav.catalogs": "模型目录",
     "nav.credentials": "凭据",
     "nav.deployments": "部署",
@@ -630,7 +672,40 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.dailyUsageTitle": "每日用量",
     "dashboard.dailyUsageDescription": "第一个可见工作区最近 30 天的数据。",
     "dashboard.noDailyUsage": "没有返回每日用量。",
+    "dashboard.requestLogsTitle": "API 调用日志",
+    "dashboard.requestLogsDescription": "第一个可见工作区最近的模型 API 调用。",
+    "dashboard.noRequestLogs": "没有返回 API 调用日志。",
+    "dashboard.requestLogDetailsTitle": "API 调用详情",
+    "dashboard.noRequestAttempts": "没有记录请求尝试。",
+    "dashboard.requestPayload": "请求原始载荷",
+    "dashboard.latestResponsePayload": "最近一次响应载荷",
+    "dashboard.attemptOutputs": "尝试输出",
+    "dashboard.responseContentType": "内容类型",
+    "dashboard.noRequestPayload": "没有保存请求载荷。",
+    "dashboard.noResponsePayload": "没有保存响应载荷。",
+    "dashboard.loadingRequestLog": "正在加载原始输入输出载荷...",
+    "dashboard.failedRequestLog": "加载请求日志详情失败。",
     "dashboard.requestsTokens": "{requests} 次请求 - {tokens} 个 token",
+    "dashboard.requestUID": "请求 UID",
+    "dashboard.provider": "供应商",
+    "dashboard.apiKey": "API 密钥",
+    "dashboard.requestStartedAt": "开始时间",
+    "dashboard.firstTokenAt": "首 token",
+    "dashboard.firstTokenLatency": "首 token 延时",
+    "dashboard.firstTokenLatencyMin": "首 token 延时最小值",
+    "dashboard.firstTokenLatencyMax": "首 token 延时最大值",
+    "dashboard.requestLogSort": "排序",
+    "dashboard.requestLogSortRecent": "最近请求优先",
+    "dashboard.requestLogSortFirstTokenLatencyAsc": "首 token 延时从低到高",
+    "dashboard.requestLogSortFirstTokenLatencyDesc": "首 token 延时从高到低",
+    "dashboard.completedAt": "完成时间",
+    "dashboard.spend": "费用",
+    "dashboard.attempts": "尝试",
+    "dashboard.traceID": "Trace ID",
+    "dashboard.clientIP": "客户端 IP",
+    "dashboard.stream": "流式",
+    "dashboard.yes": "是",
+    "dashboard.no": "否",
     "dashboard.protectedOwner": "受保护的所有者",
     "dashboard.region": "区域",
     "dashboard.priority": "优先级",
@@ -694,6 +769,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "actions.viewKey": "查看密钥",
     "actions.running": "运行中...",
     "actions.loading": "加载中...",
+    "actions.apply": "应用",
     "actions.selectAll": "全选",
     "actions.clear": "清空",
     "actions.created": "已创建 {name}。",
@@ -805,7 +881,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.credential": "凭据",
     "forms.endpointUrl": "端点 URL",
     "forms.endpointUrlRequiredForOpenAICompatible":
-      "当注册表没有默认值时，OpenAI 兼容 provider 必须填写端点 URL。",
+      "当注册表没有默认值时，必须填写端点 URL。",
+    "forms.endpointUrlPlaceholderHelp": "端点示例：{value}",
+    "forms.azureEndpointUrlHelp":
+      "Azure 也可以填写资源根地址，GatewayLLM 会自动补齐 /openai/v1。",
     "forms.deploymentDefaultsHelp":
       "默认值来自后端模型注册表，你仍然可以手工覆盖。",
     "forms.loadingDeploymentDefaults": "正在加载部署默认值...",
@@ -832,6 +911,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.selectModel": "选择模型",
     "forms.selectModelHelp": "可从已有建议中选择，也可以拉取完整模型列表。",
     "forms.selectModelDisabledHelp": "列模型时无需选择模型。",
+    "forms.reasoningTrace": "推理过程",
     "forms.playgroundEmptyTitle": "开始一次对话",
     "forms.playgroundEmptyDescription":
       "发送一条消息，或把端点切到列模型来查看当前 Key 可访问的模型。",
@@ -839,6 +919,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.modelsPlaceholder": "列模型不需要提示词，点击发送即可查看可用模型。",
     "forms.getCode": "获取代码",
     "forms.clearChat": "清空对话",
+    "forms.generatedBaseUrl": "Base URL",
     "forms.generatedCode": "生成代码",
     "forms.generatedCodeDescription":
       "基于当前 playground 配置生成的 OpenAI 兼容调用示例。",
@@ -916,7 +997,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "errors.workspaceCredentialNameRequired":
       "工作区、模型目录、凭据和名称都是必填项。",
     "errors.endpointUrlRequiredForOpenAICompatible":
-      "openai_compatible provider 必须填写端点 URL。",
+      "当所选 provider 没有默认端点时，必须填写端点 URL。",
     "errors.priorityWeightIntegers": "优先级和权重必须是整数。",
     "errors.priorityNonNegative": "优先级必须是非负整数。",
     "errors.weightNonNegative": "权重必须是非负整数。",
@@ -989,6 +1070,15 @@ export function translateKnownError(
 ) {
   if (!message) {
     return fallback;
+  }
+
+  if (
+    message.startsWith(
+      'invalid control request: endpoint_url is required when provider "',
+    ) &&
+    message.endsWith('" has no default endpoint')
+  ) {
+    return translate(locale, "errors.endpointUrlRequiredForOpenAICompatible");
   }
 
   const key = errorMessageKeys[message];

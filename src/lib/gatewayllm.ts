@@ -180,6 +180,59 @@ export type DailyUsageList = {
   data: DailyUsage[]
 }
 
+export type RequestLogAttempt = {
+  id: string
+  request_id: string
+  deployment_id?: string
+  deployment_name?: string
+  provider: string
+  status: string
+  attempt_no: number
+  latency_ms?: number
+  prompt_tokens?: number
+  completion_tokens?: number
+  error_code?: string
+  error_message?: string
+  response_payload?: string
+  response_content_type?: string
+  started_at: string
+  completed_at?: string
+}
+
+export type RequestLog = {
+  id: string
+  workspace_id: string
+  api_key_id?: string
+  api_key_display_name?: string
+  model_catalog_id?: string
+  model_canonical_name?: string
+  model_provider?: string
+  request_uid: string
+  endpoint: string
+  status: string
+  stream: boolean
+  trace_id?: string
+  client_ip?: string
+  request_started_at: string
+  first_token_at?: string
+  first_token_latency_ms?: number
+  completed_at?: string
+  duration_ms?: number
+  request_payload?: string
+  attempt_count: number
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+  spend_usd: string
+  latest_attempt?: RequestLogAttempt
+  attempts: RequestLogAttempt[]
+}
+
+export type RequestLogList = {
+  object: string
+  data: RequestLog[]
+}
+
 export type RegistrationRequest = {
   id: string
   workspace_id: string
@@ -222,6 +275,7 @@ export type ModelCatalogProviderOption = {
   default_model_placeholder?: string
   default_endpoint_url?: string
   default_region?: string
+  endpoint_url_placeholder?: string
 }
 
 export type ModelCatalogOption = {
@@ -234,6 +288,8 @@ export type ModelCatalogOption = {
   modes?: string[]
   input_modalities?: string[]
   output_modalities?: string[]
+  prompt_microusd_per_million?: number
+  completion_microusd_per_million?: number
   supports_vision?: boolean
   supports_function_calling?: boolean
   supports_tool_choice?: boolean

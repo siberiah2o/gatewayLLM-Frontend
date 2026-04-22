@@ -3,6 +3,7 @@ import { cookies, headers } from "next/headers"
 
 import {
   GatewayAPIError,
+  gatewayBaseURL,
   gatewayRequest,
   type APIKeyList,
   type Balance,
@@ -15,6 +16,7 @@ import {
   type ProviderSetupList,
   type ReadyResponse,
   type RegistrationRequestList,
+  type RequestLogList,
   type UserList,
   type WorkspaceMemberList,
   type WorkspaceList,
@@ -37,6 +39,16 @@ import type { DashboardSection } from "./dashboard-routes"
 import { DashboardSectionContent } from "./dashboard-sections"
 
 const RESOURCE_LIST_LIMIT = 200
+const REQUEST_LOG_SORT_PARAM = "request_logs_sort"
+const REQUEST_LOG_FIRST_TOKEN_LATENCY_MIN_PARAM =
+  "request_logs_first_token_latency_min"
+const REQUEST_LOG_FIRST_TOKEN_LATENCY_MAX_PARAM =
+  "request_logs_first_token_latency_max"
+const REQUEST_LOG_SORT_OPTIONS = new Set([
+  "recent",
+  "first_token_latency_asc",
+  "first_token_latency_desc",
+])
 
 export async function DashboardPage({
   section = "status",
@@ -53,6 +65,7 @@ export async function DashboardPage({
   const t = (key: string, values?: Record<string, string | number>) =>
     translate(locale, key, values)
   const token = await getSessionToken()
+  const chatSmokeBaseUrl = publicGatewayBaseURL(headerStore, gatewayBaseURL())
 
   if (!token) {
     redirect("/login")
@@ -82,18 +95,15 @@ export async function DashboardPage({
   const needsStatus = section === "status"
   const needsModelCatalogs =
     section === "members" ||
-    section === "advanced" ||
     section === "models" ||
     section === "deployments" ||
     section === "chat-smoke"
   const needsProviderCredentials =
-    section === "advanced" ||
     section === "credentials" ||
     section === "deployments"
   const needsProviderSetups = section === "provider-setups"
   const needsModelDeployments =
     section === "status" ||
-    section === "advanced" ||
     section === "deployments" ||
     section === "chat-smoke"
   const workspaceUsersPage = parseDashboardPagination(
@@ -102,6 +112,7 @@ export async function DashboardPage({
   )
   const membersPage = parseDashboardPagination(searchParams, "members")
   const apiKeysPage = parseDashboardPagination(searchParams, "api_keys")
+  const requestLogsPage = parseDashboardPagination(searchParams, "request_logs")
   const providerSetupsPage = parseDashboardPagination(
     searchParams,
     "provider_setups"
@@ -121,12 +132,12 @@ export async function DashboardPage({
   const pageWorkspaceUsers = section === "users"
   const pageMembers = section === "members"
   const pageApiKeys = section === "api-keys"
+  const pageRequestLogs = section === "logs"
+  const requestLogFilters = parseRequestLogFilters(searchParams)
   const pageProviderSetups = section === "provider-setups"
-  const pageModelCatalogs = section === "models" || section === "advanced"
-  const pageProviderCredentials =
-    section === "credentials" || section === "advanced"
-  const pageModelDeployments =
-    section === "deployments" || section === "advanced"
+  const pageModelCatalogs = section === "models"
+  const pageProviderCredentials = section === "credentials"
+  const pageModelDeployments = section === "deployments"
 
   const [health, ready] = needsStatus
     ? await Promise.all([
@@ -139,6 +150,7 @@ export async function DashboardPage({
     balance,
     apiKeys,
     dailyUsage,
+    requestLogs,
     workspaceUsers,
     workspaceMembers,
     registrationRequests,
@@ -180,6 +192,22 @@ export async function DashboardPage({
           `/control/v1/me/daily-usage?workspace_id=${encodeURIComponent(
             workspace.id
           )}&days=30`,
+          { token }
+        )
+    ),
+    loadWorkspaceResource(
+      section === "logs",
+      activeWorkspace,
+      noWorkspaceMessage,
+      (workspace) =>
+        gatewayRequest<RequestLogList>(
+          `/control/v1/request-logs?workspace_id=${encodeURIComponent(
+            workspace.id
+          )}&${requestLogQuery(
+            requestLogsPage,
+            pageRequestLogs,
+            requestLogFilters
+          )}`,
           { token }
         )
     ),
@@ -265,6 +293,11 @@ export async function DashboardPage({
     apiKeys,
     apiKeysPage,
     pageApiKeys
+  )
+  const [pagedRequestLogs, requestLogsPagination] = finalizePaginatedResult(
+    requestLogs,
+    requestLogsPage,
+    pageRequestLogs
   )
   const [pagedWorkspaceUsers, workspaceUsersPagination] =
     finalizePaginatedResult(workspaceUsers, workspaceUsersPage, pageWorkspaceUsers)
@@ -358,6 +391,7 @@ export async function DashboardPage({
       balance={balance}
       apiKeys={pagedApiKeys}
       dailyUsage={dailyUsage}
+      requestLogs={pagedRequestLogs}
       workspaceUsers={pagedWorkspaceUsers}
       workspaceUserList={workspaceUserList}
       workspaceMembers={pagedWorkspaceMembers}
@@ -375,12 +409,14 @@ export async function DashboardPage({
         workspace_users: workspaceUsersPagination,
         members: membersPagination,
         api_keys: apiKeysPagination,
+        request_logs: requestLogsPagination,
         provider_setups: providerSetupsPagination,
         model_catalogs: modelCatalogsPagination,
         provider_credentials: providerCredentialsPagination,
         model_deployments: modelDeploymentsPagination,
       }}
       chatSmokeModel={chatSmokeModel}
+      chatSmokeBaseUrl={chatSmokeBaseUrl}
       showUserManagement={showUserManagement}
       showMemberManagement={showMemberManagement}
       showRegistration={showRegistration}
@@ -389,6 +425,40 @@ export async function DashboardPage({
       showModelDeploymentManagement={showModelDeploymentManagement}
     />
   )
+}
+
+function publicGatewayBaseURL(headerStore: Headers, configuredBaseURL: string) {
+  try {
+    const configured = new URL(configuredBaseURL)
+    const configuredHost = configured.hostname.toLowerCase()
+
+    if (
+      configuredHost !== "127.0.0.1" &&
+      configuredHost !== "localhost" &&
+      configuredHost !== "::1"
+    ) {
+      return configured.toString().replace(/\/+$/, "")
+    }
+
+    const requestHost =
+      headerStore.get("x-forwarded-host") ?? headerStore.get("host")
+    if (!requestHost) {
+      return configured.toString().replace(/\/+$/, "")
+    }
+
+    const requestURL = new URL(`${configured.protocol}//${requestHost}`)
+    const protocol =
+      headerStore.get("x-forwarded-proto")?.split(",")[0]?.trim() ||
+      configured.protocol.replace(":", "")
+
+    configured.protocol = `${protocol}:`
+    configured.hostname = requestURL.hostname
+    configured.port = configured.port || requestURL.port
+
+    return configured.toString().replace(/\/+$/, "")
+  } catch {
+    return configuredBaseURL.replace(/\/+$/, "")
+  }
 }
 
 async function loadRegistrationRequestsForWorkspaces(
@@ -451,6 +521,58 @@ function paginationQuery(
   }
 
   return params.toString()
+}
+
+function requestLogQuery(
+  pagination: ParsedDashboardPagination,
+  enabled: boolean,
+  filters: ReturnType<typeof parseRequestLogFilters>
+) {
+  const params = new URLSearchParams(paginationQuery(pagination, enabled))
+
+  if (filters.sort && filters.sort !== "recent") {
+    params.set("sort", filters.sort)
+  }
+  if (filters.firstTokenLatencyMin !== undefined) {
+    params.set("first_token_latency_min", String(filters.firstTokenLatencyMin))
+  }
+  if (filters.firstTokenLatencyMax !== undefined) {
+    params.set("first_token_latency_max", String(filters.firstTokenLatencyMax))
+  }
+
+  return params.toString()
+}
+
+function parseRequestLogFilters(searchParams: DashboardSearchParams | undefined) {
+  const sort = readSearchParam(searchParams, REQUEST_LOG_SORT_PARAM)
+  const normalizedSort =
+    sort && REQUEST_LOG_SORT_OPTIONS.has(sort) ? sort : "recent"
+
+  const firstTokenLatencyMin = parseOptionalNonNegativeInt(
+    readSearchParam(searchParams, REQUEST_LOG_FIRST_TOKEN_LATENCY_MIN_PARAM)
+  )
+  const firstTokenLatencyMax = parseOptionalNonNegativeInt(
+    readSearchParam(searchParams, REQUEST_LOG_FIRST_TOKEN_LATENCY_MAX_PARAM)
+  )
+
+  return {
+    sort: normalizedSort,
+    firstTokenLatencyMin,
+    firstTokenLatencyMax,
+  }
+}
+
+function readSearchParam(
+  searchParams: DashboardSearchParams | undefined,
+  key: string
+) {
+  const value = searchParams?.[key]
+  return Array.isArray(value) ? value[0] : value
+}
+
+function parseOptionalNonNegativeInt(value: string | undefined) {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
 }
 
 function finalizePaginatedResult<T extends { data: unknown[] }>(

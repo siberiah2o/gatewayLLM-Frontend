@@ -128,3 +128,15 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  [data-slot="field-description"] {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  [data-slot="field-legend"][data-variant="legend"]
+    + [data-slot="field-description"] {
+    margin-top: calc(var(--spacing) * -1.5);
+  }
+}

@@ -61,11 +61,6 @@ export function AppSidebar({
             url: "/dashboard/provider-setups",
             section: "provider-setups" as const,
           },
-          {
-            title: t("nav.advanced"),
-            url: "/dashboard/advanced",
-            section: "advanced" as const,
-          },
         ]
       : []),
     {
@@ -115,6 +110,11 @@ export function AppSidebar({
       title: t("nav.usage"),
       url: "/dashboard/usage",
       section: "usage" as const,
+    },
+    {
+      title: t("nav.logs"),
+      url: "/dashboard/logs",
+      section: "logs" as const,
     },
     {
       title: t("nav.workspaces"),

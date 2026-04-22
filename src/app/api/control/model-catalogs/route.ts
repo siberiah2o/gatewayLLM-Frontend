@@ -12,6 +12,18 @@ type CreateModelCatalogBody = {
   completion_microusd_per_million?: string | number
 }
 
+function parseOptionalNumeric(value: string | number | undefined) {
+  if (value === undefined) {
+    return undefined
+  }
+
+  if (typeof value === "string" && value.trim() === "") {
+    return undefined
+  }
+
+  return Number(value)
+}
+
 export async function POST(request: Request) {
   const token = await getSessionToken()
 
@@ -24,15 +36,26 @@ export async function POST(request: Request) {
     const workspaceID = body.workspace_id?.trim()
     const canonicalName = body.canonical_name?.trim()
     const provider = body.provider?.trim()
-    const promptPrice = Number(body.prompt_microusd_per_million)
-    const completionPrice = Number(body.completion_microusd_per_million)
+    const promptPrice = parseOptionalNumeric(body.prompt_microusd_per_million)
+    const completionPrice = parseOptionalNumeric(
+      body.completion_microusd_per_million
+    )
 
     if (!workspaceID || !canonicalName || !provider) {
       return badRequest("Workspace, model name, and provider are required.")
     }
 
-    if (!Number.isFinite(promptPrice) || !Number.isFinite(completionPrice)) {
+    if (
+      (promptPrice !== undefined && !Number.isFinite(promptPrice)) ||
+      (completionPrice !== undefined && !Number.isFinite(completionPrice))
+    ) {
       return badRequest("Pricing values must be numbers.")
+    }
+
+    if (
+      (promptPrice === undefined) !== (completionPrice === undefined)
+    ) {
+      return badRequest("Prompt and completion pricing must be provided together.")
     }
 
     const modelCatalog = await gatewayRequest<ModelCatalog>(
@@ -44,14 +67,17 @@ export async function POST(request: Request) {
           workspace_id: workspaceID,
           canonical_name: canonicalName,
           provider,
-          pricing_rules: {
-            version: 1,
-            currency: "USD",
-            token_rates: {
-              prompt_microusd_per_million: promptPrice,
-              completion_microusd_per_million: completionPrice,
-            },
-          },
+          pricing_rules:
+            promptPrice === undefined || completionPrice === undefined
+              ? undefined
+              : {
+                  version: 1,
+                  currency: "USD",
+                  token_rates: {
+                    prompt_microusd_per_million: promptPrice,
+                    completion_microusd_per_million: completionPrice,
+                  },
+                },
           status: "active",
         },
       }

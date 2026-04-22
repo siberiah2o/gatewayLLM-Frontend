@@ -55,9 +55,9 @@ import {
   WorkspaceMemberRow,
 } from "./dashboard-rows";
 import { AccountSection } from "./dashboard-account-section";
-import { AdvancedResourceTabs } from "./advanced-resource-tabs";
 import type { Settled } from "./dashboard-data";
 import { ModelAccessTabs } from "./model-access-tabs";
+import { RequestLogsTable } from "./request-logs-table";
 import type { DashboardSectionContentProps } from "./dashboard-section-types";
 import { WorkspaceUsersTable } from "./workspace-user-row";
 
@@ -67,6 +67,8 @@ export function DashboardSectionContent(props: DashboardSectionContentProps) {
       return <StatusSection {...props} />;
     case "usage":
       return <UsageSection {...props} />;
+    case "logs":
+      return <RequestLogsSection {...props} />;
     case "workspaces":
       return <WorkspacesSection {...props} />;
     case "account":
@@ -81,8 +83,6 @@ export function DashboardSectionContent(props: DashboardSectionContentProps) {
       return <ApiKeysSection {...props} />;
     case "provider-setups":
       return <ProviderSetupsSection {...props} />;
-    case "advanced":
-      return <AdvancedSection {...props} />;
     case "models":
       return <ModelsSection {...props} />;
     case "credentials":
@@ -644,57 +644,6 @@ function ProviderSetupsSection({
   );
 }
 
-function AdvancedSection(props: DashboardSectionContentProps) {
-  return (
-    <AdvancedResourceTabs
-      ariaLabel={props.t("nav.advanced")}
-      labels={{
-        models: props.t("dashboard.modelsTitle"),
-        credentials: props.t("dashboard.credentialsTitle"),
-        deployments: props.t("dashboard.deploymentsTitle"),
-      }}
-      counts={{
-        models: getCountLabel(
-          props.modelCatalogList.length,
-          props.tablePagination.model_catalogs,
-        ),
-        credentials: getCountLabel(
-          props.providerCredentialList.length,
-          props.tablePagination.provider_credentials,
-        ),
-        deployments: getCountLabel(
-          props.modelDeploymentList.length,
-          props.tablePagination.model_deployments,
-        ),
-      }}
-      models={
-        <ModelsSection
-          {...props}
-          showSummary={false}
-          showCreateForm={false}
-          showActions={false}
-        />
-      }
-      credentials={
-        <CredentialsSection
-          {...props}
-          showSummary={false}
-          showCreateForm={false}
-          showActions={false}
-        />
-      }
-      deployments={
-        <DeploymentsSection
-          {...props}
-          showSummary={false}
-          showCreateForm={false}
-          showActions={false}
-        />
-      }
-    />
-  );
-}
-
 type AdvancedResourceSectionOptions = {
   showSummary?: boolean;
   showCreateForm?: boolean;
@@ -1067,6 +1016,7 @@ function DeploymentsSection({
 
 function ChatSmokeSection({
   chatSmokeModel,
+  chatSmokeBaseUrl,
   apiKeys,
   modelCatalogList,
   modelDeploymentList,
@@ -1088,9 +1038,10 @@ function ChatSmokeSection({
     : [];
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
       <ChatSmokeTestForm
         defaultModel={chatSmokeModel}
+        gatewayBaseUrl={chatSmokeBaseUrl}
         apiKeys={apiKeyOptions}
         modelSuggestions={modelSuggestions}
       />
@@ -1138,6 +1089,41 @@ function UsageSection({ t, dailyUsage }: DashboardSectionContentProps) {
             />
           )}
         </DashboardStackContent>
+      </Card>
+    </section>
+  );
+}
+
+function RequestLogsSection({
+  t,
+  activeWorkspace,
+  requestLogs,
+  tablePagination,
+}: DashboardSectionContentProps) {
+  return (
+    <section className="grid gap-3">
+      <Card id="request-logs">
+        <DashboardPanelHeader>
+          <CardTitle>{t("dashboard.requestLogsTitle")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.requestLogsDescription")}
+          </CardDescription>
+        </DashboardPanelHeader>
+        <DashboardPanelContent>
+          {requestLogs.ok ? (
+            <RequestLogsTable
+              logs={requestLogs.data.data}
+              pagination={tablePagination.request_logs}
+              workspaceID={activeWorkspace?.id ?? ""}
+              emptyMessage={t("dashboard.noRequestLogs")}
+            />
+          ) : (
+            <DashboardSettledEmptyState
+              result={requestLogs}
+              emptyMessage={t("dashboard.noRequestLogs")}
+            />
+          )}
+        </DashboardPanelContent>
       </Card>
     </section>
   );

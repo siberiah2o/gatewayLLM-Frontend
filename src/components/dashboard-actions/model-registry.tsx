@@ -49,6 +49,8 @@ import {
   defaultCredentialName,
   decodeRegistryModelValue,
   encodeRegistryModelValue,
+  endpointURLHelp,
+  endpointURLPlaceholder,
   formatRegistrySource,
   formatTokenCount,
   joinValues,
@@ -56,6 +58,12 @@ import {
   suggestedValueText,
   useRegistryProviderOptions,
 } from "./registry-shared"
+
+function suggestedMicrosValue(value: number | undefined, fallback: string) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : fallback
+}
 
 export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }) {
   const router = useRouter()
@@ -71,7 +79,13 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
   const [modelOptions, setModelOptions] = useState<ModelCatalogOption[]>([])
   const [selectedProvider, setSelectedProvider] = useState("")
   const [modelName, setModelName] = useState("")
+  const [promptPrice, setPromptPrice] = useState("150000")
+  const [completionPrice, setCompletionPrice] = useState("600000")
   const deferredModelName = useDeferredValue(modelName)
+  const previousSuggestedPricingRef = useRef({
+    promptPrice: "150000",
+    completionPrice: "600000",
+  })
   const normalizedSelectedProvider = selectedProvider.trim().toLowerCase()
   const registryProviderOptions = useRegistryProviderOptions({
     enabled: Boolean(workspaceId),
@@ -84,17 +98,28 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
     registryProviderOptions.providers.find(
       (option) => option.provider === normalizedSelectedProvider
     )
-  const selectedRegistryModel = modelOptions.find((option) => {
-    if (option.canonical_name !== modelName) {
-      return false
-    }
-
+  const matchingModelOptions = modelOptions.filter((option) => {
     if (!normalizedSelectedProvider) {
       return true
     }
 
-    return option.provider === normalizedSelectedProvider
+    return option.provider.trim().toLowerCase() === normalizedSelectedProvider
   })
+  const selectedRegistryModel = matchingModelOptions.find((option) => {
+    if (option.canonical_name !== modelName) {
+      return false
+    }
+
+    return true
+  })
+  const suggestedPromptPrice = suggestedMicrosValue(
+    selectedRegistryModel?.prompt_microusd_per_million,
+    "150000"
+  )
+  const suggestedCompletionPrice = suggestedMicrosValue(
+    selectedRegistryModel?.completion_microusd_per_million,
+    "600000"
+  )
 
   useEffect(() => {
     if (!workspaceId) {
@@ -163,6 +188,32 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
     }
   }, [deferredModelName, selectedProvider, t, workspaceId])
 
+  useEffect(() => {
+    const previous = previousSuggestedPricingRef.current
+
+    setPromptPrice((current) => {
+      const trimmed = current.trim()
+      if (trimmed === "" || trimmed === previous.promptPrice) {
+        return suggestedPromptPrice
+      }
+
+      return current
+    })
+    setCompletionPrice((current) => {
+      const trimmed = current.trim()
+      if (trimmed === "" || trimmed === previous.completionPrice) {
+        return suggestedCompletionPrice
+      }
+
+      return current
+    })
+
+    previousSuggestedPricingRef.current = {
+      promptPrice: suggestedPromptPrice,
+      completionPrice: suggestedCompletionPrice,
+    }
+  }, [suggestedCompletionPrice, suggestedPromptPrice])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -180,7 +231,6 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
     setIsPending(true)
 
     const form = event.currentTarget
-    const formData = new FormData(form)
 
     try {
       const response = await fetch("/api/control/model-catalogs", {
@@ -192,8 +242,10 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
           workspace_id: workspaceId,
           canonical_name: modelName.trim(),
           provider: selectedProvider.trim(),
-          prompt_microusd_per_million: formData.get("prompt-price"),
-          completion_microusd_per_million: formData.get("completion-price"),
+          prompt_microusd_per_million:
+            promptPrice.trim() === "" ? undefined : promptPrice,
+          completion_microusd_per_million:
+            completionPrice.trim() === "" ? undefined : completionPrice,
         }),
       })
 
@@ -208,6 +260,8 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
       setSuccess(t("actions.created", { name: catalog.canonical_name }))
       form.reset()
       setModelName("")
+      setPromptPrice("150000")
+      setCompletionPrice("600000")
       router.refresh()
     } catch (submitError) {
       setError(errorText(submitError, t("forms.createModelFailed")))
@@ -325,14 +379,14 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
             {t("forms.registryMatches")}
           </FieldLabel>
           <Select
-            items={modelOptions.map((option) => ({
+            items={matchingModelOptions.map((option) => ({
               label: selectedProvider.trim()
                 ? option.canonical_name
                 : `${option.canonical_name} (${option.provider})`,
               value: encodeRegistryModelValue(option),
             }))}
             value={
-              modelOptions.some(
+              matchingModelOptions.some(
                 (option) =>
                   option.canonical_name === modelName &&
                   option.provider === selectedRegistryModel?.provider
@@ -341,7 +395,9 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
                 : null
             }
             disabled={
-              !workspaceId || isLoadingModelOptions || modelOptions.length === 0
+              !workspaceId ||
+              isLoadingModelOptions ||
+              matchingModelOptions.length === 0
             }
             onValueChange={(value) => {
               const nextSelection = decodeRegistryModelValue(String(value ?? ""))
@@ -349,9 +405,18 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
               if (!nextSelection) {
                 return
               }
+              if (
+                normalizedSelectedProvider &&
+                nextSelection.provider.trim().toLowerCase() !==
+                  normalizedSelectedProvider
+              ) {
+                return
+              }
 
               setModelName(nextSelection.canonical_name)
-              setSelectedProvider(nextSelection.provider)
+              if (!normalizedSelectedProvider) {
+                setSelectedProvider(nextSelection.provider)
+              }
               setSuccess(undefined)
               setError(undefined)
             }}
@@ -365,7 +430,7 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
             </SelectTrigger>
             <SelectContent align="start">
               <SelectGroup>
-                {modelOptions.map((option) => (
+                {matchingModelOptions.map((option) => (
                   <SelectItem
                     key={`${option.provider}:${option.canonical_name}`}
                     value={encodeRegistryModelValue(option)}
@@ -386,7 +451,7 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
           {modelOptionsError ? <FieldError>{modelOptionsError}</FieldError> : null}
           {!isLoadingModelOptions &&
           !modelOptionsError &&
-          modelOptions.length === 0 &&
+          matchingModelOptions.length === 0 &&
           workspaceId ? (
             <FieldDescription>{t("forms.noModelCatalogOptions")}</FieldDescription>
           ) : null}
@@ -455,6 +520,24 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
                   t("dashboard.notSet")
                 )}
               </FieldDescription>
+              <FieldDescription>
+                <span className="font-medium text-foreground">
+                  {t("forms.promptPrice")}:
+                </span>{" "}
+                {formatTokenCount(
+                  selectedRegistryModel.prompt_microusd_per_million,
+                  t("dashboard.notSet")
+                )}
+              </FieldDescription>
+              <FieldDescription>
+                <span className="font-medium text-foreground">
+                  {t("forms.completionPrice")}:
+                </span>{" "}
+                {formatTokenCount(
+                  selectedRegistryModel.completion_microusd_per_million,
+                  t("dashboard.notSet")
+                )}
+              </FieldDescription>
             </CardContent>
           </Card>
         ) : null}
@@ -467,7 +550,12 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
               id="prompt-price"
               name="prompt-price"
               type="number"
-              defaultValue="150000"
+              value={promptPrice}
+              onChange={(event) => {
+                setPromptPrice(event.currentTarget.value)
+                setSuccess(undefined)
+                setError(undefined)
+              }}
               disabled={!workspaceId}
               required
             />
@@ -480,7 +568,12 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
               id="completion-price"
               name="completion-price"
               type="number"
-              defaultValue="600000"
+              value={completionPrice}
+              onChange={(event) => {
+                setCompletionPrice(event.currentTarget.value)
+                setSuccess(undefined)
+                setError(undefined)
+              }}
               disabled={!workspaceId}
               required
             />
@@ -739,12 +832,18 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
   const [deploymentName, setDeploymentName] = useState("")
   const [endpointURL, setEndpointURL] = useState("")
   const [region, setRegion] = useState("")
+  const [promptPrice, setPromptPrice] = useState("150000")
+  const [completionPrice, setCompletionPrice] = useState("600000")
   const deferredModelName = useDeferredValue(modelName)
   const previousCredentialDefaultRef = useRef("")
   const previousGeneratedNameRef = useRef("")
   const previousSuggestedDefaultsRef = useRef({
     endpointURL: "",
     region: "",
+  })
+  const previousSuggestedPricingRef = useRef({
+    promptPrice: "150000",
+    completionPrice: "600000",
   })
   const normalizedSelectedProvider = selectedProvider.trim().toLowerCase()
   const registryProviderOptions = useRegistryProviderOptions({
@@ -758,16 +857,19 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
     registryProviderOptions.providers.find(
       (option) => option.provider === normalizedSelectedProvider
     )
-  const selectedRegistryModel = modelOptions.find((option) => {
-    if (option.canonical_name !== modelName) {
-      return false
-    }
-
+  const matchingModelOptions = modelOptions.filter((option) => {
     if (!normalizedSelectedProvider) {
       return true
     }
 
-    return option.provider === normalizedSelectedProvider
+    return option.provider.trim().toLowerCase() === normalizedSelectedProvider
+  })
+  const selectedRegistryModel = matchingModelOptions.find((option) => {
+    if (option.canonical_name !== modelName) {
+      return false
+    }
+
+    return true
   })
   const suggestedEndpointURL =
     selectedRegistryModel?.default_endpoint_url ??
@@ -777,8 +879,25 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
     selectedRegistryModel?.default_region ??
     selectedProviderOption?.default_region ??
     ""
+  const suggestedEndpointURLPlaceholder = endpointURLPlaceholder({
+    providerOption: selectedProviderOption,
+    suggestedEndpointURL,
+  })
+  const suggestedEndpointURLHelp = endpointURLHelp({
+    provider: selectedProviderOption?.provider ?? normalizedSelectedProvider,
+    providerOption: selectedProviderOption,
+    t,
+  })
+  const suggestedPromptPrice = suggestedMicrosValue(
+    selectedRegistryModel?.prompt_microusd_per_million,
+    "150000"
+  )
+  const suggestedCompletionPrice = suggestedMicrosValue(
+    selectedRegistryModel?.completion_microusd_per_million,
+    "600000"
+  )
   const isEndpointRequired =
-    normalizedSelectedProvider === "openai_compatible" && !suggestedEndpointURL
+    normalizedSelectedProvider !== "" && !suggestedEndpointURL
   const generatedDeploymentName = modelName.trim()
     ? `${modelName.trim()}-default`
     : ""
@@ -902,6 +1021,32 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
     }
   }, [suggestedEndpointURL, suggestedRegion])
 
+  useEffect(() => {
+    const previous = previousSuggestedPricingRef.current
+
+    setPromptPrice((current) => {
+      const trimmed = current.trim()
+      if (trimmed === "" || trimmed === previous.promptPrice) {
+        return suggestedPromptPrice
+      }
+
+      return current
+    })
+    setCompletionPrice((current) => {
+      const trimmed = current.trim()
+      if (trimmed === "" || trimmed === previous.completionPrice) {
+        return suggestedCompletionPrice
+      }
+
+      return current
+    })
+
+    previousSuggestedPricingRef.current = {
+      promptPrice: suggestedPromptPrice,
+      completionPrice: suggestedCompletionPrice,
+    }
+  }, [suggestedCompletionPrice, suggestedPromptPrice])
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
@@ -942,8 +1087,10 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
           region: region.trim() || undefined,
           priority: formData.get("priority"),
           weight: formData.get("weight"),
-          prompt_microusd_per_million: formData.get("prompt-price"),
-          completion_microusd_per_million: formData.get("completion-price"),
+          prompt_microusd_per_million:
+            promptPrice.trim() === "" ? undefined : promptPrice,
+          completion_microusd_per_million:
+            completionPrice.trim() === "" ? undefined : completionPrice,
         }),
       })
 
@@ -963,6 +1110,8 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
       setDeploymentName("")
       setEndpointURL("")
       setRegion("")
+      setPromptPrice("150000")
+      setCompletionPrice("600000")
       router.refresh()
     } catch (submitError) {
       setError(errorText(submitError, t("forms.createProviderSetupFailed")))
@@ -1080,14 +1229,14 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
               {t("forms.registryMatches")}
             </FieldLabel>
             <Select
-              items={modelOptions.map((option) => ({
+              items={matchingModelOptions.map((option) => ({
                 label: selectedProvider.trim()
                   ? option.canonical_name
                   : `${option.canonical_name} (${option.provider})`,
                 value: encodeRegistryModelValue(option),
               }))}
               value={
-                modelOptions.some(
+                matchingModelOptions.some(
                   (option) =>
                     option.canonical_name === modelName &&
                     option.provider === selectedRegistryModel?.provider
@@ -1096,7 +1245,9 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
                   : null
               }
               disabled={
-                !workspaceId || isLoadingModelOptions || modelOptions.length === 0
+                !workspaceId ||
+                isLoadingModelOptions ||
+                matchingModelOptions.length === 0
               }
               onValueChange={(value) => {
                 const nextSelection = decodeRegistryModelValue(String(value ?? ""))
@@ -1104,9 +1255,18 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
                 if (!nextSelection) {
                   return
                 }
+                if (
+                  normalizedSelectedProvider &&
+                  nextSelection.provider.trim().toLowerCase() !==
+                    normalizedSelectedProvider
+                ) {
+                  return
+                }
 
                 setModelName(nextSelection.canonical_name)
-                setSelectedProvider(nextSelection.provider)
+                if (!normalizedSelectedProvider) {
+                  setSelectedProvider(nextSelection.provider)
+                }
                 setSuccess(undefined)
                 setError(undefined)
               }}
@@ -1120,7 +1280,7 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
               </SelectTrigger>
               <SelectContent align="start">
                 <SelectGroup>
-                  {modelOptions.map((option) => (
+                  {matchingModelOptions.map((option) => (
                     <SelectItem
                       key={`${option.provider}:${option.canonical_name}`}
                       value={encodeRegistryModelValue(option)}
@@ -1173,6 +1333,7 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
                 }}
                 disabled={!workspaceId}
                 required={isEndpointRequired}
+                placeholder={suggestedEndpointURLPlaceholder}
               />
               <FieldDescription>
                 {suggestedValueText({
@@ -1182,6 +1343,9 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
                   t,
                 })}
               </FieldDescription>
+              {suggestedEndpointURLHelp ? (
+                <FieldDescription>{suggestedEndpointURLHelp}</FieldDescription>
+              ) : null}
               {isEndpointRequired ? (
                 <FieldDescription>
                   {t("forms.endpointUrlRequiredForOpenAICompatible")}
@@ -1242,25 +1406,35 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
               <FieldLabel htmlFor="provider-setup-prompt-price">
                 {t("forms.promptPrice")}
               </FieldLabel>
-              <Input
-                id="provider-setup-prompt-price"
-                name="prompt-price"
-                type="number"
-                defaultValue="150000"
-                disabled={!workspaceId}
-              />
+            <Input
+              id="provider-setup-prompt-price"
+              name="prompt-price"
+              type="number"
+              value={promptPrice}
+              onChange={(event) => {
+                setPromptPrice(event.currentTarget.value)
+                setSuccess(undefined)
+                setError(undefined)
+              }}
+              disabled={!workspaceId}
+            />
             </Field>
             <Field>
               <FieldLabel htmlFor="provider-setup-completion-price">
                 {t("forms.completionPrice")}
               </FieldLabel>
-              <Input
-                id="provider-setup-completion-price"
-                name="completion-price"
-                type="number"
-                defaultValue="600000"
-                disabled={!workspaceId}
-              />
+            <Input
+              id="provider-setup-completion-price"
+              name="completion-price"
+              type="number"
+              value={completionPrice}
+              onChange={(event) => {
+                setCompletionPrice(event.currentTarget.value)
+                setSuccess(undefined)
+                setError(undefined)
+              }}
+              disabled={!workspaceId}
+            />
             </Field>
           </div>
         </FieldSet>
