@@ -1,6 +1,7 @@
 export const DASHBOARD_SECTIONS = [
   "status",
   "usage",
+  "usage-details",
   "logs",
   "workspaces",
   "account",
@@ -29,6 +30,8 @@ export function dashboardSectionTitleKey(section: DashboardSection) {
       return "nav.status"
     case "usage":
       return "nav.usage"
+    case "usage-details":
+      return "nav.usageDetails"
     case "logs":
       return "nav.logs"
     case "workspaces":

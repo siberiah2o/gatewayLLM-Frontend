@@ -112,6 +112,11 @@ export function AppSidebar({
       section: "usage" as const,
     },
     {
+      title: t("nav.usageDetails"),
+      url: "/dashboard/usage-details",
+      section: "usage-details" as const,
+    },
+    {
       title: t("nav.logs"),
       url: "/dashboard/logs",
       section: "logs" as const,

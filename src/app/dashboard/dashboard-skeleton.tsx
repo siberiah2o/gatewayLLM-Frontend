@@ -28,6 +28,8 @@ export function DashboardSectionSkeleton({
       return <StatusSectionSkeleton />
     case "usage":
       return <UsageSectionSkeleton />
+    case "usage-details":
+      return <RequestLogsSectionSkeleton />
     case "logs":
       return <RequestLogsSectionSkeleton />
     case "workspaces":
@@ -57,10 +59,137 @@ export function DashboardSectionSkeleton({
 
 function StatusSectionSkeleton() {
   return (
-    <section className="grid auto-rows-min gap-4 md:grid-cols-3 xl:grid-cols-7">
-      {Array.from({ length: 7 }).map((_, index) => (
-        <MetricCardSkeleton key={index} />
-      ))}
+    <section className="grid gap-3">
+      <Card>
+        <PanelHeaderSkeleton titleWidth="w-40" descriptionWidth="w-80" />
+        <DashboardPanelContent className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-muted/25 p-2.5">
+            <Skeleton className="h-5 w-28 rounded-md" />
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="grid gap-3 lg:grid-cols-3 2xl:grid-cols-6">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <SummaryTileSkeleton key={index} />
+            ))}
+          </div>
+        </DashboardPanelContent>
+      </Card>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.95fr)]">
+        <Card>
+          <PanelHeaderSkeleton titleWidth="w-36" descriptionWidth="w-64" />
+          <DashboardPanelContent className="grid gap-4">
+            <Skeleton className="h-[320px] w-full rounded-xl" />
+            <div className="grid gap-2 sm:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <SummaryTileSkeleton key={index} />
+              ))}
+            </div>
+          </DashboardPanelContent>
+        </Card>
+
+        <Card>
+          <PanelHeaderSkeleton titleWidth="w-32" descriptionWidth="w-56" />
+          <DashboardStackContent>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <DashboardRow
+                key={index}
+                className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+              >
+                <PrimaryBlockSkeleton
+                  titleWidth="w-36"
+                  detailWidths={["w-48"]}
+                />
+                <Skeleton className="h-7 w-16 rounded-md" />
+              </DashboardRow>
+            ))}
+          </DashboardStackContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Card>
+          <PanelHeaderSkeleton titleWidth="w-32" descriptionWidth="w-72" />
+          <DashboardPanelContent>
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="grid gap-3 rounded-lg border border-border/70 p-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="size-8 rounded-md" />
+                      <div className="grid gap-1">
+                        <Skeleton className="h-4 w-20" />
+                        <Skeleton className="h-3 w-32" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-6 w-14 rounded-md" />
+                  </div>
+                  <Skeleton className="h-6 w-24" />
+                </div>
+              ))}
+            </div>
+          </DashboardPanelContent>
+        </Card>
+
+        <Card>
+          <PanelHeaderSkeleton titleWidth="w-36" descriptionWidth="w-72" />
+          <DashboardStackContent>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <DashboardRow
+                key={index}
+                className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+              >
+                <PrimaryBlockSkeleton
+                  titleWidth="w-32"
+                  detailWidths={["w-36", "w-28"]}
+                />
+                <PrimaryBlockSkeleton
+                  titleWidth="w-20"
+                  detailWidths={["w-28", "w-24"]}
+                />
+              </DashboardRow>
+            ))}
+          </DashboardStackContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <Card>
+          <PanelHeaderSkeleton titleWidth="w-36" descriptionWidth="w-64" />
+          <DashboardPanelContent>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <SummaryTileSkeleton key={index} />
+              ))}
+            </div>
+          </DashboardPanelContent>
+        </Card>
+
+        <Card>
+          <PanelHeaderSkeleton titleWidth="w-32" descriptionWidth="w-64" />
+          <DashboardStackContent>
+            {Array.from({ length: 5 }).map((_, index) => (
+              <DashboardRow
+                key={index}
+                className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+              >
+                <PrimaryBlockSkeleton
+                  titleWidth="w-40"
+                  detailWidths={["w-44", "w-32"]}
+                />
+                <PrimaryBlockSkeleton
+                  titleWidth="w-20"
+                  detailWidths={["w-24", "w-28"]}
+                />
+              </DashboardRow>
+            ))}
+          </DashboardStackContent>
+        </Card>
+      </div>
     </section>
   )
 }
@@ -587,25 +716,104 @@ function UsageSectionSkeleton() {
     <section className="grid gap-3">
       <Card id="usage">
         <PanelHeaderSkeleton
-          titleWidth="w-36"
-          descriptionWidth="w-64"
-          actionWidth={null}
+          titleWidth="w-40"
+          descriptionWidth="w-80"
+          actionWidth="w-28"
         />
-        <DashboardStackContent>
-          {Array.from({ length: 6 }).map((_, index) => (
-            <DashboardRow
-              key={index}
-              className="gap-3 p-3 md:grid-cols-[1fr_auto] md:items-center"
-            >
-              <PrimaryBlockSkeleton
-                titleWidth="w-28"
-                detailWidths={["w-52"]}
-              />
-              <Skeleton className="h-4 w-16 md:justify-self-end" />
-            </DashboardRow>
-          ))}
-        </DashboardStackContent>
+        <DashboardPanelContent className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <MetricCardSkeleton key={`usage-summary-${index}`} />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-5 w-24 rounded-md" />
+            <Skeleton className="h-5 w-40 rounded-md" />
+          </div>
+          <div className="grid gap-1">
+            <Skeleton className="h-3 w-80 max-w-full" />
+            <Skeleton className="h-3 w-72 max-w-full" />
+          </div>
+        </DashboardPanelContent>
       </Card>
+
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)]">
+        <Card>
+          <PanelHeaderSkeleton
+            titleWidth="w-36"
+            descriptionWidth="w-72"
+            actionWidth="w-20"
+          />
+          <DashboardStackContent>
+            {Array.from({ length: 6 }).map((_, index) => (
+              <DashboardRow
+                key={`usage-daily-${index}`}
+                className="gap-3 rounded-lg border p-3"
+              >
+                <PrimaryBlockSkeleton
+                  titleWidth="w-24"
+                  detailWidths={["w-40", "w-44"]}
+                />
+                <Skeleton className="h-2 w-full rounded-full" />
+              </DashboardRow>
+            ))}
+          </DashboardStackContent>
+        </Card>
+
+        <Card>
+          <PanelHeaderSkeleton
+            titleWidth="w-32"
+            descriptionWidth="w-64"
+            actionWidth={null}
+          />
+          <DashboardPanelContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={`usage-signal-${index}`}
+                className="rounded-lg border border-border/70 p-3"
+              >
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="mt-2 h-6 w-28" />
+                <Skeleton className="mt-2 h-3 w-40" />
+              </div>
+            ))}
+          </DashboardPanelContent>
+        </Card>
+      </div>
+
+      {Array.from({ length: 2 }).map((_, rowIndex) => (
+        <div key={`usage-breakdown-row-${rowIndex}`} className="grid gap-3 xl:grid-cols-2">
+          {Array.from({ length: 2 }).map((__, columnIndex) => (
+            <Card key={`usage-breakdown-${rowIndex}-${columnIndex}`}>
+              <PanelHeaderSkeleton
+                titleWidth="w-36"
+                descriptionWidth="w-72"
+                actionWidth="w-28"
+              />
+              <DashboardPanelContent className="grid gap-2">
+                {Array.from({ length: 4 }).map((___, itemIndex) => (
+                  <div
+                    key={`usage-breakdown-item-${rowIndex}-${columnIndex}-${itemIndex}`}
+                    className="rounded-lg border border-border/70 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <PrimaryBlockSkeleton
+                        titleWidth="w-28"
+                        detailWidths={["w-44", "w-40"]}
+                      />
+                      <PrimaryBlockSkeleton
+                        titleWidth="w-16"
+                        detailWidths={["w-20"]}
+                      />
+                    </div>
+                    <Skeleton className="mt-2 h-2 w-full rounded-full" />
+                  </div>
+                ))}
+              </DashboardPanelContent>
+            </Card>
+          ))}
+        </div>
+      ))}
     </section>
   )
 }
@@ -809,8 +1017,11 @@ function PrimaryBlockSkeleton({
     <div className="min-w-0">
       <div className="flex flex-col gap-1.5">
         <Skeleton className={cn("h-5 max-w-full", titleWidth)} />
-        {detailWidths.map((width) => (
-          <Skeleton key={width} className={cn("h-3 max-w-full", width)} />
+        {detailWidths.map((width, index) => (
+          <Skeleton
+            key={`primary-detail-${index}-${width}`}
+            className={cn("h-3 max-w-full", width)}
+          />
         ))}
       </div>
     </div>
@@ -824,8 +1035,11 @@ function BadgeClusterSkeleton({
 }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-      {widths.map((width) => (
-        <Skeleton key={width} className={cn("h-5 rounded-md", width)} />
+      {widths.map((width, index) => (
+        <Skeleton
+          key={`badge-${index}-${width}`}
+          className={cn("h-5 rounded-md", width)}
+        />
       ))}
     </div>
   )

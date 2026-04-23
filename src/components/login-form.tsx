@@ -80,6 +80,7 @@ export function LoginForm({
             action="/api/control/sessions"
             method="post"
             onSubmit={handleSubmit}
+            suppressHydrationWarning
           >
             <FieldGroup>
               <Field>
@@ -91,6 +92,7 @@ export function LoginForm({
                   autoComplete="email"
                   placeholder="admin@gatewayllm.local"
                   required
+                  suppressHydrationWarning
                 />
               </Field>
               <Field>
@@ -109,6 +111,7 @@ export function LoginForm({
                   type="password"
                   autoComplete="current-password"
                   required
+                  suppressHydrationWarning
                 />
               </Field>
               <FieldError>{error}</FieldError>

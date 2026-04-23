@@ -14,7 +14,7 @@ import {
 import type { Workspace } from "@/lib/gatewayllm"
 import { cn } from "@/lib/utils"
 import { Building2Icon, InboxIcon } from "lucide-react"
-import type { ReactNode } from "react"
+import { Children, isValidElement, type ReactNode } from "react"
 import type { DashboardPaginationState } from "./dashboard-pagination"
 import { DashboardTablePagination } from "./dashboard-table-pagination"
 
@@ -86,16 +86,23 @@ export function DashboardSummaryGrid({
 
 export function DashboardPanelHeader({
   className,
+  children,
   ...props
 }: React.ComponentProps<typeof CardHeader>) {
-  return <CardHeader className={cn("border-b", className)} {...props} />
+  return (
+    <CardHeader className={cn("border-b", className)} {...props}>
+      {Children.toArray(children).filter(
+        (child) => !isValidElement(child) || child.type !== CardDescription
+      )}
+    </CardHeader>
+  )
 }
 
 export function DashboardPanelContent({
   className,
   ...props
 }: React.ComponentProps<typeof CardContent>) {
-  return <CardContent className={cn("text-sm", className)} {...props} />
+  return <CardContent className={cn("min-w-0 text-sm", className)} {...props} />
 }
 
 export function DashboardStackContent({

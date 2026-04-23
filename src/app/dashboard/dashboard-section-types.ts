@@ -14,6 +14,7 @@ import type {
   ReadyResponse,
   RegistrationRequestList,
   RequestLogList,
+  RuntimeResourceSnapshot,
   SessionUser,
   User,
   UserList,
@@ -36,6 +37,8 @@ export type DashboardSectionContentProps = {
   workspaces: Settled<WorkspaceList>
   health: Settled<HealthResponse>
   ready: Settled<ReadyResponse>
+  frontendRuntime: Settled<RuntimeResourceSnapshot>
+  backendRuntime: Settled<RuntimeResourceSnapshot>
   balance: Settled<Balance>
   apiKeys: Settled<APIKeyList>
   dailyUsage: Settled<DailyUsageList>

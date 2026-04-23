@@ -109,7 +109,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
   return (
     <Card {...props}>
       <CardContent>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} suppressHydrationWarning>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="name">{t("auth.fullName")}</FieldLabel>
@@ -120,6 +120,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 autoComplete="name"
                 placeholder={t("auth.newUser")}
                 required
+                suppressHydrationWarning
               />
             </Field>
             <Field>
@@ -131,6 +132,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 autoComplete="email"
                 placeholder="new.user@gatewayllm.local"
                 required
+                suppressHydrationWarning
               />
             </Field>
             <Field>
@@ -141,6 +143,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 type="password"
                 autoComplete="new-password"
                 required
+                suppressHydrationWarning
               />
               <FieldDescription>
                 {t("auth.passwordHelp")}
@@ -156,6 +159,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
                 type="password"
                 autoComplete="new-password"
                 required
+                suppressHydrationWarning
               />
             </Field>
             <FieldGroup>

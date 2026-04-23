@@ -55,6 +55,35 @@ export type ReadyResponse = {
   status: string
 }
 
+export type RuntimeResourceSnapshot = {
+  service: string
+  runtime: string
+  captured_at: string
+  uptime_seconds: number
+  process: {
+    pid: number
+    rss_bytes?: number
+    heap_used_bytes: number
+    heap_total_bytes: number
+    tcp_connection_count?: number
+    tcp_established_count?: number
+  }
+  host: {
+    cpu_count: number
+    load_avg_1m?: number
+    load_avg_5m?: number
+    load_avg_15m?: number
+    total_memory_bytes?: number
+    free_memory_bytes?: number
+    disk_total_bytes?: number
+    disk_free_bytes?: number
+  }
+  traffic?: {
+    http_requests_last_minute?: number
+    http_requests_per_second?: number
+  }
+}
+
 export type SessionUser = {
   id: string
   email: string
@@ -204,6 +233,8 @@ export type RequestLog = {
   workspace_id: string
   api_key_id?: string
   api_key_display_name?: string
+  api_key_owner_user_id?: string
+  api_key_owner_name?: string
   model_catalog_id?: string
   model_canonical_name?: string
   model_provider?: string

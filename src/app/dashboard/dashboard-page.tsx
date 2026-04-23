@@ -1,3 +1,5 @@
+import fs from "node:fs"
+import os from "node:os"
 import { redirect } from "next/navigation"
 import { cookies, headers } from "next/headers"
 
@@ -17,6 +19,7 @@ import {
   type ReadyResponse,
   type RegistrationRequestList,
   type RequestLogList,
+  type RuntimeResourceSnapshot,
   type UserList,
   type WorkspaceMemberList,
   type WorkspaceList,
@@ -39,17 +42,11 @@ import type { DashboardSection } from "./dashboard-routes"
 import { DashboardSectionContent } from "./dashboard-sections"
 
 const RESOURCE_LIST_LIMIT = 200
-const REQUEST_LOG_SORT_PARAM = "request_logs_sort"
-const REQUEST_LOG_FIRST_TOKEN_LATENCY_MIN_PARAM =
-  "request_logs_first_token_latency_min"
-const REQUEST_LOG_FIRST_TOKEN_LATENCY_MAX_PARAM =
-  "request_logs_first_token_latency_max"
-const REQUEST_LOG_SORT_OPTIONS = new Set([
-  "recent",
-  "first_token_latency_asc",
-  "first_token_latency_desc",
-])
-
+const REQUEST_LOG_QUERY_PARAM = "q"
+const REQUEST_LOG_STATUS_PARAM = "status"
+const REQUEST_LOG_PROVIDER_PARAM = "provider"
+const REQUEST_LOG_API_KEY_PARAM = "api_key_id"
+const REQUEST_LOG_USER_PARAM = "user"
 export async function DashboardPage({
   section = "status",
   searchParams,
@@ -93,19 +90,27 @@ export async function DashboardPage({
   const activeWorkspace = workspaceList[0]
   const noWorkspaceMessage = t("dashboard.noWorkspaceAvailable")
   const needsStatus = section === "status"
+  const needsUsage = section === "usage"
+  const needsApiKeys =
+    section === "api-keys" ||
+    section === "chat-smoke" ||
+    section === "usage-details" ||
+    needsStatus
   const needsModelCatalogs =
+    needsStatus ||
     section === "members" ||
     section === "models" ||
     section === "deployments" ||
     section === "chat-smoke"
   const needsProviderCredentials =
-    section === "credentials" ||
-    section === "deployments"
-  const needsProviderSetups = section === "provider-setups"
+    needsStatus || section === "credentials" || section === "deployments"
+  const needsProviderSetups =
+    needsStatus || section === "provider-setups" || section === "logs"
+  const needsDailyUsage = needsUsage || needsStatus
+  const needsRequestLogs =
+    section === "logs" || section === "usage-details" || needsUsage || needsStatus
   const needsModelDeployments =
-    section === "status" ||
-    section === "deployments" ||
-    section === "chat-smoke"
+    needsStatus || section === "deployments" || section === "chat-smoke"
   const workspaceUsersPage = parseDashboardPagination(
     searchParams,
     "workspace_users"
@@ -113,6 +118,7 @@ export async function DashboardPage({
   const membersPage = parseDashboardPagination(searchParams, "members")
   const apiKeysPage = parseDashboardPagination(searchParams, "api_keys")
   const requestLogsPage = parseDashboardPagination(searchParams, "request_logs")
+  const usageDetailsPage = parseDashboardPagination(searchParams, "usage_details")
   const providerSetupsPage = parseDashboardPagination(
     searchParams,
     "provider_setups"
@@ -133,18 +139,31 @@ export async function DashboardPage({
   const pageMembers = section === "members"
   const pageApiKeys = section === "api-keys"
   const pageRequestLogs = section === "logs"
-  const requestLogFilters = parseRequestLogFilters(searchParams)
+  const pageUsageDetails = section === "usage-details"
   const pageProviderSetups = section === "provider-setups"
   const pageModelCatalogs = section === "models"
   const pageProviderCredentials = section === "credentials"
   const pageModelDeployments = section === "deployments"
 
-  const [health, ready] = needsStatus
+  const requestLogFilters = parseRequestLogFilters(searchParams)
+
+  const [health, ready, backendRuntime, frontendRuntime] = needsStatus
     ? await Promise.all([
         settle(gatewayRequest<HealthResponse>("/healthz")),
         settle(gatewayRequest<ReadyResponse>("/readyz")),
+        settle(
+          gatewayRequest<RuntimeResourceSnapshot>("/control/v1/runtime-status", {
+            token,
+          })
+        ),
+        settle(Promise.resolve(getFrontendRuntimeSnapshot())),
       ])
-    : [skippedResult<HealthResponse>(), skippedResult<ReadyResponse>()]
+    : [
+        skippedResult<HealthResponse>(),
+        skippedResult<ReadyResponse>(),
+        skippedResult<RuntimeResourceSnapshot>(),
+        skippedResult<RuntimeResourceSnapshot>(),
+      ]
 
   const [
     balance,
@@ -160,7 +179,7 @@ export async function DashboardPage({
     modelDeployments,
   ] = await Promise.all([
     loadWorkspaceResource(
-      needsStatus,
+      needsStatus || needsUsage,
       activeWorkspace,
       noWorkspaceMessage,
       (workspace) =>
@@ -172,7 +191,7 @@ export async function DashboardPage({
         )
     ),
     loadWorkspaceResource(
-      section === "api-keys" || section === "chat-smoke",
+      needsApiKeys,
       activeWorkspace,
       noWorkspaceMessage,
       (workspace) =>
@@ -184,7 +203,7 @@ export async function DashboardPage({
         )
     ),
     loadWorkspaceResource(
-      section === "usage",
+      needsDailyUsage,
       activeWorkspace,
       noWorkspaceMessage,
       (workspace) =>
@@ -196,20 +215,23 @@ export async function DashboardPage({
         )
     ),
     loadWorkspaceResource(
-      section === "logs",
+      needsRequestLogs,
       activeWorkspace,
       noWorkspaceMessage,
-      (workspace) =>
-        gatewayRequest<RequestLogList>(
+      (workspace) => {
+        const query = pageRequestLogs
+          ? requestLogQuery(requestLogsPage, pageRequestLogs, requestLogFilters)
+          : pageUsageDetails
+            ? requestLogQuery(usageDetailsPage, pageUsageDetails, requestLogFilters)
+            : `limit=${needsUsage ? RESOURCE_LIST_LIMIT : 60}`
+
+        return gatewayRequest<RequestLogList>(
           `/control/v1/request-logs?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&${requestLogQuery(
-            requestLogsPage,
-            pageRequestLogs,
-            requestLogFilters
-          )}`,
+          )}&${query}`,
           { token }
         )
+      }
     ),
     loadWorkspaceResource(
       needsStatus || section === "users",
@@ -299,6 +321,8 @@ export async function DashboardPage({
     requestLogsPage,
     pageRequestLogs
   )
+  const [pagedUsageDetailsRequestLogs, usageDetailsPagination] =
+    finalizePaginatedResult(requestLogs, usageDetailsPage, pageUsageDetails)
   const [pagedWorkspaceUsers, workspaceUsersPagination] =
     finalizePaginatedResult(workspaceUsers, workspaceUsersPage, pageWorkspaceUsers)
   const [pagedWorkspaceMembers, membersPagination] = finalizePaginatedResult(
@@ -335,6 +359,10 @@ export async function DashboardPage({
   const workspaceUserList = pagedWorkspaceUsers.ok
     ? pagedWorkspaceUsers.data.data
     : []
+  const resolvedRequestLogs = pageUsageDetails
+    ? pagedUsageDetailsRequestLogs
+    : pagedRequestLogs
+
   const workspaceMemberList = pagedWorkspaceMembers.ok
     ? pagedWorkspaceMembers.data.data
     : []
@@ -388,10 +416,12 @@ export async function DashboardPage({
       workspaces={workspaces}
       health={health}
       ready={ready}
+      frontendRuntime={frontendRuntime}
+      backendRuntime={backendRuntime}
       balance={balance}
       apiKeys={pagedApiKeys}
       dailyUsage={dailyUsage}
-      requestLogs={pagedRequestLogs}
+      requestLogs={resolvedRequestLogs}
       workspaceUsers={pagedWorkspaceUsers}
       workspaceUserList={workspaceUserList}
       workspaceMembers={pagedWorkspaceMembers}
@@ -410,6 +440,7 @@ export async function DashboardPage({
         members: membersPagination,
         api_keys: apiKeysPagination,
         request_logs: requestLogsPagination,
+        usage_details: usageDetailsPagination,
         provider_setups: providerSetupsPagination,
         model_catalogs: modelCatalogsPagination,
         provider_credentials: providerCredentialsPagination,
@@ -530,35 +561,34 @@ function requestLogQuery(
 ) {
   const params = new URLSearchParams(paginationQuery(pagination, enabled))
 
-  if (filters.sort && filters.sort !== "recent") {
-    params.set("sort", filters.sort)
+  if (filters.query) {
+    params.set(REQUEST_LOG_QUERY_PARAM, filters.query)
   }
-  if (filters.firstTokenLatencyMin !== undefined) {
-    params.set("first_token_latency_min", String(filters.firstTokenLatencyMin))
+  if (filters.status) {
+    params.set(REQUEST_LOG_STATUS_PARAM, filters.status)
   }
-  if (filters.firstTokenLatencyMax !== undefined) {
-    params.set("first_token_latency_max", String(filters.firstTokenLatencyMax))
+  if (filters.provider) {
+    params.set(REQUEST_LOG_PROVIDER_PARAM, filters.provider)
+  }
+  if (filters.apiKeyID) {
+    params.set(REQUEST_LOG_API_KEY_PARAM, filters.apiKeyID)
+  }
+  if (filters.user) {
+    params.set(REQUEST_LOG_USER_PARAM, filters.user)
   }
 
   return params.toString()
 }
 
 function parseRequestLogFilters(searchParams: DashboardSearchParams | undefined) {
-  const sort = readSearchParam(searchParams, REQUEST_LOG_SORT_PARAM)
-  const normalizedSort =
-    sort && REQUEST_LOG_SORT_OPTIONS.has(sort) ? sort : "recent"
-
-  const firstTokenLatencyMin = parseOptionalNonNegativeInt(
-    readSearchParam(searchParams, REQUEST_LOG_FIRST_TOKEN_LATENCY_MIN_PARAM)
-  )
-  const firstTokenLatencyMax = parseOptionalNonNegativeInt(
-    readSearchParam(searchParams, REQUEST_LOG_FIRST_TOKEN_LATENCY_MAX_PARAM)
-  )
-
   return {
-    sort: normalizedSort,
-    firstTokenLatencyMin,
-    firstTokenLatencyMax,
+    query: normalizeRequestLogParam(readSearchParam(searchParams, REQUEST_LOG_QUERY_PARAM)),
+    status: normalizeRequestLogParam(readSearchParam(searchParams, REQUEST_LOG_STATUS_PARAM)),
+    provider: normalizeRequestLogParam(readSearchParam(searchParams, REQUEST_LOG_PROVIDER_PARAM)),
+    apiKeyID: normalizeRequestLogParam(
+      readSearchParam(searchParams, REQUEST_LOG_API_KEY_PARAM)
+    ),
+    user: normalizeRequestLogParam(readSearchParam(searchParams, REQUEST_LOG_USER_PARAM)),
   }
 }
 
@@ -567,12 +597,13 @@ function readSearchParam(
   key: string
 ) {
   const value = searchParams?.[key]
+
   return Array.isArray(value) ? value[0] : value
 }
 
-function parseOptionalNonNegativeInt(value: string | undefined) {
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined
+function normalizeRequestLogParam(value: string | undefined) {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
 }
 
 function finalizePaginatedResult<T extends { data: unknown[] }>(
@@ -606,4 +637,116 @@ function finalizePaginatedResult<T extends { data: unknown[] }>(
       hasNext,
     },
   ]
+}
+
+function getFrontendRuntimeSnapshot(): RuntimeResourceSnapshot {
+  const memoryUsage = process.memoryUsage()
+  const [loadAvg1m, loadAvg5m, loadAvg15m] = os.loadavg()
+  const diskStatus = readFrontendDiskStatus("/")
+  const tcpConnectionStatus = readFrontendTCPConnectionStatus()
+
+  return {
+    service: process.env.npm_package_name || "gatewayllm-frontend",
+    runtime: "nodejs",
+    captured_at: new Date().toISOString(),
+    uptime_seconds: Math.floor(process.uptime()),
+    process: {
+      pid: process.pid,
+      rss_bytes: memoryUsage.rss,
+      heap_used_bytes: memoryUsage.heapUsed,
+      heap_total_bytes: memoryUsage.heapTotal,
+      tcp_connection_count: tcpConnectionStatus?.total,
+      tcp_established_count: tcpConnectionStatus?.established,
+    },
+    host: {
+      cpu_count:
+        typeof os.availableParallelism === "function"
+          ? os.availableParallelism()
+          : os.cpus().length,
+      load_avg_1m: loadAvg1m,
+      load_avg_5m: loadAvg5m,
+      load_avg_15m: loadAvg15m,
+      total_memory_bytes: os.totalmem(),
+      free_memory_bytes: os.freemem(),
+      disk_total_bytes: diskStatus?.total,
+      disk_free_bytes: diskStatus?.free,
+    },
+  }
+}
+
+function readFrontendDiskStatus(path: string) {
+  try {
+    const stat = fs.statfsSync(path)
+    const blockSize = Number(stat.bsize)
+    return {
+      total: Number(stat.blocks) * blockSize,
+      free: Number(stat.bavail) * blockSize,
+    }
+  } catch {
+    return undefined
+  }
+}
+
+function readFrontendTCPConnectionStatus() {
+  const socketInodes = readFrontendSocketInodes()
+  if (!socketInodes || socketInodes.size === 0) {
+    return undefined
+  }
+
+  const ipv4 = readFrontendSocketTable("/proc/net/tcp", socketInodes)
+  const ipv6 = readFrontendSocketTable("/proc/net/tcp6", socketInodes)
+
+  return {
+    total: ipv4.total + ipv6.total,
+    established: ipv4.established + ipv6.established,
+  }
+}
+
+function readFrontendSocketInodes() {
+  try {
+    const entries = fs.readdirSync("/proc/self/fd")
+    const inodes = new Set<string>()
+
+    for (const entry of entries) {
+      try {
+        const target = fs.readlinkSync(`/proc/self/fd/${entry}`)
+        if (!target.startsWith("socket:[") || !target.endsWith("]")) {
+          continue
+        }
+
+        const inode = target.slice("socket:[".length, -1)
+        if (inode) {
+          inodes.add(inode)
+        }
+      } catch {}
+    }
+
+    return inodes
+  } catch {
+    return undefined
+  }
+}
+
+function readFrontendSocketTable(path: string, socketInodes: Set<string>) {
+  try {
+    const lines = fs.readFileSync(path, "utf8").trim().split("\n").slice(1)
+    let total = 0
+    let established = 0
+
+    for (const line of lines) {
+      const fields = line.trim().split(/\s+/)
+      if (fields.length < 10 || !socketInodes.has(fields[9])) {
+        continue
+      }
+
+      total += 1
+      if (fields[3] === "01") {
+        established += 1
+      }
+    }
+
+    return { total, established }
+  } catch {
+    return { total: 0, established: 0 }
+  }
 }

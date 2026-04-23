@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useEffect, useMemo, useState } from "react"
-import { Clock3Icon, FileTextIcon, LoaderCircleIcon } from "lucide-react"
+import { FileTextIcon, LoaderCircleIcon } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
 import { useI18n } from "@/components/i18n-provider"
@@ -18,37 +18,35 @@ import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
-import type { RequestLog } from "@/lib/gatewayllm"
+import type { ProviderSetup, RequestLog } from "@/lib/gatewayllm"
 import { cn } from "@/lib/utils"
 import type { DashboardPaginationState } from "./dashboard-pagination"
 import { DashboardTablePagination } from "./dashboard-table-pagination"
 
 type DetailStatus = "idle" | "loading" | "ready" | "error"
 
-const REQUEST_LOG_SORT_PARAM = "request_logs_sort"
-const REQUEST_LOG_FIRST_TOKEN_LATENCY_MIN_PARAM =
-  "request_logs_first_token_latency_min"
-const REQUEST_LOG_FIRST_TOKEN_LATENCY_MAX_PARAM =
-  "request_logs_first_token_latency_max"
-const REQUEST_LOG_PAGE_PARAM = "request_logs_page"
-const REQUEST_LOG_SORT_RECENT = "recent"
-const REQUEST_LOG_SORT_FIRST_TOKEN_LATENCY_ASC = "first_token_latency_asc"
-const REQUEST_LOG_SORT_FIRST_TOKEN_LATENCY_DESC = "first_token_latency_desc"
+const REQUEST_LOGS_GRID_CLASS =
+  "xl:grid-cols-[minmax(13rem,1.2fr)_minmax(10rem,0.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.65fr)_minmax(8rem,0.65fr)_auto]"
+const REQUEST_LOG_QUERY_PARAM = "q"
+const REQUEST_LOG_STATUS_PARAM = "status"
+const REQUEST_LOG_PROVIDER_PARAM = "provider"
+const REQUEST_LOG_STATUS_OPTIONS = ["in_progress", "succeeded", "failed"]
 
 export function RequestLogsTable({
   logs,
   pagination,
+  providerSetupList,
   workspaceID,
   emptyMessage,
 }: {
   logs: RequestLog[]
   pagination?: DashboardPaginationState
+  providerSetupList: ProviderSetup[]
   workspaceID: string
   emptyMessage: string
 }) {
@@ -56,7 +54,45 @@ export function RequestLogsTable({
   const [detailCache, setDetailCache] = useState<Record<string, RequestLog>>({})
   const [detailStatus, setDetailStatus] = useState<DetailStatus>("idle")
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [queryInput, setQueryInput] = useState("")
+  const [statusInput, setStatusInput] = useState("")
+  const [providerInput, setProviderInput] = useState("")
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const { t } = useI18n()
+  const appliedQuery = searchParams.get(REQUEST_LOG_QUERY_PARAM) ?? ""
+  const appliedStatus = searchParams.get(REQUEST_LOG_STATUS_PARAM) ?? ""
+  const appliedProvider = searchParams.get(REQUEST_LOG_PROVIDER_PARAM) ?? ""
+  const statusOptions = useMemo(() => {
+    const options = new Set(REQUEST_LOG_STATUS_OPTIONS)
+    if (appliedStatus) {
+      options.add(appliedStatus)
+    }
+    for (const log of logs) {
+      if (log.status) {
+        options.add(log.status)
+      }
+    }
+    return Array.from(options)
+  }, [appliedStatus, logs])
+  const providerOptions = useMemo(() => {
+    const options = new Set<string>()
+    if (appliedProvider) {
+      options.add(appliedProvider)
+    }
+    for (const setup of providerSetupList) {
+      if (setup.provider) {
+        options.add(setup.provider)
+      }
+    }
+    for (const log of logs) {
+      if (log.model_provider) {
+        options.add(log.model_provider)
+      }
+    }
+    return Array.from(options).sort()
+  }, [appliedProvider, logs, providerSetupList])
 
   const selectedSummary = useMemo(
     () => logs.find((log) => log.id === selectedID) ?? null,
@@ -123,17 +159,150 @@ export function RequestLogsTable({
     }
   }, [detailCache, selectedID, t, workspaceID])
 
+  useEffect(() => {
+    setQueryInput(appliedQuery)
+    setStatusInput(appliedStatus)
+    setProviderInput(appliedProvider)
+  }, [appliedProvider, appliedQuery, appliedStatus])
+
+  function submitFilters(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const params = new URLSearchParams(searchParams)
+    syncRequestLogParam(params, REQUEST_LOG_QUERY_PARAM, queryInput)
+    syncRequestLogParam(params, REQUEST_LOG_STATUS_PARAM, statusInput)
+    syncRequestLogParam(params, REQUEST_LOG_PROVIDER_PARAM, providerInput)
+    params.delete("request_logs_page")
+
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    })
+  }
+
+  function clearFilters() {
+    setQueryInput("")
+    setStatusInput("")
+    setProviderInput("")
+
+    const params = new URLSearchParams(searchParams)
+    params.delete(REQUEST_LOG_QUERY_PARAM)
+    params.delete(REQUEST_LOG_STATUS_PARAM)
+    params.delete(REQUEST_LOG_PROVIDER_PARAM)
+    params.delete("request_logs_page")
+
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    })
+  }
+
   return (
     <>
       <div className="flex min-w-0 flex-col gap-2">
-        <RequestLogsToolbar />
-        <div className="hidden min-w-0 grid-cols-[minmax(13rem,1.2fr)_minmax(10rem,0.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.7fr)_auto] gap-2.5 px-2.5 text-[0.72rem] font-medium text-muted-foreground xl:grid">
-          <div>{t("dashboard.requestUID")}</div>
-          <div>{t("forms.model")}</div>
-          <div>{t("nav.status")}</div>
-          <div>{t("dashboard.totalTokens")}</div>
-          <div>{t("dashboard.latency")}</div>
-          <div className="text-right">{t("actions.view")}</div>
+        <form
+          className="flex min-w-0 flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-2.5 md:flex-row md:items-center"
+          onSubmit={submitFilters}
+        >
+          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center">
+            <Input
+              value={queryInput}
+              onChange={(event) => setQueryInput(event.target.value)}
+              className="h-8 w-full min-w-0 flex-1 text-xs sm:text-sm"
+              placeholder={t("dashboard.requestLogQuery")}
+              aria-label={t("dashboard.requestLogQuery")}
+            />
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {t("nav.status")}
+              </span>
+              <Select
+                value={statusInput || "__all__"}
+                onValueChange={(value) =>
+                  setStatusInput(!value || value === "__all__" ? "" : value)
+                }
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="h-8 w-full text-xs sm:w-40 sm:text-sm"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="__all__">{t("dashboard.allStatuses")}</SelectItem>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {t("forms.provider")}
+              </span>
+              <Select
+                value={providerInput || "__all__"}
+                onValueChange={(value) =>
+                  setProviderInput(!value || value === "__all__" ? "" : value)
+                }
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="h-8 w-full text-xs sm:w-40 sm:text-sm"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  <SelectItem value="__all__">{t("dashboard.allProviders")}</SelectItem>
+                  {providerOptions.map((provider) => (
+                    <SelectItem key={provider} value={provider}>
+                      {provider}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 md:ml-auto">
+            <Button type="submit" size="sm" className="h-8 px-3">
+              {t("actions.apply")}
+            </Button>
+            {(appliedQuery ||
+              appliedStatus ||
+              appliedProvider ||
+              queryInput ||
+              statusInput ||
+              providerInput) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 px-3"
+                onClick={clearFilters}
+              >
+                {t("actions.clear")}
+              </Button>
+            ) : null}
+          </div>
+        </form>
+
+        <div
+          className={cn(
+            "hidden min-w-0 gap-2.5 px-[13px] text-[0.72rem] font-medium text-muted-foreground xl:grid",
+            REQUEST_LOGS_GRID_CLASS
+          )}
+        >
+          <div className="min-w-0 truncate">{t("dashboard.requestUID")}</div>
+          <div className="min-w-0 truncate">{t("forms.model")}</div>
+          <div className="min-w-0 truncate">{t("nav.status")}</div>
+          <div className="min-w-0 truncate">{t("dashboard.totalTokens")}</div>
+          <div className="min-w-0 truncate">{t("dashboard.latency")}</div>
+          <div className="min-w-0 truncate">{t("dashboard.firstTokenLatency")}</div>
+          <div className="min-w-0 justify-self-end truncate text-right">
+            {t("actions.view")}
+          </div>
         </div>
 
         {logs.length > 0 ? (
@@ -148,7 +317,10 @@ export function RequestLogsTable({
                 <button
                   key={log.id}
                   type="button"
-                  className="grid min-w-0 gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors hover:border-foreground/15 hover:bg-muted/40 xl:grid-cols-[minmax(13rem,1.2fr)_minmax(10rem,0.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.7fr)_auto] xl:items-center"
+                  className={cn(
+                    "grid min-w-0 gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors hover:border-foreground/15 hover:bg-muted/40 xl:items-center",
+                    REQUEST_LOGS_GRID_CLASS
+                  )}
                   onClick={() => {
                     setSelectedID(log.id)
                     setDetailError(null)
@@ -196,13 +368,20 @@ export function RequestLogsTable({
                     <div className="font-mono text-xs tabular-nums">
                       {formatDuration(log.duration_ms)}
                     </div>
-                    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                      <Clock3Icon className="size-3.5 shrink-0" />
-                      <span className="truncate">
-                        {firstTokenLatencyMS !== undefined
-                          ? `${t("dashboard.firstTokenLatency")} ${formatDuration(firstTokenLatencyMS)}`
-                          : formatDate(log.completed_at ?? log.request_started_at)}
-                      </span>
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {formatDate(log.completed_at ?? log.request_started_at)}
+                    </div>
+                  </div>
+
+                  <div className="min-w-0">
+                    <MobileLabel>{t("dashboard.firstTokenLatency")}</MobileLabel>
+                    <div className="font-mono text-xs tabular-nums">
+                      {firstTokenLatencyMS !== undefined
+                        ? formatDuration(firstTokenLatencyMS)
+                        : t("dashboard.notSet")}
+                    </div>
+                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                      {formatDate(log.first_token_at ?? log.request_started_at)}
                     </div>
                   </div>
 
@@ -243,163 +422,6 @@ export function RequestLogsTable({
         </DialogContent>
       </Dialog>
     </>
-  )
-}
-
-function RequestLogsToolbar() {
-  const pathname = usePathname()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const { t } = useI18n()
-  const initialSort =
-    searchParams.get(REQUEST_LOG_SORT_PARAM) ?? REQUEST_LOG_SORT_RECENT
-  const initialMinLatency =
-    searchParams.get(REQUEST_LOG_FIRST_TOKEN_LATENCY_MIN_PARAM) ?? ""
-  const initialMaxLatency =
-    searchParams.get(REQUEST_LOG_FIRST_TOKEN_LATENCY_MAX_PARAM) ?? ""
-  const toolbarKey = [
-    initialSort,
-    initialMinLatency,
-    initialMaxLatency,
-    searchParams.toString(),
-  ].join(":")
-
-  function applyFilters(nextSort: string, nextMin: string, nextMax: string) {
-    const params = new URLSearchParams(searchParams.toString())
-    const normalized = normalizeLatencyRange(nextMin, nextMax)
-
-    if (nextSort === REQUEST_LOG_SORT_RECENT) {
-      params.delete(REQUEST_LOG_SORT_PARAM)
-    } else {
-      params.set(REQUEST_LOG_SORT_PARAM, nextSort)
-    }
-
-    updateSearchParam(
-      params,
-      REQUEST_LOG_FIRST_TOKEN_LATENCY_MIN_PARAM,
-      normalized.min
-    )
-    updateSearchParam(
-      params,
-      REQUEST_LOG_FIRST_TOKEN_LATENCY_MAX_PARAM,
-      normalized.max
-    )
-    params.set(REQUEST_LOG_PAGE_PARAM, "1")
-
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }
-
-  return (
-    <RequestLogsToolbarForm
-      key={toolbarKey}
-      initialSort={initialSort}
-      initialMinLatency={initialMinLatency}
-      initialMaxLatency={initialMaxLatency}
-      onApply={applyFilters}
-      t={t}
-    />
-  )
-}
-
-function RequestLogsToolbarForm({
-  initialSort,
-  initialMinLatency,
-  initialMaxLatency,
-  onApply,
-  t,
-}: {
-  initialSort: string
-  initialMinLatency: string
-  initialMaxLatency: string
-  onApply: (nextSort: string, nextMin: string, nextMax: string) => void
-  t: ReturnType<typeof useI18n>["t"]
-}) {
-  const [sort, setSort] = useState(initialSort)
-  const [minLatency, setMinLatency] = useState(initialMinLatency)
-  const [maxLatency, setMaxLatency] = useState(initialMaxLatency)
-
-  return (
-    <form
-      className="grid gap-2 rounded-lg border border-border/70 bg-muted/20 p-2.5 md:grid-cols-[minmax(0,13rem)_minmax(0,8rem)_minmax(0,8rem)_auto]"
-      onSubmit={(event) => {
-        event.preventDefault()
-        onApply(sort, minLatency, maxLatency)
-      }}
-    >
-      <div className="grid gap-1">
-        <label className="text-[0.72rem] font-medium text-muted-foreground">
-          {t("dashboard.requestLogSort")}
-        </label>
-        <Select
-          value={sort}
-          onValueChange={(value) => setSort(value ?? REQUEST_LOG_SORT_RECENT)}
-        >
-          <SelectTrigger size="sm" className="w-full bg-background">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="start">
-            <SelectGroup>
-              <SelectItem value={REQUEST_LOG_SORT_RECENT}>
-                {t("dashboard.requestLogSortRecent")}
-              </SelectItem>
-              <SelectItem value={REQUEST_LOG_SORT_FIRST_TOKEN_LATENCY_ASC}>
-                {t("dashboard.requestLogSortFirstTokenLatencyAsc")}
-              </SelectItem>
-              <SelectItem value={REQUEST_LOG_SORT_FIRST_TOKEN_LATENCY_DESC}>
-                {t("dashboard.requestLogSortFirstTokenLatencyDesc")}
-              </SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="grid gap-1">
-        <label className="text-[0.72rem] font-medium text-muted-foreground">
-          {t("dashboard.firstTokenLatencyMin")}
-        </label>
-        <Input
-          type="number"
-          min={0}
-          inputMode="numeric"
-          value={minLatency}
-          onChange={(event) => setMinLatency(event.target.value)}
-          className="bg-background font-mono"
-        />
-      </div>
-
-      <div className="grid gap-1">
-        <label className="text-[0.72rem] font-medium text-muted-foreground">
-          {t("dashboard.firstTokenLatencyMax")}
-        </label>
-        <Input
-          type="number"
-          min={0}
-          inputMode="numeric"
-          value={maxLatency}
-          onChange={(event) => setMaxLatency(event.target.value)}
-          className="bg-background font-mono"
-        />
-      </div>
-
-      <div className="flex items-end justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setSort(REQUEST_LOG_SORT_RECENT)
-            setMinLatency("")
-            setMaxLatency("")
-            onApply(REQUEST_LOG_SORT_RECENT, "", "")
-          }}
-        >
-          {t("actions.clear")}
-        </Button>
-        <Button type="submit" size="sm">
-          {t("actions.apply")}
-        </Button>
-      </div>
-    </form>
   )
 }
 
@@ -706,7 +728,22 @@ function formatDate(value?: string) {
     return "-"
   }
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString()
+  if (Number.isNaN(date.getTime())) {
+    return "-"
+  }
+
+  return [
+    date.getUTCFullYear(),
+    padDatePart(date.getUTCMonth() + 1),
+    padDatePart(date.getUTCDate()),
+  ].join("-") +
+    ` ${padDatePart(date.getUTCHours())}:${padDatePart(
+      date.getUTCMinutes()
+    )}:${padDatePart(date.getUTCSeconds())} UTC`
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0")
 }
 
 function getDisplayedFirstTokenLatencyMS(log: RequestLog) {
@@ -748,43 +785,6 @@ function getTimestamp(value?: string) {
   return Number.isNaN(timestamp) ? null : timestamp
 }
 
-function normalizeLatencyRange(minValue: string, maxValue: string) {
-  let min = normalizeLatencyInput(minValue)
-  let max = normalizeLatencyInput(maxValue)
-
-  if (min && max && Number(min) > Number(max)) {
-    ;[min, max] = [max, min]
-  }
-
-  return { min, max }
-}
-
-function normalizeLatencyInput(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return ""
-  }
-
-  const parsed = Number(trimmed)
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    return ""
-  }
-
-  return String(parsed)
-}
-
-function updateSearchParam(
-  params: URLSearchParams,
-  key: string,
-  value: string
-) {
-  if (value) {
-    params.set(key, value)
-    return
-  }
-  params.delete(key)
-}
-
 function formatPayload(payload?: string, contentType?: string) {
   if (!payload) {
     return ""
@@ -813,4 +813,18 @@ function safeParseJSON(value: string) {
   } catch {
     return value
   }
+}
+
+function syncRequestLogParam(
+  params: URLSearchParams,
+  key: string,
+  value: string
+) {
+  const trimmed = value.trim()
+  if (trimmed) {
+    params.set(key, trimmed)
+    return
+  }
+
+  params.delete(key)
 }
