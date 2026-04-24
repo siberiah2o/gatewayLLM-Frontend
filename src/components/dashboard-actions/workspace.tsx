@@ -3,10 +3,9 @@
 import { useEffect, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import {
-  CheckIcon,
   PlusIcon,
   ShieldCheckIcon,
-  Trash2Icon,
+  UserCogIcon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -41,19 +40,22 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useI18n } from "@/components/i18n-provider"
 import { cn } from "@/lib/utils"
 import type {
+  DepartmentModelPermissionList,
   ModelCatalog,
   UserModelPermissionList,
   Workspace,
+  WorkspaceDepartment,
   WorkspaceMember,
 } from "@/lib/gatewayllm"
 import {
   activeStatusOptions,
-  ConfirmActionDialog,
   DashboardFormSelect,
   errorText,
   memberRoleOptions,
   responseError,
 } from "./shared"
+
+const NO_DEPARTMENT_VALUE = "__none__"
 
 export function CreateWorkspaceForm() {
   const router = useRouter()
@@ -102,7 +104,7 @@ export function CreateWorkspaceForm() {
   }
 
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
+    <form className="rounded-md border p-2.5" onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="workspace-name">
@@ -143,8 +145,10 @@ export function CreateWorkspaceForm() {
 
 export function CreateWorkspaceUserDialog({
   workspaceId,
+  departments = [],
 }: {
   workspaceId?: string
+  departments?: WorkspaceDepartment[]
 }) {
   const router = useRouter()
   const { t } = useI18n()
@@ -152,6 +156,10 @@ export function CreateWorkspaceUserDialog({
   const [error, setError] = useState<string>()
   const [isPending, setIsPending] = useState(false)
   const canCreate = Boolean(workspaceId)
+  const departmentOptions = buildCreateDepartmentOptions(departments, t)
+  const defaultDepartmentID =
+    departmentOptions.find((option) => option.value !== NO_DEPARTMENT_VALUE)
+      ?.value ?? NO_DEPARTMENT_VALUE
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen)
@@ -187,6 +195,10 @@ export function CreateWorkspaceUserDialog({
             password: formData.get("member-password"),
             display_name: formData.get("member-name"),
             role: "member",
+            department_id:
+              formData.get("member-department") === NO_DEPARTMENT_VALUE
+                ? ""
+                : formData.get("member-department"),
           }),
         }
       )
@@ -262,6 +274,17 @@ export function CreateWorkspaceUserDialog({
                 />
               </Field>
             </FieldGroup>
+            <Field>
+              <DashboardFormSelect
+                id="member-department"
+                name="member-department"
+                label={t("dashboard.department")}
+                defaultValue={defaultDepartmentID}
+                disabled={!canCreate || isPending}
+                required
+                options={departmentOptions}
+              />
+            </Field>
             <FieldError>{error}</FieldError>
           </FieldGroup>
           <DialogFooter className="mt-6">
@@ -281,17 +304,21 @@ export function CreateWorkspaceUserDialog({
 export function UpdateWorkspaceMemberForm({
   workspaceId,
   member,
+  departments,
   disabled,
 }: {
   workspaceId?: string
   member: WorkspaceMember
+  departments: WorkspaceDepartment[]
   disabled?: boolean
 }) {
   const router = useRouter()
   const { t } = useI18n()
+  const [open, setOpen] = useState(false)
   const [error, setError] = useState<string>()
   const [isPending, setIsPending] = useState(false)
   const canUpdate = Boolean(workspaceId) && !disabled
+  const departmentOptions = buildDepartmentOptions(departments, member, t)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -320,6 +347,10 @@ export function UpdateWorkspaceMemberForm({
           body: JSON.stringify({
             role: formData.get("member-row-role"),
             status: formData.get("member-row-status"),
+            department_id:
+              formData.get("member-row-department") === NO_DEPARTMENT_VALUE
+                ? ""
+                : formData.get("member-row-department"),
           }),
         }
       )
@@ -330,6 +361,7 @@ export function UpdateWorkspaceMemberForm({
         )
       }
 
+      setOpen(false)
       router.refresh()
     } catch (submitError) {
       setError(errorText(submitError, t("forms.updateMemberFailed")))
@@ -339,136 +371,135 @@ export function UpdateWorkspaceMemberForm({
   }
 
   return (
-    <form
-      className="flex min-w-0 grow flex-wrap items-center justify-end gap-1.5"
-      onSubmit={handleSubmit}
-    >
-      <Field className="w-[7rem] shrink-0">
-        <DashboardFormSelect
-          id={`member-role-${member.user_id}`}
-          name="member-row-role"
-          label={t("forms.role")}
-          labelClassName="sr-only"
-          defaultValue={member.role === "admin" ? "admin" : "member"}
-          disabled={!canUpdate || isPending}
-          required
-          size="sm"
-          triggerClassName="min-w-[7rem]"
-          options={memberRoleOptions(t)}
-        />
-      </Field>
-      <Field className="w-[7rem] shrink-0">
-        <DashboardFormSelect
-          id={`member-status-${member.user_id}`}
-          name="member-row-status"
-          label={t("nav.status")}
-          labelClassName="sr-only"
-          defaultValue={member.status === "inactive" ? "inactive" : "active"}
-          disabled={!canUpdate || isPending}
-          required
-          size="sm"
-          triggerClassName="min-w-[7rem]"
-          options={activeStatusOptions(t)}
-        />
-      </Field>
-      <Button
-        type="submit"
-        size="xs"
-        variant="outline"
-        disabled={!canUpdate || isPending}
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-xs"
+            disabled={!canUpdate}
+            title={t("forms.editMemberAccess")}
+            aria-label={t("forms.editMemberAccess")}
+          />
+        }
       >
-        <CheckIcon data-icon="inline-start" />
-        {isPending ? t("actions.saving") : t("actions.save")}
-      </Button>
-      {error ? (
-        <div className="basis-full text-right text-xs text-destructive">
-          {error}
-        </div>
-      ) : null}
-    </form>
+        <UserCogIcon />
+        <span className="sr-only">{t("forms.editMemberAccess")}</span>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("forms.editMemberAccess")}</DialogTitle>
+          <DialogDescription>
+            {member.display_name} · {member.email}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <FieldGroup>
+            <FieldGroup className="gap-3 sm:grid sm:grid-cols-2">
+              <Field>
+                <DashboardFormSelect
+                  id={`member-role-${member.user_id}`}
+                  name="member-row-role"
+                  label={t("forms.role")}
+                  defaultValue={member.role === "admin" ? "admin" : "member"}
+                  disabled={!canUpdate || isPending}
+                  required
+                  options={memberRoleOptions(t)}
+                />
+              </Field>
+              <Field>
+                <DashboardFormSelect
+                  id={`member-status-${member.user_id}`}
+                  name="member-row-status"
+                  label={t("nav.status")}
+                  defaultValue={member.status === "inactive" ? "inactive" : "active"}
+                  disabled={!canUpdate || isPending}
+                  required
+                  options={activeStatusOptions(t)}
+                />
+              </Field>
+            </FieldGroup>
+            <Field>
+              <DashboardFormSelect
+                id={`member-department-${member.user_id}`}
+                name="member-row-department"
+                label={t("dashboard.department")}
+                defaultValue={member.department_id || NO_DEPARTMENT_VALUE}
+                disabled={!canUpdate || isPending}
+                required
+                options={departmentOptions}
+              />
+            </Field>
+            <FieldError>{error}</FieldError>
+          </FieldGroup>
+          <DialogFooter className="mt-6">
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              {t("common.close")}
+            </DialogClose>
+            <Button type="submit" disabled={!canUpdate || isPending}>
+              {isPending ? t("actions.saving") : t("actions.saveChanges")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
-export function RemoveWorkspaceMemberButton({
-  workspaceId,
-  userId,
-  disabled,
-}: {
-  workspaceId?: string
-  userId: string
-  disabled?: boolean
-}) {
-  const router = useRouter()
-  const { t } = useI18n()
-  const [open, setOpen] = useState(false)
-  const [error, setError] = useState<string>()
-  const [isPending, setIsPending] = useState(false)
+function buildDepartmentOptions(
+  departments: WorkspaceDepartment[],
+  member: WorkspaceMember,
+  t: ReturnType<typeof useI18n>["t"]
+) {
+  const options = new Map<string, string>([
+    [NO_DEPARTMENT_VALUE, t("dashboard.noDepartment")],
+  ])
 
-  async function remove() {
-    if (!workspaceId || disabled) {
-      setError(t("forms.memberCannotRemove"))
-      return
+  for (const department of departments) {
+    if (
+      department.status !== "active" &&
+      department.id !== member.department_id
+    ) {
+      continue
     }
 
-    setError(undefined)
-    setIsPending(true)
-
-    try {
-      const response = await fetch(
-        `/api/control/workspaces/${encodeURIComponent(
-          workspaceId
-        )}/members/${encodeURIComponent(userId)}`,
-        {
-          method: "DELETE",
-        }
-      )
-
-      if (!response.ok) {
-        throw new Error(
-          await responseError(response, t("forms.removeMemberFailed"))
-        )
-      }
-
-      setOpen(false)
-      router.refresh()
-    } catch (submitError) {
-      setError(errorText(submitError, t("forms.removeMemberFailed")))
-    } finally {
-      setIsPending(false)
-    }
+    const suffix =
+      department.status === "inactive" ? ` · ${t("values.inactive")}` : ""
+    options.set(department.id, `${department.name}${suffix}`)
   }
 
-  return (
-    <div className="flex flex-col items-end gap-1">
-      <ConfirmActionDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={t("actions.remove")}
-        description={t("forms.removeMemberConfirm")}
-        confirmLabel={isPending ? t("actions.removing") : t("actions.remove")}
-        confirmVariant="destructive"
-        confirmDisabled={isPending}
-        onConfirm={remove}
-        trigger={
-          <Trash2Icon data-icon="inline-start" />
-        }
-        triggerRender={
-          <Button
-            type="button"
-            variant="destructive"
-            size="xs"
-            disabled={disabled || isPending}
-          />
-        }
-        cancelLabel={t("common.close")}
-      />
-      {error ? (
-        <div className="max-w-48 text-right text-xs text-destructive">
-          {error}
-        </div>
-      ) : null}
-    </div>
-  )
+  if (member.department_id && !options.has(member.department_id)) {
+    options.set(
+      member.department_id,
+      member.department_name || member.department_id
+    )
+  }
+
+  return Array.from(options.entries()).map(([value, label]) => ({
+    value,
+    label,
+  }))
+}
+
+function buildCreateDepartmentOptions(
+  departments: WorkspaceDepartment[],
+  t: ReturnType<typeof useI18n>["t"]
+) {
+  const options = departments
+    .filter((department) => department.status === "active")
+    .map((department) => ({
+      value: department.id,
+      label: department.name,
+    }))
+
+  return [
+    ...options,
+    {
+      value: NO_DEPARTMENT_VALUE,
+      label: t("dashboard.noDepartment"),
+    },
+  ]
 }
 
 export function ManageModelPermissionsDialog({
@@ -486,6 +517,7 @@ export function ManageModelPermissionsDialog({
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [selectedModelIDs, setSelectedModelIDs] = useState<string[]>([])
+  const [inheritedModelIDs, setInheritedModelIDs] = useState<string[]>([])
   const [error, setError] = useState<string>()
   const [success, setSuccess] = useState<string>()
   const [isLoading, setIsLoading] = useState(false)
@@ -526,11 +558,44 @@ export function ManageModelPermissionsDialog({
         }
 
         const permissions = (await response.json()) as UserModelPermissionList
+        let inheritedIDs: string[] = []
+
+        if (member.department_id) {
+          const departmentResponse = await fetch(
+            `/api/control/workspaces/${encodeURIComponent(
+              workspaceID
+            )}/departments/${encodeURIComponent(
+              member.department_id
+            )}/model-permissions`,
+            {
+              cache: "no-store",
+            }
+          )
+
+          if (!departmentResponse.ok) {
+            throw new Error(
+              await responseError(
+                departmentResponse,
+                t("forms.loadModelPermissionsFailed")
+              )
+            )
+          }
+
+          const departmentPermissions =
+            (await departmentResponse.json()) as DepartmentModelPermissionList
+          inheritedIDs = departmentPermissions.data.map(
+            (permission) => permission.model_catalog_id
+          )
+        }
 
         if (!ignore) {
-          setSelectedModelIDs(
-            permissions.data.map((permission) => permission.model_catalog_id)
+          const directModelIDs = permissions.data.map(
+            (permission) => permission.model_catalog_id
           )
+          setSelectedModelIDs(
+            directModelIDs.filter((id) => !inheritedIDs.includes(id))
+          )
+          setInheritedModelIDs(inheritedIDs)
         }
       } catch (loadError) {
         if (!ignore) {
@@ -550,7 +615,7 @@ export function ManageModelPermissionsDialog({
     return () => {
       ignore = true
     }
-  }, [member.user_id, open, t, workspaceId])
+  }, [member.department_id, member.user_id, open, t, workspaceId])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -609,11 +674,21 @@ export function ManageModelPermissionsDialog({
     })
   }
 
+  const inheritedModelIDSet = new Set(inheritedModelIDs)
+  const effectiveModelIDSet = new Set([
+    ...selectedModelIDs,
+    ...inheritedModelIDs,
+  ])
   const knownModelIDs = new Set(modelCatalogs.map((modelCatalog) => modelCatalog.id))
   const selectedVisibleCount = modelCatalogs.filter((modelCatalog) =>
-    selectedModelIDs.includes(modelCatalog.id)
+    effectiveModelIDSet.has(modelCatalog.id)
   ).length
-  const hiddenSelectedCount = selectedModelIDs.filter(
+  const inheritedVisibleCount = modelCatalogs.filter(
+    (modelCatalog) =>
+      inheritedModelIDSet.has(modelCatalog.id) &&
+      !selectedModelIDs.includes(modelCatalog.id)
+  ).length
+  const hiddenSelectedCount = Array.from(effectiveModelIDSet).filter(
     (id) => !knownModelIDs.has(id)
   ).length
 
@@ -624,13 +699,15 @@ export function ManageModelPermissionsDialog({
           <Button
             type="button"
             variant="outline"
-            size="xs"
+            size="icon-xs"
             disabled={!canManage}
+            title={t("forms.modelPermissions")}
+            aria-label={t("forms.modelPermissions")}
           />
         }
       >
-        <ShieldCheckIcon data-icon="inline-start" />
-        {t("forms.modelPermissions")}
+        <ShieldCheckIcon />
+        <span className="sr-only">{t("forms.modelPermissions")}</span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
@@ -642,14 +719,14 @@ export function ManageModelPermissionsDialog({
         <form onSubmit={handleSubmit}>
           <FieldGroup>
             <FieldSet disabled={!canManage || isLoading || isPending}>
-              <div className="rounded-lg border bg-muted/35 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="rounded-md border bg-muted/35 p-2.5">
+                <div className="flex flex-wrap items-start justify-between gap-2.5">
                   <div className="min-w-0">
                     <FieldLegend className="mb-0">
                       {t("forms.allowedModels")}
                     </FieldLegend>
                     <div className="mt-1 flex items-end gap-1">
-                      <span className="text-2xl font-medium">
+                      <span className="text-lg font-semibold">
                         {selectedVisibleCount}
                       </span>
                       <span className="pb-0.5 text-sm text-muted-foreground">
@@ -663,15 +740,26 @@ export function ManageModelPermissionsDialog({
                         })}
                       </FieldDescription>
                     ) : null}
+                    {inheritedVisibleCount > 0 ? (
+                      <FieldDescription className="mt-1">
+                        {t("forms.inheritedModelPermissions", {
+                          count: inheritedVisibleCount,
+                        })}
+                      </FieldDescription>
+                    ) : null}
                   </div>
-                  <div className="flex items-center gap-1.5 rounded-lg border bg-background p-1">
+                  <div className="flex items-center gap-1 rounded-md border bg-background p-1">
                     <Button
                       type="button"
                       variant="outline"
                       size="xs"
                       disabled={!canManage || isLoading || isPending}
                       onClick={() =>
-                        setSelectedModelIDs(modelCatalogs.map((model) => model.id))
+                        setSelectedModelIDs(
+                          modelCatalogs
+                            .map((model) => model.id)
+                            .filter((id) => !inheritedModelIDSet.has(id))
+                        )
                       }
                     >
                       {t("actions.selectAll")}
@@ -691,7 +779,7 @@ export function ManageModelPermissionsDialog({
               {isLoading ? (
                 <div className="grid gap-2">
                   {Array.from({ length: 4 }).map((_, index) => (
-                    <Skeleton key={index} className="h-[4.5rem] rounded-lg" />
+                    <Skeleton key={index} className="h-[4.5rem] rounded-md" />
                   ))}
                 </div>
               ) : modelCatalogs.length > 0 ? (
@@ -699,14 +787,16 @@ export function ManageModelPermissionsDialog({
                   <FieldGroup data-slot="checkbox-group" className="gap-2">
                     {modelCatalogs.map((modelCatalog) => {
                       const checkboxID = `model-permission-${member.user_id}-${modelCatalog.id}`
-                      const isSelected = selectedModelIDs.includes(modelCatalog.id)
+                      const isInherited = inheritedModelIDSet.has(modelCatalog.id)
+                      const isSelected =
+                        selectedModelIDs.includes(modelCatalog.id) || isInherited
 
                       return (
                         <Field
                           key={modelCatalog.id}
                           orientation="horizontal"
                           className={cn(
-                            "rounded-lg border bg-background p-3 transition-colors",
+                            "rounded-md border bg-background p-2.5 transition-colors",
                             isSelected &&
                               "border-primary/30 bg-primary/5 dark:border-primary/20 dark:bg-primary/10"
                           )}
@@ -716,14 +806,26 @@ export function ManageModelPermissionsDialog({
                             type="checkbox"
                             className="mt-0.5 size-4 shrink-0 accent-primary"
                             checked={isSelected}
-                            disabled={!canManage || isLoading || isPending}
+                            disabled={
+                              !canManage || isLoading || isPending || isInherited
+                            }
                             onChange={(event) =>
                               toggleModel(modelCatalog.id, event.target.checked)
                             }
                           />
                           <FieldContent>
-                            <FieldLabel htmlFor={checkboxID}>
-                              {modelCatalog.canonical_name}
+                            <FieldLabel
+                              htmlFor={checkboxID}
+                              className="flex min-w-0 flex-wrap items-center gap-2"
+                            >
+                              <span className="truncate">
+                                {modelCatalog.canonical_name}
+                              </span>
+                              {isInherited ? (
+                                <span className="rounded-md border bg-muted px-1.5 py-0.5 text-xs font-medium leading-none text-muted-foreground">
+                                  {t("forms.inheritedFromDepartment")}
+                                </span>
+                              ) : null}
                             </FieldLabel>
                             <FieldDescription>
                               {modelCatalog.provider} - {modelCatalog.id}
@@ -735,7 +837,7 @@ export function ManageModelPermissionsDialog({
                   </FieldGroup>
                 </div>
               ) : (
-                <Empty className="min-h-40 rounded-lg border">
+                <Empty className="min-h-40 rounded-md border">
                   <EmptyHeader>
                     <EmptyMedia variant="icon">
                       <ShieldCheckIcon />

@@ -124,7 +124,7 @@ export function CreateAPIKeyForm({
         </Button>
         <FieldError>{error}</FieldError>
         {createdKey?.api_key ? (
-          <div className="flex flex-col gap-2 rounded-lg border bg-muted/50 p-3 text-sm">
+          <div className="flex flex-col gap-2 rounded-md border bg-muted/40 p-2.5 text-sm">
             <div className="font-medium">{t("forms.saveKeyNow")}</div>
             <Input readOnly value={createdKey.api_key} />
             <Button
@@ -321,7 +321,7 @@ export function ViewAPIKeyDialog({
               </Button>
             </>
           ) : (
-            <div className="rounded-lg border border-dashed p-3 text-muted-foreground">
+            <div className="rounded-md border border-dashed p-2.5 text-muted-foreground">
               {t("forms.apiKeyUnavailable")}
             </div>
           )}

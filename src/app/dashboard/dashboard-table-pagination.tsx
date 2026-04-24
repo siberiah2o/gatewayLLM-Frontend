@@ -74,7 +74,7 @@ export function DashboardTablePagination({
   return (
     <>
       {visibleRows}
-      <div className="flex min-w-0 flex-col gap-2 rounded-lg border border-border/70 bg-muted/30 p-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-2 rounded-md border border-border/70 bg-muted/30 p-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2">
           <span className="shrink-0">{t("dashboard.rowsPerPage")}</span>
           <Select

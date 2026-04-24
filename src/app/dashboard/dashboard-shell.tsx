@@ -20,36 +20,49 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { useI18n } from "@/components/i18n-provider";
-import type { SessionUser, Workspace } from "@/lib/gatewayllm";
+import type { SessionUser } from "@/lib/gatewayllm";
 import { cn } from "@/lib/utils";
 import {
   dashboardSectionTitleKey,
   normalizeDashboardSection,
   type DashboardSection,
 } from "./dashboard-routes";
+import { isUserDashboardSection } from "./dashboard-permissions";
 
 type DashboardShellProps = {
   user: SessionUser;
-  workspaces: Workspace[];
   children: React.ReactNode;
+  canManageWorkspace: boolean;
 };
 
 export function DashboardShell({
   user,
-  workspaces,
   children,
+  canManageWorkspace,
 }: DashboardShellProps) {
   const { t } = useI18n();
   const selectedSegment = useSelectedLayoutSegment();
-  const section = resolveDashboardSection(selectedSegment);
+  const section = resolveDashboardSection(selectedSegment, canManageWorkspace);
   const isChatSmokeSection = section === "chat-smoke";
+  const homeHref = canManageWorkspace ? "/dashboard/status" : "/dashboard/models";
 
   return (
-    <SidebarProvider className={isChatSmokeSection ? "h-svh overflow-hidden" : undefined}>
-      <AppSidebar user={user} workspaces={workspaces} activeSection={section} />
-      <SidebarInset className={isChatSmokeSection ? "min-h-0 h-svh overflow-hidden" : "min-h-0"}>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-          <div className="flex w-full min-w-0 items-center justify-between gap-3 px-4">
+    <SidebarProvider
+      className={isChatSmokeSection ? "h-svh overflow-hidden" : undefined}
+    >
+      <AppSidebar
+        user={user}
+        activeSection={section}
+        canManageAccess={canManageWorkspace}
+        canManageModels={canManageWorkspace}
+      />
+      <SidebarInset
+        className={
+          isChatSmokeSection ? "h-svh min-h-0 overflow-hidden" : "min-h-0"
+        }
+      >
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+          <div className="flex w-full min-w-0 items-center justify-between gap-3 px-3 md:px-4">
             <div className="flex min-w-0 items-center gap-2">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -60,7 +73,7 @@ export function DashboardShell({
                 <Breadcrumb>
                   <BreadcrumbList>
                     <BreadcrumbItem className="hidden md:block">
-                      <BreadcrumbLink href="/dashboard/status">
+                      <BreadcrumbLink href={homeHref}>
                         GatewayLLM
                       </BreadcrumbLink>
                     </BreadcrumbItem>
@@ -79,10 +92,10 @@ export function DashboardShell({
         </header>
         <main
           className={cn(
-            "flex min-h-0 flex-1 flex-col p-4",
+            "flex min-h-0 flex-1 flex-col p-3 md:p-4",
             isChatSmokeSection
               ? "overflow-hidden"
-              : "gap-4",
+              : "gap-3",
           )}
         >
           {children}
@@ -92,6 +105,18 @@ export function DashboardShell({
   );
 }
 
-function resolveDashboardSection(segment: string | null): DashboardSection {
-  return segment ? (normalizeDashboardSection(segment) ?? "status") : "status";
+function resolveDashboardSection(
+  segment: string | null,
+  canManageWorkspace: boolean,
+): DashboardSection {
+  const fallback = canManageWorkspace ? "status" : "models";
+  const section = segment
+    ? (normalizeDashboardSection(segment) ?? fallback)
+    : fallback;
+
+  if (!canManageWorkspace && !isUserDashboardSection(section)) {
+    return fallback;
+  }
+
+  return section;
 }

@@ -4,11 +4,10 @@ import {
   GatewayAPIError,
   gatewayRequest,
   type MeResponse,
-  type WorkspaceList,
 } from "@/lib/gatewayllm"
 import { getSessionToken } from "@/lib/session"
+import { loadDashboardWorkspaceAccess } from "./dashboard-access"
 import { DashboardShell } from "./dashboard-shell"
-import { settle } from "./dashboard-data"
 
 export default async function DashboardLayout({
   children,
@@ -33,17 +32,10 @@ export default async function DashboardLayout({
     throw error
   }
 
-  const workspaces = await settle(
-    gatewayRequest<WorkspaceList>("/control/v1/me/workspaces?limit=20", {
-      token,
-    })
-  )
+  const { canManageWorkspace } = await loadDashboardWorkspaceAccess(token)
 
   return (
-    <DashboardShell
-      user={me.user}
-      workspaces={workspaces.ok ? workspaces.data.data : []}
-    >
+    <DashboardShell user={me.user} canManageWorkspace={canManageWorkspace}>
       {children}
     </DashboardShell>
   )

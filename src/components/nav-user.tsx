@@ -27,7 +27,6 @@ import {
   BadgeCheckIcon,
   ChevronsUpDownIcon,
   LogOutIcon,
-  SettingsIcon,
 } from "lucide-react"
 import { useI18n } from "@/components/i18n-provider"
 
@@ -108,12 +107,6 @@ export function NavUser({
               <DropdownMenuItem onClick={() => router.push("/dashboard/account")}>
                 <BadgeCheckIcon />
                 {t("nav.signedInUser")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => router.push("/dashboard/workspaces")}
-              >
-                <SettingsIcon />
-                {t("nav.workspaces")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

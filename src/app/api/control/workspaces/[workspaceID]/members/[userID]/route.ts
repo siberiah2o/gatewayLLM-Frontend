@@ -7,6 +7,7 @@ import { getSessionToken } from "@/lib/session"
 type UpdateWorkspaceMemberBody = {
   role?: string
   status?: string
+  department_id?: string | null
 }
 
 export async function PATCH(
@@ -24,6 +25,8 @@ export async function PATCH(
     const body = (await request.json().catch(() => ({}))) as UpdateWorkspaceMemberBody
     const role = body.role?.trim()
     const status = body.status?.trim()
+    const departmentID =
+      typeof body.department_id === "string" ? body.department_id.trim() : body.department_id
 
     if (role && role !== "admin" && role !== "member") {
       return badRequest("Role must be admin or member.")
@@ -44,6 +47,8 @@ export async function PATCH(
         user_id: userID,
         role: role || current.role,
         status: status || current.status,
+        department_id:
+          departmentID === undefined ? current.department_id ?? "" : departmentID ?? "",
       },
     })
 

@@ -11,9 +11,8 @@ import {
   EmptyHeader,
   EmptyMedia,
 } from "@/components/ui/empty"
-import type { Workspace } from "@/lib/gatewayllm"
 import { cn } from "@/lib/utils"
-import { Building2Icon, InboxIcon } from "lucide-react"
+import { InboxIcon } from "lucide-react"
 import { Children, isValidElement, type ReactNode } from "react"
 import type { DashboardPaginationState } from "./dashboard-pagination"
 import { DashboardTablePagination } from "./dashboard-table-pagination"
@@ -41,7 +40,7 @@ export function MetricCard({
     <Card size="sm">
       <CardHeader>
         <CardDescription>{label}</CardDescription>
-        <CardTitle className="text-xl">{value}</CardTitle>
+        <CardTitle className="text-lg">{value}</CardTitle>
       </CardHeader>
       <CardContent>
         <DashboardDetailText>{detail}</DashboardDetailText>
@@ -50,37 +49,12 @@ export function MetricCard({
   )
 }
 
-export function WorkspaceRow({
-  workspace,
-  t,
-}: {
-  workspace: Workspace
-  t: Translator
-}) {
-  return (
-    <DashboardRow className="gap-3 p-3 md:grid-cols-[1fr_auto] md:items-center">
-      <DashboardPrimaryCell
-        label={t("dashboard.name")}
-        title={<div className="truncate font-medium">{workspace.name}</div>}
-      >
-        <DashboardMonoDetailText>{workspace.id}</DashboardMonoDetailText>
-      </DashboardPrimaryCell>
-      <div className="flex items-center gap-2">
-        <StatusBadge>{localizeValue(t, workspace.status)}</StatusBadge>
-        <DashboardDetailText className="text-right">
-          {workspace.billing_currency}
-        </DashboardDetailText>
-      </div>
-    </DashboardRow>
-  )
-}
-
 export function DashboardSummaryGrid({
   className,
   ...props
 }: React.ComponentProps<typeof CardContent>) {
   return (
-    <CardContent className={cn("grid gap-3 sm:grid-cols-2", className)} {...props} />
+    <CardContent className={cn("grid gap-2.5 sm:grid-cols-2", className)} {...props} />
   )
 }
 
@@ -102,7 +76,12 @@ export function DashboardPanelContent({
   className,
   ...props
 }: React.ComponentProps<typeof CardContent>) {
-  return <CardContent className={cn("min-w-0 text-sm", className)} {...props} />
+  return (
+    <CardContent
+      className={cn("min-w-0 text-sm leading-5", className)}
+      {...props}
+    />
+  )
 }
 
 export function DashboardStackContent({
@@ -132,10 +111,10 @@ export function DashboardSummaryTile({
   return (
     <div
       className={cn(
-        "grid min-w-0 gap-3 rounded-md bg-muted/50",
+        "grid min-w-0 gap-2.5 rounded-md border border-border/60 bg-muted/35",
         isDefault
           ? "grid-cols-[2rem_minmax(0,1fr)] p-3"
-          : "grid-cols-[1.75rem_minmax(0,1fr)] p-2"
+          : "grid-cols-[1.75rem_minmax(0,1fr)] p-2.5"
       )}
     >
       <div
@@ -147,10 +126,10 @@ export function DashboardSummaryTile({
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="text-xs leading-4 text-muted-foreground">{label}</div>
         <div
           className={cn(
-            "truncate font-heading font-semibold",
+            "truncate font-heading font-semibold leading-6",
             isDefault ? "text-lg" : "text-base"
           )}
         >
@@ -159,35 +138,6 @@ export function DashboardSummaryTile({
         <DashboardDetailText>{detail}</DashboardDetailText>
       </div>
     </div>
-  )
-}
-
-export function getWorkspaceScope(
-  workspace: Workspace | undefined,
-  t: Translator
-) {
-  return {
-    label: workspace?.name ?? t("dashboard.noWorkspaceAvailable"),
-    detail: workspace?.id ?? t("dashboard.notSet"),
-  }
-}
-
-export function DashboardWorkspaceScopeTile({
-  workspace,
-  t,
-}: {
-  workspace?: Workspace
-  t: Translator
-}) {
-  const scope = getWorkspaceScope(workspace, t)
-
-  return (
-    <DashboardSummaryTile
-      icon={<Building2Icon className="size-4" />}
-      label={t("dashboard.workspaceScope")}
-      value={scope.label}
-      detail={scope.detail}
-    />
   )
 }
 
@@ -203,7 +153,7 @@ export function DashboardSidebarCard({
   children: ReactNode
 }) {
   return (
-    <Card>
+    <Card size="sm">
       <DashboardPanelHeader>
         <CardTitle className={cn(icon ? "flex items-center gap-2" : undefined)}>
           {icon}
@@ -224,7 +174,7 @@ export function EmptyState({
   icon?: ReactNode
 }) {
   return (
-    <Empty className="min-h-32 rounded-lg border">
+    <Empty className="min-h-32 rounded-md border">
       <EmptyHeader>
         <EmptyMedia variant="icon">{icon}</EmptyMedia>
         <EmptyDescription>{message}</EmptyDescription>
@@ -235,7 +185,7 @@ export function EmptyState({
 
 export function StatusBadge({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-[0.72rem] font-medium">
+    <span className="inline-flex h-5 shrink-0 items-center rounded-md border bg-background/70 px-1.5 text-xs font-medium leading-none text-foreground/80">
       {children}
     </span>
   )
@@ -248,7 +198,7 @@ export function DashboardRow({
   return (
     <div
       className={cn(
-        "grid min-w-0 gap-2.5 rounded-lg border p-2.5 text-sm",
+        "grid min-w-0 gap-2 rounded-md border border-border/70 bg-card p-2.5 text-sm leading-5 transition-colors hover:bg-muted/25",
         className
       )}
       {...props}
@@ -264,7 +214,7 @@ function DashboardMobileLabel({
   className?: string
 }) {
   return (
-    <div className={cn("text-[0.72rem] text-muted-foreground xl:hidden", className)}>
+    <div className={cn("text-xs font-medium text-muted-foreground xl:hidden", className)}>
       {label}
     </div>
   )
@@ -297,7 +247,7 @@ export function DashboardDetailText({
   return (
     <span
       className={cn(
-        "block min-w-0 max-w-full truncate text-xs text-muted-foreground",
+        "block min-w-0 max-w-full truncate text-xs leading-5 text-muted-foreground",
         className
       )}
       {...props}
@@ -312,7 +262,7 @@ export function DashboardMonoDetailText({
   return (
     <span
       className={cn(
-        "block min-w-0 max-w-full truncate font-mono text-xs tabular-nums text-muted-foreground",
+        "block min-w-0 max-w-full truncate font-mono text-xs leading-5 tabular-nums text-muted-foreground",
         className
       )}
       {...props}
@@ -328,7 +278,7 @@ export function DashboardActionCluster({
     <div
       data-slot="dashboard-action-cluster"
       className={cn(
-        "flex w-full flex-wrap items-center gap-1.5 rounded-lg border border-border/70 bg-muted/35 p-1.5 sm:justify-end",
+        "flex w-full flex-wrap items-center gap-1 rounded-md border border-border/70 bg-muted/35 p-1 sm:justify-end",
         className
       )}
       {...props}
@@ -367,7 +317,7 @@ export function DashboardTableHeader({
   return (
     <div
       className={cn(
-        "hidden min-w-0 xl:grid xl:gap-2.5 xl:px-2.5 xl:text-[0.72rem] xl:font-medium xl:text-muted-foreground",
+        "hidden min-w-0 xl:grid xl:gap-2 xl:px-2.5 xl:text-xs xl:font-medium xl:text-muted-foreground",
         className
       )}
     >
@@ -397,7 +347,7 @@ export function DashboardTableList({
   children: ReactNode
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-1.5">
       <DashboardTableHeader columns={columns} className={className} />
       <DashboardTablePagination paginationId={paginationId} pagination={pagination}>
         {children}

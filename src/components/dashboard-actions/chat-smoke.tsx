@@ -701,7 +701,7 @@ export function ChatSmokeTestForm({
           <PlusIcon className="size-5 text-muted-foreground" />
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="start" className="w-64 rounded-lg p-1.5">
+        <DropdownMenuContent align="start" className="w-64 rounded-md p-1.5">
           <DropdownMenuGroup className="space-y-1">
             {promptPresets.map((preset) => (
               <DropdownMenuItem
@@ -765,7 +765,7 @@ export function ChatSmokeTestForm({
       <div className="grid h-full min-h-0 flex-1 gap-3 overflow-y-auto xl:grid-cols-[17.5rem_minmax(0,1fr)] xl:overflow-hidden">
         <Card
           size="sm"
-          className="min-h-0 rounded-lg border-border/70 bg-card/95 py-0 shadow-sm xl:h-full xl:overflow-hidden"
+          className="min-h-0 rounded-md border-border/70 bg-card/95 py-0 shadow-sm xl:h-full xl:overflow-hidden"
         >
           <CardContent className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto p-2.5">
             <PlaygroundConfigSection
@@ -989,7 +989,7 @@ export function ChatSmokeTestForm({
           </CardContent>
         </Card>
 
-        <Card className="min-h-0 flex-1 rounded-lg border-border/70 bg-card/95 py-0 shadow-sm xl:h-full xl:overflow-hidden">
+        <Card className="min-h-0 flex-1 rounded-md border-border/70 bg-card/95 py-0 shadow-sm xl:h-full xl:overflow-hidden">
           <Dialog open={isCodeDialogOpen} onOpenChange={setIsCodeDialogOpen}>
             <DialogContent className="sm:max-w-5xl">
                     <DialogHeader>
@@ -999,7 +999,7 @@ export function ChatSmokeTestForm({
                       </DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-4">
+                    <div className="grid gap-3">
                       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
                         <ModelDebugMetric
                           label={t("forms.generatedBaseUrl")}
@@ -1040,7 +1040,7 @@ export function ChatSmokeTestForm({
                         />
                       </div>
 
-                      <div className="grid gap-4 xl:grid-cols-2">
+                      <div className="grid gap-3 xl:grid-cols-2">
                         <GeneratedSnippetCard
                           title={t("forms.generatedCurl")}
                           value={curlSnippet}
@@ -1068,7 +1068,7 @@ export function ChatSmokeTestForm({
 
                       {responseHeaders.length > 0 ? (
                         <div className="grid gap-2">
-                          <div className="text-[0.68rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                          <div className="text-xs font-medium uppercase text-muted-foreground">
                             {t("dashboard.responseHeaders")}
                           </div>
                           <ModelDebugHeadersTable headers={responseHeaders} />
@@ -1112,7 +1112,7 @@ export function ChatSmokeTestForm({
                         tone={entry.tone}
                       >
                         {entry.models.length > 0 ? (
-                          <div className="grid gap-3">
+                          <div className="grid gap-2.5">
                             <div className="text-xs leading-5 font-medium text-muted-foreground">
                               {entry.models.length} {t("forms.listModels")}
                             </div>
@@ -1122,7 +1122,7 @@ export function ChatSmokeTestForm({
                                   key={availableModel}
                                   type="button"
                                   className={cn(
-                                    "rounded-lg border px-3 py-2.5 text-left text-xs leading-5 font-medium transition-all",
+                                    "rounded-md border px-3 py-2.5 text-left text-xs leading-5 font-medium transition-all",
                                     availableModel === effectiveModel
                                       ? "border-primary/20 bg-primary text-primary-foreground"
                                       : "border-border/70 bg-background/95 hover:border-foreground/15 hover:bg-muted/70",
@@ -1179,7 +1179,7 @@ export function ChatSmokeTestForm({
             <div className="shrink-0 border-t border-border/70 bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6">
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
                 {error ? (
-                  <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-sm leading-6 text-destructive">
+                  <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-sm leading-6 text-destructive">
                     {error}
                   </div>
                 ) : null}
@@ -1377,7 +1377,7 @@ function PlaygroundConfigSection({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border/70 bg-background/80 p-3">
+    <section className="rounded-md border border-border/70 bg-background/80 p-3">
       <div className="mb-2.5 flex gap-2.5">
         <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-muted/50 text-muted-foreground">
           {icon}
@@ -1414,11 +1414,11 @@ function PlaygroundEmptyStage({
       <EmptyHeader className="max-w-2xl">
         <EmptyMedia
           variant="icon"
-          className="size-11 rounded-lg border border-border/70 bg-background text-muted-foreground"
+          className="size-11 rounded-md border border-border/70 bg-background text-muted-foreground"
         >
           <MessageSquareTextIcon className="size-5" />
         </EmptyMedia>
-        <EmptyTitle className="text-balance text-2xl leading-9 font-semibold text-foreground whitespace-pre-wrap">
+        <EmptyTitle className="text-balance text-xl leading-8 font-semibold text-foreground whitespace-pre-wrap">
           {title}
         </EmptyTitle>
       </EmptyHeader>
@@ -1461,7 +1461,7 @@ function GeneratedSnippetCard({
   copiedLabel: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-background">
+    <div className="overflow-hidden rounded-md border bg-background">
       <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
         <div className="text-sm font-medium">{title}</div>
         <Button type="button" size="xs" variant="outline" onClick={onCopy}>
@@ -1469,7 +1469,7 @@ function GeneratedSnippetCard({
           {copied ? copiedLabel : copyLabel}
         </Button>
       </div>
-      <pre className="max-h-[18rem] overflow-auto px-4 py-3 font-mono text-[0.76rem] leading-6">
+      <pre className="max-h-[18rem] overflow-auto px-4 py-3 font-mono text-xs leading-6">
         {value}
       </pre>
     </div>
@@ -1680,12 +1680,12 @@ function ModelDebugMetric({
         tone === "danger" && "border-destructive/20 bg-destructive/5",
       )}
     >
-      <div className="text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <div className="text-xs font-medium uppercase text-muted-foreground">
         {label}
       </div>
       <div
         className={cn(
-          "mt-1.5 text-sm leading-6 font-semibold tracking-[-0.01em]",
+          "mt-1.5 text-sm leading-6 font-semibold",
           valueClassName,
         )}
       >
@@ -1697,7 +1697,7 @@ function ModelDebugMetric({
 
 function ModelDebugPlaceholder({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-lg border border-dashed bg-background px-4 py-5 text-sm text-muted-foreground">
+    <div className="rounded-md border border-dashed bg-background px-4 py-5 text-sm text-muted-foreground">
       {children}
     </div>
   );
@@ -1743,7 +1743,7 @@ function ModelDebugChatBubble({
         {label && !isUser ? (
           <div
             className={cn(
-              "px-1 text-[0.72rem] leading-4 font-medium text-muted-foreground",
+              "px-1 text-xs leading-4 font-medium text-muted-foreground",
               !isPrimary && !isDanger && "text-muted-foreground",
               isDanger && "text-destructive/80",
             )}
@@ -1766,7 +1766,7 @@ function ModelDebugChatBubble({
               !isDanger &&
               "rounded-none border-0 bg-transparent text-foreground",
             isDanger &&
-              "rounded-lg border border-destructive/20 bg-destructive/5 text-destructive",
+              "rounded-md border border-destructive/20 bg-destructive/5 text-destructive",
           )}
         >
           {typeof children === "string" ? (
@@ -1778,7 +1778,7 @@ function ModelDebugChatBubble({
         {footer ? (
           <div
             className={cn(
-              "px-1 text-[0.72rem] leading-4",
+              "px-1 text-xs leading-4",
               isPrimary
                 ? "text-primary-foreground/75"
                 : "text-muted-foreground",
@@ -1808,12 +1808,12 @@ function ModelDebugReasoningTrace({
 
   return (
     <Collapsible defaultOpen className="group/reasoning w-full">
-      <div className="overflow-hidden rounded-lg border border-border/70 bg-muted/35 text-muted-foreground">
+      <div className="overflow-hidden rounded-md border border-border/70 bg-muted/35 text-muted-foreground">
         <CollapsibleTrigger
           render={
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[0.72rem] leading-4 font-medium"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs leading-4 font-medium"
             />
           }
         >
@@ -1883,7 +1883,7 @@ function MessageRichContent({
   }
 
   return (
-    <div className="space-y-3.5 text-[0.95rem] leading-7">
+    <div className="space-y-3 text-sm leading-6">
       {blocks.map((block, index) => {
         switch (block.type) {
           case "paragraph":
@@ -1932,7 +1932,7 @@ function MessageRichContent({
                 {block.language ? (
                   <div
                     className={cn(
-                      "border-b px-3 py-2 font-mono text-[0.68rem] uppercase tracking-[0.16em]",
+                      "border-b px-3 py-2 font-mono text-xs uppercase",
                       tone === "primary"
                         ? "border-primary-foreground/15 text-primary-foreground/70"
                         : "border-border/70 text-muted-foreground",
@@ -1941,7 +1941,7 @@ function MessageRichContent({
                     {block.language}
                   </div>
                 ) : null}
-                <pre className="overflow-x-auto px-3 py-3 font-mono text-[0.8rem] leading-6 whitespace-pre-wrap">
+                <pre className="overflow-x-auto px-3 py-3 font-mono text-xs leading-6 whitespace-pre-wrap">
                   {block.content}
                 </pre>
               </div>
@@ -1967,7 +1967,7 @@ function ModelDebugKeyValueTable({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-lg border bg-background",
+        "overflow-hidden rounded-md border bg-background",
         className,
       )}
     >
@@ -1977,7 +1977,7 @@ function ModelDebugKeyValueTable({
             <TableRow key={row.label} className="hover:bg-transparent">
               <th
                 scope="row"
-                className="w-32 px-3 py-2 text-left text-[0.72rem] font-medium whitespace-normal uppercase tracking-[0.14em] text-muted-foreground"
+                className="w-32 px-3 py-2 text-left text-xs font-medium whitespace-normal uppercase text-muted-foreground"
               >
                 {row.label}
               </th>
@@ -1998,18 +1998,18 @@ function ModelDebugHeadersTable({
   headers: Array<[string, string]>;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-background">
+    <div className="overflow-hidden rounded-md border bg-background">
       <Table>
         <TableBody>
           {headers.map(([key, value]) => (
             <TableRow key={key} className="hover:bg-transparent">
               <th
                 scope="row"
-                className="w-36 px-3 py-2 text-left font-mono text-[0.72rem] font-medium whitespace-normal text-muted-foreground"
+                className="w-36 px-3 py-2 text-left font-mono text-xs font-medium whitespace-normal text-muted-foreground"
               >
                 {key}
               </th>
-              <TableCell className="px-3 py-2 font-mono text-[0.78rem] whitespace-normal break-all">
+              <TableCell className="px-3 py-2 font-mono text-xs whitespace-normal break-all">
                 {value}
               </TableCell>
             </TableRow>
@@ -2104,7 +2104,7 @@ function ModelDebugJsonColumn({
         </Button>
       </div>
       {value ? (
-        <pre className="max-h-[24rem] overflow-auto px-4 py-3 font-mono text-[0.76rem] leading-6">
+        <pre className="max-h-[24rem] overflow-auto px-4 py-3 font-mono text-xs leading-6">
           {value}
         </pre>
       ) : (

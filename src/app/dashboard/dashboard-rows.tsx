@@ -4,6 +4,11 @@ import {
 } from "@/components/dashboard-actions/api-keys"
 import { EditModelDeploymentDialog } from "@/components/dashboard-actions/deployments"
 import {
+  DeleteWorkspaceDepartmentButton,
+  EditWorkspaceDepartmentDialog,
+  ManageDepartmentModelPermissionsDialog,
+} from "@/components/dashboard-actions/department"
+import {
   ActivateModelCatalogButton,
   ActivateModelDeploymentButton,
   ActivateProviderCredentialButton,
@@ -18,11 +23,6 @@ import {
   DeleteProviderSetupButton,
 } from "@/components/dashboard-actions/resource-actions"
 import { ReviewRegistrationRequestActions } from "@/components/dashboard-actions/registration"
-import {
-  ManageModelPermissionsDialog,
-  RemoveWorkspaceMemberButton,
-  UpdateWorkspaceMemberForm,
-} from "@/components/dashboard-actions/workspace"
 import type {
   APIKey,
   ModelCatalog,
@@ -30,7 +30,7 @@ import type {
   ProviderCredential,
   ProviderSetup,
   RegistrationRequest,
-  WorkspaceMember,
+  WorkspaceDepartment,
 } from "@/lib/gatewayllm"
 import {
   DashboardActionCell,
@@ -44,59 +44,60 @@ import {
   type Translator,
 } from "./dashboard-ui"
 
-export function WorkspaceMemberRow({
-  member,
+export function WorkspaceDepartmentRow({
+  department,
   workspaceId,
   modelCatalogs,
   t,
 }: {
-  member: WorkspaceMember
+  department: WorkspaceDepartment
   workspaceId?: string
   modelCatalogs: ModelCatalog[]
   t: Translator
 }) {
-  const isOwner = member.role === "owner"
-
   return (
-    <DashboardRow className="xl:grid-cols-[minmax(12rem,1fr)_5rem_minmax(12rem,0.7fr)_minmax(26rem,1fr)] xl:items-center">
+    <DashboardRow className="gap-2 rounded-md p-2 xl:grid-cols-[minmax(11rem,1fr)_minmax(14rem,1fr)_minmax(8rem,0.65fr)_auto] xl:items-center">
       <DashboardPrimaryCell
         label={t("dashboard.name")}
-        title={<div className="truncate font-medium">{member.display_name}</div>}
+        title={
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <div className="truncate font-medium">{department.name}</div>
+            <StatusBadge>{localizeValue(t, department.status)}</StatusBadge>
+          </div>
+        }
       >
-        <DashboardDetailText>{member.email}</DashboardDetailText>
-        <DashboardMonoDetailText>{member.user_id}</DashboardMonoDetailText>
+        <DashboardMonoDetailText>{department.id}</DashboardMonoDetailText>
       </DashboardPrimaryCell>
-      <DashboardRowMeta label={t("forms.role")}>
-        <StatusBadge>{localizeValue(t, member.role)}</StatusBadge>
-      </DashboardRowMeta>
-      <DashboardRowMeta label={t("nav.status")}>
-        <StatusBadge>{localizeValue(t, member.status)}</StatusBadge>
-        <DashboardMonoDetailText>
-          {formatDashboardDate(member.created_at, t("dashboard.notSet"))}
+      <DashboardPrimaryCell
+        label={t("forms.departmentDescription")}
+        title={
+          <div className="truncate text-sm text-foreground/80">
+            {department.description || t("dashboard.notSet")}
+          </div>
+        }
+      />
+      <DashboardRowMeta label={t("dashboard.updatedAt")}>
+        <DashboardMonoDetailText className="font-medium text-foreground/80">
+          {formatDashboardDate(department.updated_at, t("dashboard.notSet"))}
         </DashboardMonoDetailText>
       </DashboardRowMeta>
       <DashboardActionCell
         label={t("dashboard.actions")}
-        className="xl:flex-row xl:flex-wrap xl:items-center xl:justify-end"
+        clusterClassName="w-auto rounded-md p-1"
       >
-        {isOwner ? (
-          <div className="px-1 text-xs text-muted-foreground">
-            {t("dashboard.protectedOwner")}
-          </div>
-        ) : (
-          <>
-            <UpdateWorkspaceMemberForm workspaceId={workspaceId} member={member} />
-            <ManageModelPermissionsDialog
-              workspaceId={workspaceId}
-              member={member}
-              modelCatalogs={modelCatalogs}
-            />
-            <RemoveWorkspaceMemberButton
-              workspaceId={workspaceId}
-              userId={member.user_id}
-            />
-          </>
-        )}
+        <ManageDepartmentModelPermissionsDialog
+          workspaceId={workspaceId}
+          department={department}
+          modelCatalogs={modelCatalogs}
+        />
+        <EditWorkspaceDepartmentDialog
+          workspaceId={workspaceId}
+          department={department}
+        />
+        <DeleteWorkspaceDepartmentButton
+          workspaceId={workspaceId}
+          departmentId={department.id}
+        />
       </DashboardActionCell>
     </DashboardRow>
   )

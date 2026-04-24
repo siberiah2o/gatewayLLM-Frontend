@@ -337,7 +337,7 @@ export function CreateModelDeploymentForm({
   }
 
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
+    <form className="rounded-md border p-2.5" onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="deployment-name">

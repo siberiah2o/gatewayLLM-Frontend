@@ -32,8 +32,8 @@ export function AccountSection({ t, user }: DashboardSectionContentProps) {
     : localizeValue(t, user.email_verification_status ?? "unverified")
 
   return (
-    <section className="grid gap-4">
-      <Card id="account">
+    <section className="grid gap-2.5">
+      <Card id="account" size="sm">
         <DashboardSummaryGrid>
           <DashboardSummaryTile
             icon={
@@ -56,8 +56,8 @@ export function AccountSection({ t, user }: DashboardSectionContentProps) {
         </DashboardSummaryGrid>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <Card>
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Card size="sm">
           <DashboardPanelHeader>
             <CardTitle className="flex items-center gap-2">
               <UserRoundIcon className="size-4 text-muted-foreground" />
@@ -85,8 +85,8 @@ export function AccountSection({ t, user }: DashboardSectionContentProps) {
           </DashboardPanelContent>
         </Card>
 
-        <div className="grid gap-4">
-          <Card>
+        <div className="grid gap-2.5">
+          <Card size="sm">
             <DashboardPanelHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShieldCheckIcon className="size-4 text-muted-foreground" />
@@ -107,7 +107,7 @@ export function AccountSection({ t, user }: DashboardSectionContentProps) {
             </DashboardPanelContent>
           </Card>
 
-          <Card>
+          <Card size="sm">
             <DashboardPanelHeader>
               <CardTitle className="flex items-center gap-2">
                 <CalendarClockIcon className="size-4 text-muted-foreground" />

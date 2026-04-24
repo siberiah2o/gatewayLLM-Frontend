@@ -1,13 +1,13 @@
 import { CreateAPIKeyForm } from "@/components/dashboard-actions/api-keys";
 import { ChatSmokeTestForm } from "@/components/dashboard-actions/chat-smoke";
 import { CreateModelDeploymentForm } from "@/components/dashboard-actions/deployments";
+import { CreateWorkspaceDepartmentForm } from "@/components/dashboard-actions/department";
 import {
   CreateModelCatalogForm,
   CreateProviderCredentialForm,
   CreateProviderSetupForm,
 } from "@/components/dashboard-actions/model-registry";
 import {
-  CreateWorkspaceForm,
   CreateWorkspaceUserDialog,
 } from "@/components/dashboard-actions/workspace";
 import {
@@ -16,12 +16,18 @@ import {
   CardDescription,
   CardTitle,
 } from "@/components/ui/card";
-import type { DailyUsage, RequestLog, RuntimeResourceSnapshot } from "@/lib/gatewayllm";
+import type {
+  DailyUsage,
+  RequestLog,
+  RuntimeResourceSnapshot,
+  UsageInsightBreakdown,
+} from "@/lib/gatewayllm";
 import { cn } from "@/lib/utils";
 import {
   ActivityIcon,
   BadgeDollarSignIcon,
   BotIcon,
+  Building2Icon,
   ClipboardListIcon,
   Clock3Icon,
   GaugeIcon,
@@ -45,11 +51,8 @@ import {
   DashboardSummaryTile,
   DashboardSidebarCard,
   DashboardTableList,
-  DashboardWorkspaceScopeTile,
   EmptyState,
   StatusBadge,
-  WorkspaceRow,
-  getWorkspaceScope,
   localizeValue,
 } from "./dashboard-ui";
 import {
@@ -59,7 +62,7 @@ import {
   ProviderCredentialRow,
   ProviderSetupRow,
   RegistrationRequestRow,
-  WorkspaceMemberRow,
+  WorkspaceDepartmentRow,
 } from "./dashboard-rows";
 import { AccountSection } from "./dashboard-account-section";
 import type { Settled } from "./dashboard-data";
@@ -80,14 +83,12 @@ export function DashboardSectionContent(props: DashboardSectionContentProps) {
       return <UsageDetailsSection {...props} />;
     case "logs":
       return <RequestLogsSection {...props} />;
-    case "workspaces":
-      return <WorkspacesSection {...props} />;
     case "account":
       return <AccountSection {...props} />;
     case "users":
       return <UsersSection {...props} />;
-    case "members":
-      return <MembersSection {...props} />;
+    case "departments":
+      return <DepartmentsSection {...props} />;
     case "registration":
       return <RegistrationSection {...props} />;
     case "api-keys":
@@ -95,7 +96,13 @@ export function DashboardSectionContent(props: DashboardSectionContentProps) {
     case "provider-setups":
       return <ProviderSetupsSection {...props} />;
     case "models":
-      return <ModelsSection {...props} />;
+      return (
+        <ModelsSection
+          {...props}
+          showCreateForm={props.showModelCatalogManagement}
+          showActions={props.showModelCatalogManagement}
+        />
+      );
     case "credentials":
       return <CredentialsSection {...props} />;
     case "deployments":
@@ -137,14 +144,11 @@ function DashboardSettledEmptyState<T>({
 }
 
 function StatusSection({
-  activeWorkspace,
   t,
   health,
   ready,
   frontendRuntime,
   backendRuntime,
-  workspaces,
-  workspaceList,
   registrationRequests,
   apiKeys,
   dailyUsage,
@@ -354,8 +358,8 @@ function StatusSection({
   });
 
   return (
-    <section id="status" className="grid gap-3">
-      <Card>
+    <section id="status" className="grid gap-2.5">
+      <Card size="sm">
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.statusOverviewTitle")}</CardTitle>
           <CardAction className="flex flex-wrap items-center gap-2">
@@ -367,20 +371,8 @@ function StatusSection({
             </StatusBadge>
           </CardAction>
         </DashboardPanelHeader>
-        <DashboardPanelContent className="grid gap-3">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-muted/25 p-2.5">
-            <StatusBadge>
-              {activeWorkspace?.name ?? t("dashboard.noWorkspaceAvailable")}
-            </StatusBadge>
-            <DashboardMonoDetailText className="max-w-full">
-              {activeWorkspace?.id ?? t("dashboard.notSet")}
-            </DashboardMonoDetailText>
-            <DashboardDetailText className="max-w-full">
-              {getSettledMessage(workspaces, t("dashboard.visibleToSession"))}
-            </DashboardDetailText>
-          </div>
-
-          <div className="grid gap-3 lg:grid-cols-3 2xl:grid-cols-6">
+        <DashboardPanelContent className="grid gap-2.5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             <DashboardSummaryTile
               icon={<ShieldCheckIcon className="size-4" />}
               label={t("dashboard.systemHealth")}
@@ -445,8 +437,8 @@ function StatusSection({
         </DashboardPanelContent>
       </Card>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.95fr)]">
-        <Card className="min-w-0">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)]">
+        <Card size="sm" className="min-w-0">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.statusTrafficTitle")}</CardTitle>
             <CardDescription>
@@ -456,7 +448,7 @@ function StatusSection({
               <StatusBadge>{t("dashboard.last30Days")}</StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
-          <DashboardPanelContent className="grid gap-4">
+          <DashboardPanelContent className="grid gap-2.5">
             {trafficChartData.length > 0 ? (
               <StatusTrafficChart
                 data={trafficChartData}
@@ -471,7 +463,7 @@ function StatusSection({
               />
             )}
 
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 md:grid-cols-3">
               <DashboardSummaryTile
                 icon={<UsersRoundIcon className="size-4" />}
                 label={t("dashboard.totalTokens")}
@@ -497,7 +489,7 @@ function StatusSection({
           </DashboardPanelContent>
         </Card>
 
-        <Card>
+        <Card size="sm">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.resourceReadinessTitle")}</CardTitle>
             <CardDescription>
@@ -506,12 +498,6 @@ function StatusSection({
           </DashboardPanelHeader>
           <DashboardPanelContent>
             <div className="grid gap-2 sm:grid-cols-2">
-              <DashboardSummaryTile
-                icon={<WorkflowIcon className="size-4" />}
-                label={t("dashboard.workspaces")}
-                value={formatWholeNumber(workspaceList.length)}
-                detail={t("dashboard.visibleToSession")}
-              />
               <DashboardSummaryTile
                 icon={<UsersRoundIcon className="size-4" />}
                 label={t("dashboard.users")}
@@ -555,7 +541,7 @@ function StatusSection({
         </Card>
       </div>
 
-      <Card>
+      <Card size="sm">
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.runtimeResourcesTitle")}</CardTitle>
           <CardDescription>
@@ -563,7 +549,7 @@ function StatusSection({
           </CardDescription>
         </DashboardPanelHeader>
         <DashboardPanelContent>
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-2.5 xl:grid-cols-2">
             <StatusRuntimeResourceCard
               kind="frontend"
               title={t("dashboard.frontendRuntimeTitle")}
@@ -584,56 +570,58 @@ function StatusSection({
         </DashboardPanelContent>
       </Card>
 
-      <Card>
-        <DashboardPanelHeader>
-          <CardTitle>{t("dashboard.providerPerformanceTitle")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.providerPerformanceDescription")}
-          </CardDescription>
-          <CardAction>
-            <StatusBadge>{t("dashboard.last60Requests")}</StatusBadge>
-          </CardAction>
-        </DashboardPanelHeader>
-        <DashboardStackContent>
-          {providerStats.length > 0 ? (
-            providerStats.map((provider) => (
-              <StatusProviderPerformanceRow
-                key={provider.provider}
-                provider={provider}
-                t={t}
+      <div className="grid gap-2.5 xl:grid-cols-2">
+        <Card size="sm" className="min-w-0">
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.providerPerformanceTitle")}</CardTitle>
+            <CardDescription>
+              {t("dashboard.providerPerformanceDescription")}
+            </CardDescription>
+            <CardAction>
+              <StatusBadge>{t("dashboard.last60Requests")}</StatusBadge>
+            </CardAction>
+          </DashboardPanelHeader>
+          <DashboardStackContent className="gap-1.5">
+            {providerStats.length > 0 ? (
+              providerStats.map((provider) => (
+                <StatusProviderPerformanceRow
+                  key={provider.provider}
+                  provider={provider}
+                  t={t}
+                />
+              ))
+            ) : (
+              <DashboardSettledEmptyState
+                result={requestLogs}
+                emptyMessage={t("dashboard.noProviderTraffic")}
+                icon={<BotIcon />}
               />
-            ))
-          ) : (
-            <DashboardSettledEmptyState
-              result={requestLogs}
-              emptyMessage={t("dashboard.noProviderTraffic")}
-              icon={<BotIcon />}
-            />
-          )}
-        </DashboardStackContent>
-      </Card>
+            )}
+          </DashboardStackContent>
+        </Card>
 
-      <Card>
-        <DashboardPanelHeader>
-          <CardTitle>{t("dashboard.recentRequestsTitle")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.recentRequestsDescription")}
-          </CardDescription>
-        </DashboardPanelHeader>
-        <DashboardStackContent>
-          {recentRequestLogList.length > 0 ? (
-            recentRequestLogList.map((log) => (
-              <StatusRecentRequestRow key={log.id} log={log} t={t} />
-            ))
-          ) : (
-            <DashboardSettledEmptyState
-              result={requestLogs}
-              emptyMessage={t("dashboard.noRequestLogs")}
-              icon={<ClipboardListIcon />}
-            />
-          )}
-        </DashboardStackContent>
-      </Card>
+        <Card size="sm" className="min-w-0">
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.recentRequestsTitle")}</CardTitle>
+            <CardDescription>
+              {t("dashboard.recentRequestsDescription")}
+            </CardDescription>
+          </DashboardPanelHeader>
+          <DashboardStackContent className="gap-1.5">
+            {recentRequestLogList.length > 0 ? (
+              recentRequestLogList.map((log) => (
+                <StatusRecentRequestRow key={log.id} log={log} t={t} />
+              ))
+            ) : (
+              <DashboardSettledEmptyState
+                result={requestLogs}
+                emptyMessage={t("dashboard.noRequestLogs")}
+                icon={<ClipboardListIcon />}
+              />
+            )}
+          </DashboardStackContent>
+        </Card>
+      </div>
     </section>
   );
 }
@@ -798,14 +786,12 @@ function StatusRuntimeResourceCard({
   t: DashboardSectionContentProps["t"];
 }) {
   return (
-    <div
-      className="grid gap-3 rounded-lg border border-border/70 bg-background p-3"
-    >
-      <div className="flex items-start justify-between gap-3">
+    <div className="grid gap-2.5 rounded-md border border-border/70 bg-background p-2.5">
+      <div className="flex items-start justify-between gap-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <div
             className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-md border",
+              "flex size-7 shrink-0 items-center justify-center rounded-md border",
               getStatusToneIconClass(tone),
             )}
           >
@@ -814,7 +800,7 @@ function StatusRuntimeResourceCard({
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">{title}</div>
             {result.ok ? (
-              <DashboardMonoDetailText>
+              <DashboardMonoDetailText className="truncate">
                 {result.data.service} · {result.data.runtime} · PID {result.data.process.pid}
               </DashboardMonoDetailText>
             ) : null}
@@ -822,7 +808,7 @@ function StatusRuntimeResourceCard({
         </div>
         <div
           className={cn(
-            "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[0.72rem] font-medium",
+            "inline-flex h-6 shrink-0 items-center gap-1.5 rounded-md border px-2 text-xs font-medium",
             getStatusToneBadgeClass(tone),
           )}
         >
@@ -835,7 +821,7 @@ function StatusRuntimeResourceCard({
 
       {result.ok ? (
         <>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
             <RuntimeMetric
               label={t("dashboard.uptime")}
               value={formatUptime(result.data.uptime_seconds, t("dashboard.notSet"))}
@@ -888,7 +874,7 @@ function StatusRuntimeResourceCard({
               )}
             />
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <StatusBadge>
               {formatWholeNumber(result.data.host.cpu_count)} {t("dashboard.cpuCores")}
             </StatusBadge>
@@ -907,7 +893,7 @@ function StatusRuntimeResourceCard({
           </div>
         </>
       ) : (
-        <div className="rounded-lg border border-border/70 bg-muted/35 px-3 py-2.5 text-sm text-foreground">
+        <div className="rounded-md border border-border/70 bg-muted/35 px-2.5 py-2 text-sm text-foreground">
           {getRuntimeUnavailableMessage(result, t, kind)}
         </div>
       )}
@@ -923,11 +909,11 @@ function RuntimeMetric({
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5">
-      <div className="text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2">
+      <div className="text-xs font-medium uppercase text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 whitespace-normal break-words font-mono text-sm font-semibold leading-6 tabular-nums text-foreground">
+      <div className="mt-0.5 whitespace-normal break-words font-mono text-sm font-semibold leading-5 tabular-nums text-foreground">
         {value}
       </div>
     </div>
@@ -942,7 +928,7 @@ function StatusProviderPerformanceRow({
   t: DashboardSectionContentProps["t"];
 }) {
   return (
-    <DashboardRow className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+    <DashboardRow className="gap-2 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
       <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="truncate font-medium">{provider.provider}</div>
@@ -951,7 +937,7 @@ function StatusProviderPerformanceRow({
           </StatusBadge>
           <StatusBadge>{formatPercent(provider.successRate ?? 0)}</StatusBadge>
         </div>
-        <DashboardDetailText className="mt-1">
+        <DashboardDetailText className="mt-0.5">
           {t("dashboard.statusSuccessFailure", {
             success: formatWholeNumber(provider.succeeded),
             failure: formatWholeNumber(provider.failed),
@@ -965,7 +951,7 @@ function StatusProviderPerformanceRow({
           )}
         </DashboardDetailText>
       </div>
-      <div className="grid gap-1 text-left md:text-right">
+      <div className="grid gap-0.5 text-left md:text-right">
         <DashboardMonoDetailText className="font-medium text-foreground/80">
           {formatLatency(provider.averageLatencyMS, t("dashboard.notSet"))}
         </DashboardMonoDetailText>
@@ -989,7 +975,7 @@ function StatusRecentRequestRow({
   t: DashboardSectionContentProps["t"];
 }) {
   return (
-    <DashboardRow className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+    <DashboardRow className="gap-2 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
       <div className="min-w-0">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <div className="truncate font-medium">
@@ -997,12 +983,12 @@ function StatusRecentRequestRow({
           </div>
           <StatusBadge>{localizeValue(t, log.status)}</StatusBadge>
         </div>
-        <DashboardDetailText className="mt-1">
+        <DashboardDetailText className="mt-0.5">
           {(log.model_provider ?? t("dashboard.notSet"))} · {log.endpoint}
         </DashboardDetailText>
         <DashboardMonoDetailText>{log.request_uid}</DashboardMonoDetailText>
       </div>
-      <div className="grid gap-1 text-left md:text-right">
+      <div className="grid gap-0.5 text-left md:text-right">
         <DashboardMonoDetailText className="font-medium text-foreground/80">
           {formatLatency(log.duration_ms, t("dashboard.notSet"))}
         </DashboardMonoDetailText>
@@ -1260,62 +1246,30 @@ function formatStableTimestamp(
   return value.endsWith("Z") ? `${dateTime} UTC` : dateTime;
 }
 
-function WorkspacesSection({ t, workspaceList }: DashboardSectionContentProps) {
-  return (
-    <section className="grid gap-3">
-      <Card id="workspaces">
-        <DashboardPanelHeader>
-          <CardTitle>{t("dashboard.workspaces")}</CardTitle>
-          <CardDescription>
-            {t("dashboard.workspacesDescription")}
-          </CardDescription>
-        </DashboardPanelHeader>
-        <DashboardStackContent>
-          <CreateWorkspaceForm />
-          {workspaceList.length > 0 ? (
-            workspaceList.map((workspace) => (
-              <WorkspaceRow key={workspace.id} workspace={workspace} t={t} />
-            ))
-          ) : (
-            <EmptyState message={t("dashboard.noWorkspaces")} />
-          )}
-        </DashboardStackContent>
-      </Card>
-    </section>
-  );
-}
-
 function UsersSection({
   t,
   activeWorkspace,
   workspaceUsers,
   workspaceUserList,
+  workspaceDepartmentList,
+  modelCatalogList,
   tablePagination,
 }: DashboardSectionContentProps) {
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t);
+  const assignableModelCatalogList = modelCatalogList.filter(
+    (modelCatalog) => modelCatalog.status === "active",
+  );
+  const activeUserCount = workspaceUserList.filter(
+    (user) => user.status === "active",
+  ).length;
 
   return (
-    <section className="grid gap-3">
-      <Card id="users">
-        <DashboardSummaryGrid>
-          <DashboardSummaryTile
-            icon={<UsersRoundIcon className="size-4" />}
-            label={t("dashboard.users")}
-            value={String(workspaceUserList.length)}
-            detail={getSettledMessage(
-              workspaceUsers,
-              t("dashboard.workspaceUsers"),
-            )}
-          />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
-        </DashboardSummaryGrid>
-      </Card>
-
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <Card>
+    <section className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-2.5">
+        <Card id="users" size="sm">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.usersTitle")}</CardTitle>
             <CardAction>
+              <StatusBadge>{String(activeUserCount)} {t("values.active")}</StatusBadge>
               <StatusBadge>
                 {getCountLabel(
                   workspaceUserList.length,
@@ -1331,6 +1285,8 @@ function UsersSection({
               <WorkspaceUsersTable
                 users={workspaceUserList}
                 workspaceId={activeWorkspace?.id}
+                modelCatalogs={assignableModelCatalogList}
+                departments={workspaceDepartmentList}
                 pagination={tablePagination.workspace_users}
                 t={t}
               />
@@ -1342,104 +1298,93 @@ function UsersSection({
             )}
           </DashboardPanelContent>
         </Card>
-
-        <DashboardSidebarCard
-          title={t("forms.createUser")}
-          description={workspaceScope.label}
-          icon={<UserPlusIcon className="size-4 text-muted-foreground" />}
-        >
-          <CreateWorkspaceUserDialog workspaceId={activeWorkspace?.id} />
-          <div className="text-sm text-muted-foreground">
-            {t("dashboard.usersDescription")}
-          </div>
-        </DashboardSidebarCard>
       </div>
+
+      <DashboardSidebarCard
+        title={t("forms.createUser")}
+        icon={<UserPlusIcon className="size-4 text-muted-foreground" />}
+      >
+        <CreateWorkspaceUserDialog
+          workspaceId={activeWorkspace?.id}
+          departments={workspaceDepartmentList}
+        />
+        <div className="text-sm text-muted-foreground">
+          {t("dashboard.usersDescription")}
+        </div>
+      </DashboardSidebarCard>
     </section>
   );
 }
 
-function MembersSection({
+function DepartmentsSection({
   t,
   activeWorkspace,
-  workspaceMembers,
-  workspaceMemberList,
+  workspaceDepartments,
+  workspaceDepartmentList,
   modelCatalogList,
-  tablePagination,
 }: DashboardSectionContentProps) {
-  const assignableModelCatalogList = modelCatalogList.filter(
-    (modelCatalog) => modelCatalog.status === "active",
-  );
-  const activeMemberCount = workspaceMemberList.filter(
-    (member) => member.status === "active",
+  const activeDepartmentCount = workspaceDepartmentList.filter(
+    (department) => department.status === "active",
   ).length;
 
   return (
-    <section className="grid gap-3">
-      <Card id="members">
-        <DashboardSummaryGrid>
-          <DashboardSummaryTile
-            icon={<UserCheckIcon className="size-4" />}
-            label={t("dashboard.members")}
-            value={String(activeMemberCount)}
-            detail={getSettledMessage(
-              workspaceMembers,
-              t("dashboard.workspaceMembers"),
+    <section className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid gap-2.5">
+        <Card id="departments" size="sm">
+          <DashboardPanelHeader>
+            <CardTitle>{t("dashboard.departmentsTitle")}</CardTitle>
+            <CardAction>
+              <StatusBadge>{String(activeDepartmentCount)} {t("values.active")}</StatusBadge>
+              <StatusBadge>{String(workspaceDepartmentList.length)}</StatusBadge>
+            </CardAction>
+          </DashboardPanelHeader>
+          <DashboardPanelContent>
+            {workspaceDepartments.ok && workspaceDepartmentList.length > 0 ? (
+              <DashboardTableList
+                className="xl:grid-cols-[minmax(11rem,1fr)_minmax(14rem,1fr)_minmax(8rem,0.65fr)_auto]"
+                columns={[
+                  { label: t("dashboard.name") },
+                  { label: t("forms.departmentDescription") },
+                  { label: t("dashboard.updatedAt") },
+                  { label: t("dashboard.actions"), className: "text-right" },
+                ]}
+              >
+                {workspaceDepartmentList.map((department) => (
+                  <WorkspaceDepartmentRow
+                    key={department.id}
+                    department={department}
+                    workspaceId={activeWorkspace?.id}
+                    modelCatalogs={modelCatalogList}
+                    t={t}
+                  />
+                ))}
+              </DashboardTableList>
+            ) : (
+              <DashboardSettledEmptyState
+                result={workspaceDepartments}
+                emptyMessage={t("dashboard.noDepartments")}
+                icon={<Building2Icon />}
+              />
             )}
-          />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
-        </DashboardSummaryGrid>
-      </Card>
-      <Card>
-        <DashboardPanelHeader>
-          <CardTitle>{t("dashboard.membersTitle")}</CardTitle>
-          <CardAction>
-            <StatusBadge>
-              {getCountLabel(
-                workspaceMemberList.length,
-                tablePagination.members,
-              )}
-            </StatusBadge>
-          </CardAction>
-        </DashboardPanelHeader>
-        <DashboardPanelContent>
-          {workspaceMembers.ok &&
-          (workspaceMemberList.length > 0 || tablePagination.members) ? (
-            <DashboardTableList
-              className="xl:grid-cols-[minmax(12rem,1fr)_5rem_minmax(12rem,0.7fr)_minmax(26rem,1fr)]"
-              paginationId="members"
-              pagination={tablePagination.members}
-              columns={[
-                { label: t("dashboard.name") },
-                { label: t("forms.role") },
-                { label: t("nav.status") },
-                { label: t("dashboard.actions"), className: "text-right" },
-              ]}
-            >
-              {workspaceMemberList.map((member) => (
-                <WorkspaceMemberRow
-                  key={member.user_id}
-                  member={member}
-                  workspaceId={activeWorkspace?.id}
-                  modelCatalogs={assignableModelCatalogList}
-                  t={t}
-                />
-              ))}
-            </DashboardTableList>
-          ) : (
-            <DashboardSettledEmptyState
-              result={workspaceMembers}
-              emptyMessage={t("dashboard.noMembers")}
-            />
-          )}
-        </DashboardPanelContent>
-      </Card>
+          </DashboardPanelContent>
+        </Card>
+      </div>
+
+      <DashboardSidebarCard
+        title={t("forms.createDepartment")}
+        icon={<Building2Icon className="size-4 text-muted-foreground" />}
+      >
+        <CreateWorkspaceDepartmentForm workspaceId={activeWorkspace?.id} />
+        <div className="text-sm text-muted-foreground">
+          {t("dashboard.departmentsDescription")}
+        </div>
+      </DashboardSidebarCard>
     </section>
   );
 }
 
 function RegistrationSection({
   t,
-  activeWorkspace,
   registrationRequests,
 }: DashboardSectionContentProps) {
   const registrationRequestList = registrationRequests.ok
@@ -1447,9 +1392,9 @@ function RegistrationSection({
     : [];
 
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <Card id="registration">
-        <DashboardSummaryGrid>
+        <DashboardSummaryGrid className="sm:grid-cols-1">
           <DashboardSummaryTile
             icon={<ClipboardListIcon className="size-4" />}
             label={t("dashboard.registrationTitle")}
@@ -1459,7 +1404,6 @@ function RegistrationSection({
               t("dashboard.registrationRequests"),
             )}
           />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
         </DashboardSummaryGrid>
       </Card>
 
@@ -1512,23 +1456,21 @@ function ApiKeysSection({
   const activeKeyCount = apiKeyList.filter(
     (apiKey) => apiKey.status === "active",
   ).length;
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t);
 
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <Card id="api-keys">
-        <DashboardSummaryGrid>
+        <DashboardSummaryGrid className="sm:grid-cols-1">
           <DashboardSummaryTile
             icon={<ShieldCheckIcon className="size-4" />}
             label={t("dashboard.activeApiKeys")}
             value={String(activeKeyCount)}
             detail={getSettledMessage(apiKeys, t("dashboard.apiKeysListTitle"))}
           />
-          <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
         </DashboardSummaryGrid>
       </Card>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.apiKeysListTitle")}</CardTitle>
@@ -1570,7 +1512,6 @@ function ApiKeysSection({
 
         <DashboardSidebarCard
           title={t("dashboard.createApiKeyTitle")}
-          description={workspaceScope.label}
           icon={<KeyRoundIcon className="size-4 text-muted-foreground" />}
         >
           <CreateAPIKeyForm workspaceId={activeWorkspace?.id} />
@@ -1587,14 +1528,13 @@ function ProviderSetupsSection({
   providerSetupList,
   tablePagination,
 }: DashboardSectionContentProps) {
-  const workspaceScope = getWorkspaceScope(activeWorkspace, t);
   const providerSetupCount = getCountLabel(
     providerSetupList.length,
     tablePagination.provider_setups,
   );
 
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <ModelAccessTabs
         ariaLabel={t("dashboard.providerSetupsTitle")}
         labels={{
@@ -1646,7 +1586,6 @@ function ProviderSetupsSection({
         addModel={
           <DashboardSidebarCard
             title={t("forms.createProviderSetup")}
-            description={workspaceScope.label}
             icon={<BotIcon className="size-4 text-muted-foreground" />}
           >
             <CreateProviderSetupForm workspaceId={activeWorkspace?.id} />
@@ -1673,9 +1612,6 @@ function ModelsSection({
   showCreateForm = true,
   showActions = true,
 }: DashboardSectionContentProps & AdvancedResourceSectionOptions) {
-  const workspaceScope = showCreateForm
-    ? getWorkspaceScope(activeWorkspace, t)
-    : undefined;
   const activeModelCount = showSummary
     ? modelCatalogList.filter(
         (modelCatalog) => modelCatalog.status === "active",
@@ -1683,10 +1619,10 @@ function ModelsSection({
     : 0;
 
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       {showSummary ? (
         <Card id="models">
-          <DashboardSummaryGrid>
+          <DashboardSummaryGrid className="sm:grid-cols-1">
             <DashboardSummaryTile
               icon={<BotIcon className="size-4" />}
               label={t("dashboard.modelsTitle")}
@@ -1696,7 +1632,6 @@ function ModelsSection({
                 t("dashboard.activeModels"),
               )}
             />
-            <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
           </DashboardSummaryGrid>
         </Card>
       ) : null}
@@ -1704,8 +1639,8 @@ function ModelsSection({
       <div
         className={
           showCreateForm
-            ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]"
-            : "grid gap-3"
+            ? "grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_28rem]"
+            : "grid gap-2.5"
         }
       >
         <Card className="min-w-0">
@@ -1767,7 +1702,6 @@ function ModelsSection({
         {showCreateForm ? (
           <DashboardSidebarCard
             title={t("forms.createModel")}
-            description={workspaceScope?.label}
             icon={<BotIcon className="size-4 text-muted-foreground" />}
           >
             <CreateModelCatalogForm workspaceId={activeWorkspace?.id} />
@@ -1788,9 +1722,6 @@ function CredentialsSection({
   showCreateForm = true,
   showActions = true,
 }: DashboardSectionContentProps & AdvancedResourceSectionOptions) {
-  const workspaceScope = showCreateForm
-    ? getWorkspaceScope(activeWorkspace, t)
-    : undefined;
   const activeCredentialCount = showSummary
     ? providerCredentialList.filter(
         (credential) => credential.status === "active",
@@ -1798,10 +1729,10 @@ function CredentialsSection({
     : 0;
 
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       {showSummary ? (
         <Card id="credentials">
-          <DashboardSummaryGrid>
+          <DashboardSummaryGrid className="sm:grid-cols-1">
             <DashboardSummaryTile
               icon={<KeyRoundIcon className="size-4" />}
               label={t("dashboard.credentialsTitle")}
@@ -1811,7 +1742,6 @@ function CredentialsSection({
                 t("dashboard.credentialsDescription"),
               )}
             />
-            <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
           </DashboardSummaryGrid>
         </Card>
       ) : null}
@@ -1819,8 +1749,8 @@ function CredentialsSection({
       <div
         className={
           showCreateForm
-            ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]"
-            : "grid gap-3"
+            ? "grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_28rem]"
+            : "grid gap-2.5"
         }
       >
         <Card className="min-w-0">
@@ -1883,7 +1813,6 @@ function CredentialsSection({
         {showCreateForm ? (
           <DashboardSidebarCard
             title={t("forms.createCredential")}
-            description={workspaceScope?.label}
             icon={<KeyRoundIcon className="size-4 text-muted-foreground" />}
           >
             <CreateProviderCredentialForm workspaceId={activeWorkspace?.id} />
@@ -1916,19 +1845,16 @@ function DeploymentsSection({
         (credential) => credential.status === "active",
       )
     : [];
-  const workspaceScope = showCreateForm
-    ? getWorkspaceScope(activeWorkspace, t)
-    : undefined;
   const activeDeploymentCount = showSummary
     ? modelDeploymentList.filter((deployment) => deployment.status === "active")
         .length
     : 0;
 
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       {showSummary ? (
         <Card id="deployments">
-          <DashboardSummaryGrid>
+          <DashboardSummaryGrid className="sm:grid-cols-1">
             <DashboardSummaryTile
               icon={<ShieldCheckIcon className="size-4" />}
               label={t("dashboard.deploymentsTitle")}
@@ -1938,7 +1864,6 @@ function DeploymentsSection({
                 t("dashboard.deploymentsDescription"),
               )}
             />
-            <DashboardWorkspaceScopeTile workspace={activeWorkspace} t={t} />
           </DashboardSummaryGrid>
         </Card>
       ) : null}
@@ -1946,8 +1871,8 @@ function DeploymentsSection({
       <div
         className={
           showCreateForm
-            ? "grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]"
-            : "grid gap-3"
+            ? "grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_28rem]"
+            : "grid gap-2.5"
         }
       >
         <Card className="min-w-0">
@@ -2012,7 +1937,6 @@ function DeploymentsSection({
         {showCreateForm ? (
           <DashboardSidebarCard
             title={t("forms.createDeployment")}
-            description={workspaceScope?.label}
             icon={<ShieldCheckIcon className="size-4 text-muted-foreground" />}
           >
             <CreateModelDeploymentForm
@@ -2150,6 +2074,31 @@ function buildUsageBreakdown(
     });
 }
 
+function buildUsageInsightBreakdown(
+  breakdowns: UsageInsightBreakdown[],
+  totalSpend: number,
+  fallbackLabel: string,
+): UsageBreakdownItem[] {
+  return breakdowns
+    .map((breakdown) => {
+      const label = breakdown.label.trim() || fallbackLabel;
+      const spend = parseNumericValue(breakdown.spend_usd);
+
+      return {
+        key: breakdown.key.trim() || label,
+        label,
+        requests: breakdown.request_count,
+        succeeded: breakdown.success_count,
+        failed: breakdown.failure_count,
+        spend,
+        tokens: breakdown.prompt_tokens + breakdown.completion_tokens,
+        averageLatencyMS: breakdown.average_latency_ms,
+        spendShare: totalSpend > 0 ? (spend / totalSpend) * 100 : 0,
+      };
+    })
+    .filter((item) => item.label.trim() !== "");
+}
+
 function formatOptionalCurrency(
   value: number | undefined,
   fallback: string,
@@ -2161,10 +2110,48 @@ function formatOptionalCurrency(
   return formatCurrency(value);
 }
 
+function formatOptionalWholeNumber(
+  value: number | undefined,
+  fallback: string,
+): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return formatWholeNumber(value);
+}
+
+function formatUsageSpendMomentum(
+  t: DashboardSectionContentProps["t"],
+  delta: number,
+  deltaPercent: number | undefined,
+  previousSpend: number,
+) {
+  const direction =
+    delta > 0
+      ? t("dashboard.usageSpendIncreased")
+      : delta < 0
+        ? t("dashboard.usageSpendDecreased")
+        : t("dashboard.usageSpendFlat");
+  const percent =
+    typeof deltaPercent === "number" && Number.isFinite(deltaPercent)
+      ? formatPercent(Math.abs(deltaPercent))
+      : previousSpend > 0
+        ? formatPercent(0)
+        : t("dashboard.notSet");
+
+  return t("dashboard.usageSpendMomentumDetail", {
+    direction,
+    delta: formatCurrency(Math.abs(delta)),
+    percent,
+  });
+}
+
 function UsageSection({
   t,
   balance,
   dailyUsage,
+  usageInsights,
   requestLogs,
 }: DashboardSectionContentProps) {
   const dailyUsageList = dailyUsage.ok
@@ -2203,12 +2190,19 @@ function UsageSection({
     totalRequests30d > 0 ? totalSpend30d / totalRequests30d : undefined;
   const costPerMillionTokens =
     totalTokens30d > 0 ? (totalSpend30d / totalTokens30d) * 1_000_000 : undefined;
+  const averageTokensPerRequest =
+    totalRequests30d > 0 ? totalTokens30d / totalRequests30d : undefined;
+  const completionTokenShare =
+    totalTokens30d > 0 ? (completionTokens30d / totalTokens30d) * 100 : 0;
   const last7dSpend = sumValues(
     dailyUsageList.slice(-7).map((usage) => usage.spend_usd),
   );
   const previous7dSpend = sumValues(
     dailyUsageList.slice(-14, -7).map((usage) => usage.spend_usd),
   );
+  const last7dSpendDelta = last7dSpend - previous7dSpend;
+  const last7dSpendDeltaPercent =
+    previous7dSpend > 0 ? (last7dSpendDelta / previous7dSpend) * 100 : undefined;
   const averageDailySpend =
     dailyUsageList.length > 0 ? totalSpend30d / dailyUsageList.length : undefined;
   const latestDailyRows = [...dailyUsageList].slice(-10).reverse();
@@ -2223,40 +2217,143 @@ function UsageSection({
     }
   }
 
-  const sampleCount = recentRequestSample.length;
+  const insightTotals = usageInsights.ok ? usageInsights.data.totals : undefined;
+  const sampleCount = requestLogs.ok
+    ? recentRequestSample.length
+    : insightTotals?.request_count ?? 0;
   const failedSampleLogs = recentRequestSample.filter(
     (log) => log.status !== "succeeded",
   );
+  const failedRequestCount = requestLogs.ok
+    ? failedSampleLogs.length
+    : insightTotals?.failure_count ?? 0;
   const failedSpendSample = requestLogs.ok
     ? sumValues(failedSampleLogs.map((log) => log.spend_usd))
-    : undefined;
-  const retriedRequestCount = recentRequestSample.filter(
-    (log) => log.attempt_count > 1,
-  ).length;
+    : insightTotals
+      ? parseNumericValue(insightTotals.failed_spend_usd)
+      : undefined;
+  const retriedRequestCount = requestLogs.ok
+    ? recentRequestSample.filter((log) => log.attempt_count > 1).length
+    : insightTotals?.retried_request_count ?? 0;
   const retriedRequestShare =
     sampleCount > 0 ? (retriedRequestCount / sampleCount) * 100 : undefined;
+  const hasRequestLogResult =
+    requestLogs.ok || (!requestLogs.ok && requestLogs.error);
+  const breakdownResult: Settled<unknown> = hasRequestLogResult
+    ? requestLogs
+    : usageInsights;
+  const insightSpend = insightTotals
+    ? parseNumericValue(insightTotals.spend_usd)
+    : 0;
+  const sampleSpend = requestLogs.ok
+    ? sumValues(recentRequestSample.map((log) => log.spend_usd))
+    : insightSpend;
+  const failedSpendShare =
+    sampleSpend > 0 && typeof failedSpendSample === "number"
+      ? (failedSpendSample / sampleSpend) * 100
+      : 0;
 
-  const providerBreakdown = buildUsageBreakdown(
-    recentRequestSample,
-    (log) =>
-      log.model_provider?.trim() || log.latest_attempt?.provider?.trim() || notSet,
-  ).slice(0, 5);
-  const modelBreakdown = buildUsageBreakdown(
-    recentRequestSample,
-    (log) => log.model_canonical_name?.trim() || notSet,
-  ).slice(0, 5);
-  const apiKeyBreakdown = buildUsageBreakdown(
-    recentRequestSample,
-    (log) => log.api_key_display_name?.trim() || log.api_key_id?.trim() || notSet,
-  ).slice(0, 5);
-  const endpointBreakdown = buildUsageBreakdown(
-    recentRequestSample,
-    (log) => log.endpoint?.trim() || notSet,
-  ).slice(0, 5);
+  const providerBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) =>
+          log.model_provider?.trim() ||
+          log.latest_attempt?.provider?.trim() ||
+          notSet,
+      ).slice(0, 5)
+    : usageInsights.ok
+      ? buildUsageInsightBreakdown(
+          usageInsights.data.providers,
+          insightSpend,
+          notSet,
+        )
+      : [];
+  const modelBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) => log.model_canonical_name?.trim() || notSet,
+      ).slice(0, 5)
+    : usageInsights.ok
+      ? buildUsageInsightBreakdown(usageInsights.data.models, insightSpend, notSet)
+      : [];
+  const apiKeyBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) =>
+          log.api_key_display_name?.trim() || log.api_key_id?.trim() || notSet,
+      ).slice(0, 5)
+    : usageInsights.ok
+      ? buildUsageInsightBreakdown(
+          usageInsights.data.api_keys,
+          insightSpend,
+          notSet,
+        )
+      : [];
+  const departmentBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) => log.department_name?.trim() || t("dashboard.noDepartment"),
+      ).slice(0, 5)
+    : usageInsights.ok
+      ? buildUsageInsightBreakdown(
+          usageInsights.data.departments,
+          insightSpend,
+          t("dashboard.noDepartment"),
+        )
+      : [];
+  const endpointBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) => log.endpoint?.trim() || notSet,
+      ).slice(0, 5)
+    : usageInsights.ok
+      ? buildUsageInsightBreakdown(usageInsights.data.endpoints, insightSpend, notSet)
+      : [];
+  const topContributor = [
+    ...departmentBreakdown.slice(0, 1).map((item) => ({
+      ...item,
+      dimension: t("dashboard.usageDepartmentMixTitle"),
+    })),
+    ...modelBreakdown.slice(0, 1).map((item) => ({
+      ...item,
+      dimension: t("dashboard.usageModelMixTitle"),
+    })),
+    ...apiKeyBreakdown.slice(0, 1).map((item) => ({
+      ...item,
+      dimension: t("dashboard.usageApiKeyMixTitle"),
+    })),
+  ].sort((left, right) => right.spendShare - left.spendShare)[0];
+  const usageDimensionGroups = [
+    {
+      title: t("dashboard.usageDepartmentMixTitle"),
+      description: t("dashboard.usageDepartmentMixDescription"),
+      items: departmentBreakdown,
+    },
+    {
+      title: t("dashboard.usageModelMixTitle"),
+      description: t("dashboard.usageModelMixDescription"),
+      items: modelBreakdown,
+    },
+    {
+      title: t("dashboard.usageApiKeyMixTitle"),
+      description: t("dashboard.usageApiKeyMixDescription"),
+      items: apiKeyBreakdown,
+    },
+    {
+      title: t("dashboard.usageProviderMixTitle"),
+      description: t("dashboard.usageProviderMixDescription"),
+      items: providerBreakdown,
+    },
+    {
+      title: t("dashboard.usageEndpointMixTitle"),
+      description: t("dashboard.usageEndpointMixDescription"),
+      items: endpointBreakdown,
+    },
+  ];
 
   return (
-    <section className="grid gap-3">
-      <Card id="usage">
+    <section className="grid gap-2.5">
+      <Card id="usage" size="sm">
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.usageOverviewTitle")}</CardTitle>
           <CardDescription>
@@ -2272,9 +2369,9 @@ function UsageSection({
             </CardAction>
           ) : null}
         </DashboardPanelHeader>
-        <DashboardPanelContent className="grid gap-4">
-          <DashboardSummaryGrid className="xl:grid-cols-3">
-            <DashboardSummaryTile
+        <DashboardPanelContent className="grid gap-2.5">
+          <div className="grid gap-2.5 lg:grid-cols-2 2xl:grid-cols-4">
+            <UsageExecutiveMetric
               icon={<BadgeDollarSignIcon className="size-4" />}
               label={t("dashboard.usageMonthToDateSpend")}
               value={
@@ -2289,78 +2386,59 @@ function UsageSection({
                     })
                   : getSettledMessage(balance, t("dashboard.monthToDate"))
               }
-              size="default"
             />
-            <DashboardSummaryTile
+            <UsageExecutiveMetric
               icon={<BadgeDollarSignIcon className="size-4" />}
               label={t("dashboard.usageTrailing30dSpend")}
               value={
                 dailyUsage.ok ? formatCurrency(totalSpend30d) : t("dashboard.notSet")
               }
-              detail={getSettledMessage(dailyUsage, t("dashboard.last30Days"))}
-              size="default"
-            />
-            <DashboardSummaryTile
-              icon={<ActivityIcon className="size-4" />}
-              label={t("dashboard.usageThirtyDayRequests")}
-              value={
-                dailyUsage.ok ? formatWholeNumber(totalRequests30d) : t("dashboard.notSet")
-              }
               detail={
                 dailyUsage.ok
-                  ? t("dashboard.statusSuccessFailure", {
-                      success: formatWholeNumber(totalSuccess30d),
-                      failure: formatWholeNumber(totalFailures30d),
+                  ? formatUsageSpendMomentum(
+                      t,
+                      last7dSpendDelta,
+                      last7dSpendDeltaPercent,
+                      previous7dSpend,
+                    )
+                  : getSettledMessage(dailyUsage, t("dashboard.last30Days"))
+              }
+            />
+            <UsageExecutiveMetric
+              icon={<GaugeIcon className="size-4" />}
+              label={t("dashboard.usageUnitEconomics")}
+              value={formatOptionalCurrency(averageCostPerRequest, notSet)}
+              detail={
+                dailyUsage.ok
+                  ? t("dashboard.usageUnitEconomicsDetail", {
+                      tokens: formatOptionalWholeNumber(
+                        averageTokensPerRequest,
+                        notSet,
+                      ),
+                      cost: formatOptionalCurrency(costPerMillionTokens, notSet),
                     })
                   : dailyUsage.error
               }
-              size="default"
             />
-            <DashboardSummaryTile
-              icon={<UsersRoundIcon className="size-4" />}
-              label={t("dashboard.usageThirtyDayTokens")}
-              value={
-                dailyUsage.ok ? formatWholeNumber(totalTokens30d) : t("dashboard.notSet")
-              }
-              detail={
-                dailyUsage.ok
-                  ? t("dashboard.usagePromptCompletionSplit", {
-                      prompt: formatWholeNumber(promptTokens30d),
-                      completion: formatWholeNumber(completionTokens30d),
-                    })
-                  : dailyUsage.error
-              }
-              size="default"
-            />
-            <DashboardSummaryTile
+            <UsageExecutiveMetric
               icon={<ShieldCheckIcon className="size-4" />}
-              label={t("dashboard.usageThirtyDaySuccessRate")}
+              label={t("dashboard.usageReliability")}
               value={dailyUsage.ok ? formatPercent(successRate30d) : t("dashboard.notSet")}
               detail={
                 dailyUsage.ok
-                  ? t("dashboard.usageFailedRequests30d", {
+                  ? t("dashboard.usageReliabilityDetail", {
                       count: formatWholeNumber(totalFailures30d),
+                      retries: formatPercent(retriedRequestShare ?? 0),
                     })
                   : dailyUsage.error
               }
-              size="default"
             />
-            <DashboardSummaryTile
-              icon={<GaugeIcon className="size-4" />}
-              label={t("dashboard.usageAverageCostPerRequest")}
-              value={formatOptionalCurrency(averageCostPerRequest, notSet)}
-              detail={t("dashboard.usageCostPerMillionTokens", {
-                value: formatOptionalCurrency(costPerMillionTokens, notSet),
-              })}
-              size="default"
-            />
-          </DashboardSummaryGrid>
-
+          </div>
         </DashboardPanelContent>
       </Card>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)]">
-        <Card>
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)]">
+        <Card size="sm">
           <DashboardPanelHeader>
             <CardTitle>{t("dashboard.usageDailyTrendTitle")}</CardTitle>
             <CardDescription>
@@ -2370,7 +2448,7 @@ function UsageSection({
               <StatusBadge>{t("dashboard.last30Days")}</StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
-          <DashboardStackContent>
+          <DashboardStackContent className="gap-1.5">
             {dailyUsage.ok && latestDailyRows.length > 0 ? (
               latestDailyRows.map((usage) => (
                 <UsageDailySpendRow
@@ -2389,26 +2467,30 @@ function UsageSection({
           </DashboardStackContent>
         </Card>
 
-        <Card>
+        <Card size="sm">
           <DashboardPanelHeader>
-            <CardTitle>{t("dashboard.usageSignalsTitle")}</CardTitle>
+            <CardTitle>{t("dashboard.usageOperatingSignalsTitle")}</CardTitle>
             <CardDescription>
-              {t("dashboard.usageSignalsDescription")}
+              {t("dashboard.usageOperatingSignalsDescription")}
             </CardDescription>
           </DashboardPanelHeader>
-          <DashboardPanelContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <UsageSignalMetric
-              label={t("dashboard.usageLast7dSpend")}
+          <DashboardPanelContent className="grid gap-2">
+            <UsageOperatingSignal
+              label={t("dashboard.usageSpendMomentum")}
               value={dailyUsage.ok ? formatCurrency(last7dSpend) : notSet}
               detail={
                 dailyUsage.ok
-                  ? t("dashboard.usagePrevious7dSpend", {
-                      value: formatCurrency(previous7dSpend),
-                    })
+                  ? formatUsageSpendMomentum(
+                      t,
+                      last7dSpendDelta,
+                      last7dSpendDeltaPercent,
+                      previous7dSpend,
+                    )
                   : dailyUsage.error
               }
+              tone={last7dSpendDelta > 0 ? "warning" : "neutral"}
             />
-            <UsageSignalMetric
+            <UsageOperatingSignal
               label={t("dashboard.usageAverageDailySpend")}
               value={formatOptionalCurrency(averageDailySpend, notSet)}
               detail={
@@ -2419,87 +2501,89 @@ function UsageSection({
                     })
                   : getSettledMessage(dailyUsage, notSet)
               }
+              tone="neutral"
             />
-            <UsageSignalMetric
-              label={t("dashboard.usageFailedSpendSample")}
-              value={requestLogs.ok ? formatCurrency(failedSpendSample ?? 0) : notSet}
+            <UsageOperatingSignal
+              label={t("dashboard.usageConcentration")}
+              value={
+                topContributor
+                  ? formatPercent(topContributor.spendShare)
+                  : t("dashboard.notSet")
+              }
               detail={
-                requestLogs.ok
-                  ? t("dashboard.usageFailedRequestsSample", {
-                      count: formatWholeNumber(failedSampleLogs.length),
+                topContributor
+                  ? t("dashboard.usageConcentrationDetail", {
+                      dimension: topContributor.dimension,
+                      name: topContributor.label,
                     })
-                  : requestLogs.error
+                  : t("dashboard.usageBreakdownEmpty")
+              }
+              tone={
+                topContributor && topContributor.spendShare >= 50
+                  ? "warning"
+                  : "neutral"
               }
             />
-            <UsageSignalMetric
-              label={t("dashboard.usageRetriedRequestsSample")}
-              value={requestLogs.ok ? formatWholeNumber(retriedRequestCount) : notSet}
-              detail={
-                requestLogs.ok
-                  ? t("dashboard.usageRetriedShareSample", {
-                      count: formatWholeNumber(retriedRequestCount),
-                      share: formatPercent(retriedRequestShare ?? 0),
-                    })
-                  : requestLogs.error
+            <UsageOperatingSignal
+              label={t("dashboard.usageWaste")}
+              value={
+                breakdownResult.ok
+                  ? formatPercent(failedSpendShare)
+                  : t("dashboard.notSet")
               }
+              detail={
+                breakdownResult.ok
+                  ? t("dashboard.usageWasteDetail", {
+                      spend: formatCurrency(failedSpendSample ?? 0),
+                      count: formatWholeNumber(failedRequestCount),
+                    })
+                  : breakdownResult.error
+              }
+              tone={failedSpendShare > 5 ? "critical" : "neutral"}
+            />
+            <UsageOperatingSignal
+              label={t("dashboard.usageTokenMix")}
+              value={dailyUsage.ok ? formatWholeNumber(totalTokens30d) : notSet}
+              detail={
+                dailyUsage.ok
+                  ? t("dashboard.usageTokenMixDetail", {
+                      completion: formatPercent(completionTokenShare),
+                      prompt: formatWholeNumber(promptTokens30d),
+                      output: formatWholeNumber(completionTokens30d),
+                    })
+                  : dailyUsage.error
+              }
+              tone="neutral"
             />
           </DashboardPanelContent>
         </Card>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-2">
-        <UsageBreakdownCard
-          title={t("dashboard.usageProviderMixTitle")}
-          description={t("dashboard.usageProviderMixDescription")}
-          result={requestLogs}
-          sampleCount={sampleCount}
-          items={providerBreakdown}
-          t={t}
-        />
-        <UsageBreakdownCard
-          title={t("dashboard.usageModelMixTitle")}
-          description={t("dashboard.usageModelMixDescription")}
-          result={requestLogs}
-          sampleCount={sampleCount}
-          items={modelBreakdown}
-          t={t}
-        />
-      </div>
-
-      <div className="grid gap-3 xl:grid-cols-2">
-        <UsageBreakdownCard
-          title={t("dashboard.usageApiKeyMixTitle")}
-          description={t("dashboard.usageApiKeyMixDescription")}
-          result={requestLogs}
-          sampleCount={sampleCount}
-          items={apiKeyBreakdown}
-          t={t}
-        />
-        <UsageBreakdownCard
-          title={t("dashboard.usageEndpointMixTitle")}
-          description={t("dashboard.usageEndpointMixDescription")}
-          result={requestLogs}
-          sampleCount={sampleCount}
-          items={endpointBreakdown}
-          t={t}
-        />
-      </div>
-
+      <UsageAllocationMatrix
+        title={t("dashboard.usageAllocationTitle")}
+        description={t("dashboard.usageAllocationDescription")}
+        result={breakdownResult}
+        sampleCount={sampleCount}
+        groups={usageDimensionGroups}
+        t={t}
+      />
     </section>
   );
 }
 
 function UsageDetailsSection({
   t,
+  activeWorkspace,
   requestLogs,
   apiKeys,
+  workspaceDepartmentList,
   tablePagination,
 }: DashboardSectionContentProps) {
   const apiKeyList = apiKeys.ok ? apiKeys.data.data : [];
 
   return (
-    <section className="grid gap-3">
-      <Card id="usage-details">
+    <section className="grid gap-2.5">
+      <Card id="usage-details" size="sm">
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.usageRequestDetailsTitle")}</CardTitle>
         </DashboardPanelHeader>
@@ -2508,6 +2592,8 @@ function UsageDetailsSection({
             <UsageRequestDetails
               logs={requestLogs.data.data}
               apiKeys={apiKeyList}
+              departments={workspaceDepartmentList}
+              workspaceID={activeWorkspace?.id ?? ""}
               pagination={tablePagination.usage_details}
               paginationId="usage_details"
             />
@@ -2541,8 +2627,8 @@ function UsageDailySpendRow({
     maxSpend > 0 ? Math.max((spend / maxSpend) * 100, spend > 0 ? 6 : 0) : 0;
 
   return (
-    <div className="rounded-lg border border-border/70 bg-background p-3">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-md border border-border/70 bg-background p-2">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <DashboardMonoDetailText className="font-medium text-foreground">
             {usage.usage_date}
@@ -2567,7 +2653,7 @@ function UsageDailySpendRow({
           </div>
         </div>
       </div>
-      <div className="mt-2 h-1.5 rounded-full bg-muted">
+      <div className="mt-1.5 h-1 rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-primary/65"
           style={{ width: `${spendBarWidth}%` }}
@@ -2577,45 +2663,103 @@ function UsageDailySpendRow({
   );
 }
 
-function UsageSignalMetric({
+function UsageExecutiveMetric({
+  icon,
   label,
   value,
   detail,
 }: {
+  icon: ReactNode;
   label: string;
   value: string;
   detail: string;
 }) {
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5">
-      <div className="text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-        {label}
+    <div className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-2.5 rounded-md border border-border/70 bg-muted/25 p-3">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground">
+        {icon}
       </div>
-      <div className="mt-1 font-mono text-lg font-semibold tabular-nums text-foreground">
-        {value}
+      <div className="min-w-0">
+        <div className="text-xs font-medium text-muted-foreground">{label}</div>
+        <div className="mt-0.5 truncate font-mono text-lg font-semibold leading-6 tabular-nums text-foreground">
+          {value}
+        </div>
+        <DashboardDetailText className="mt-0.5">{detail}</DashboardDetailText>
       </div>
-      <DashboardDetailText className="mt-1">{detail}</DashboardDetailText>
     </div>
   );
 }
 
-function UsageBreakdownCard({
+function UsageOperatingSignal({
+  label,
+  value,
+  detail,
+  tone,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  tone: "neutral" | "warning" | "critical";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-md border border-border/70 px-2.5 py-2",
+        tone === "critical"
+          ? "bg-destructive/5"
+          : tone === "warning"
+            ? "bg-muted/55"
+            : "bg-muted/20",
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-xs font-medium text-muted-foreground">
+            {label}
+          </div>
+          <div className="mt-0.5 font-mono text-base font-semibold tabular-nums text-foreground">
+            {value}
+          </div>
+          <DashboardDetailText className="mt-0.5 whitespace-normal">
+            {detail}
+          </DashboardDetailText>
+        </div>
+        {tone !== "neutral" ? (
+          <span
+            className={cn(
+              "mt-1 size-2 shrink-0 rounded-full",
+              tone === "critical" ? "bg-destructive" : "bg-foreground/55",
+            )}
+          />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+type UsageDimensionGroup = {
+  title: string;
+  description: string;
+  items: UsageBreakdownItem[];
+};
+
+function UsageAllocationMatrix({
   title,
   description,
   result,
   sampleCount,
-  items,
+  groups,
   t,
 }: {
   title: string;
   description: string;
-  result: DashboardSectionContentProps["requestLogs"];
+  result: Settled<unknown>;
   sampleCount: number;
-  items: UsageBreakdownItem[];
+  groups: UsageDimensionGroup[];
   t: DashboardSectionContentProps["t"];
 }) {
   return (
-    <Card>
+    <Card size="sm">
       <DashboardPanelHeader>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -2630,56 +2774,10 @@ function UsageBreakdownCard({
         ) : null}
       </DashboardPanelHeader>
       <DashboardPanelContent>
-        {result.ok && items.length > 0 ? (
-          <div className="grid gap-2">
-            {items.map((item) => (
-              <div
-                key={item.key}
-                className="rounded-lg border border-border/70 bg-muted/15 p-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium text-foreground">
-                      {item.label}
-                    </div>
-                    <DashboardDetailText>
-                      {t("dashboard.usageRequestVolumeDetail", {
-                        requests: formatWholeNumber(item.requests),
-                        tokens: formatWholeNumber(item.tokens),
-                      })}
-                    </DashboardDetailText>
-                    <DashboardMonoDetailText>
-                      {t("dashboard.usageSuccessRateLatency", {
-                        successRate: formatPercent(
-                          item.requests > 0
-                            ? (item.succeeded / item.requests) * 100
-                            : 0,
-                        ),
-                        latency: formatLatency(item.averageLatencyMS, t("dashboard.notSet")),
-                      })}
-                    </DashboardMonoDetailText>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <div className="font-mono text-sm font-semibold tabular-nums text-foreground">
-                      {formatCurrency(item.spend)}
-                    </div>
-                    <DashboardMonoDetailText>
-                      {formatPercent(item.spendShare)} {t("dashboard.usageSpendShare")}
-                    </DashboardMonoDetailText>
-                  </div>
-                </div>
-                <div className="mt-2 h-1.5 rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary/65"
-                    style={{
-                      width: `${Math.max(
-                        item.spendShare,
-                        item.spend > 0 ? 6 : 0,
-                      )}%`,
-                    }}
-                  />
-                </div>
-              </div>
+        {result.ok && groups.some((group) => group.items.length > 0) ? (
+          <div className="grid gap-2.5 xl:grid-cols-2 2xl:grid-cols-5">
+            {groups.map((group) => (
+              <UsageAllocationGroupCard key={group.title} group={group} t={t} />
             ))}
           </div>
         ) : (
@@ -2694,22 +2792,98 @@ function UsageBreakdownCard({
   );
 }
 
+function UsageAllocationGroupCard({
+  group,
+  t,
+}: {
+  group: UsageDimensionGroup;
+  t: DashboardSectionContentProps["t"];
+}) {
+  const topItems = group.items.slice(0, 3);
+  const topItem = topItems[0];
+
+  return (
+    <div className="flex min-w-0 flex-col gap-2 rounded-md border border-border/70 bg-muted/15 p-2.5">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-foreground">
+          {group.title}
+        </div>
+        <DashboardDetailText className="whitespace-normal">
+          {group.description}
+        </DashboardDetailText>
+      </div>
+      {topItem ? (
+        <div className="rounded-md border border-border/70 bg-background p-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="truncate font-medium">{topItem.label}</div>
+              <DashboardDetailText>
+                {t("dashboard.usageTopContributor")}
+              </DashboardDetailText>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="font-mono text-sm font-semibold tabular-nums">
+                {formatCurrency(topItem.spend)}
+              </div>
+              <DashboardMonoDetailText>
+                {formatPercent(topItem.spendShare)}
+              </DashboardMonoDetailText>
+            </div>
+          </div>
+          <div className="mt-1.5 h-1 rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary/65"
+              style={{
+                width: `${Math.max(
+                  topItem.spendShare,
+                  topItem.spend > 0 ? 6 : 0,
+                )}%`,
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed p-2 text-xs text-muted-foreground">
+          {t("dashboard.usageBreakdownEmpty")}
+        </div>
+      )}
+      <div className="grid gap-1">
+        {topItems.slice(1).map((item) => (
+          <div
+            key={item.key}
+            className="flex min-w-0 items-center justify-between gap-2 text-xs"
+          >
+            <span className="min-w-0 truncate text-muted-foreground">
+              {item.label}
+            </span>
+            <span className="shrink-0 font-mono tabular-nums">
+              {formatCurrency(item.spend)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RequestLogsSection({
   t,
   activeWorkspace,
   requestLogs,
   providerSetupList,
+  workspaceDepartmentList,
   tablePagination,
 }: DashboardSectionContentProps) {
   return (
-    <section className="grid gap-3">
-      <Card id="request-logs">
+    <section className="grid gap-2.5">
+      <Card id="request-logs" size="sm">
         <DashboardPanelContent>
           {requestLogs.ok ? (
             <RequestLogsTable
               logs={requestLogs.data.data}
               pagination={tablePagination.request_logs}
               providerSetupList={providerSetupList}
+              departments={workspaceDepartmentList}
               workspaceID={activeWorkspace?.id ?? ""}
               emptyMessage={t("dashboard.noRequestLogs")}
             />

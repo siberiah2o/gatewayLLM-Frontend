@@ -102,13 +102,15 @@ export function EditWorkspaceUserDialog({
           <Button
             type="button"
             variant="outline"
-            size="xs"
+            size="icon-xs"
             disabled={!canUpdate}
+            title={t("actions.edit")}
+            aria-label={t("actions.edit")}
           />
         }
       >
-        <PencilIcon data-icon="inline-start" />
-        {t("actions.edit")}
+        <PencilIcon />
+        <span className="sr-only">{t("actions.edit")}</span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -223,20 +225,24 @@ export function DeleteWorkspaceUserDialog({
           <Button
             type="button"
             variant="destructive"
-            size="xs"
+            size="icon-xs"
             disabled={!canRemove || isPending}
+            title={isPending ? t("actions.removing") : t("actions.remove")}
+            aria-label={isPending ? t("actions.removing") : t("actions.remove")}
           />
         }
       >
-        <Trash2Icon data-icon="inline-start" />
-        {isPending ? t("actions.removing") : t("actions.remove")}
+        <Trash2Icon />
+        <span className="sr-only">
+          {isPending ? t("actions.removing") : t("actions.remove")}
+        </span>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("forms.removeUser")}</DialogTitle>
           <DialogDescription>{t("forms.removeUserConfirm")}</DialogDescription>
         </DialogHeader>
-        <div className="min-w-0 rounded-lg border p-3 text-sm">
+        <div className="min-w-0 rounded-md border p-2.5 text-sm">
           <div className="truncate font-medium">{user.display_name}</div>
           <div className="truncate text-muted-foreground">{user.email}</div>
         </div>

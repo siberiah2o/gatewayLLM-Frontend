@@ -9,6 +9,7 @@ type CreateWorkspaceUserBody = {
   password?: string
   display_name?: string
   role?: string
+  department_id?: string | null
 }
 
 export async function GET(
@@ -66,6 +67,10 @@ export async function POST(
     const password = body.password?.trim()
     const displayName = body.display_name?.trim()
     const role = body.role?.trim() || "member"
+    const departmentID =
+      typeof body.department_id === "string"
+        ? body.department_id.trim()
+        : body.department_id
 
     if (!email || !password || !displayName) {
       return badRequest("Email, password, and display name are required.")
@@ -87,6 +92,7 @@ export async function POST(
           status: "active",
           email_verified: true,
           role,
+          ...(departmentID !== undefined ? { department_id: departmentID ?? "" } : {}),
         },
       }
     )

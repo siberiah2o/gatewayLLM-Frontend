@@ -46,13 +46,13 @@ export function StatusTrafficChart({
   return (
     <ChartContainer
       config={chartConfig}
-      className="h-[280px] min-h-[280px] w-full min-w-0"
-      responsiveInitialDimension={{ width: 960, height: 280 }}
+      className="h-[220px] min-h-[220px] w-full min-w-0"
+      responsiveInitialDimension={{ width: 960, height: 220 }}
     >
       <AreaChart
         accessibilityLayer
         data={data}
-        margin={{ top: 16, right: 16, bottom: 0, left: 8 }}
+        margin={{ top: 10, right: 12, bottom: 0, left: 4 }}
       >
         <defs>
           <linearGradient id={successGradientId} x1="0" x2="0" y1="0" y2="1">
@@ -69,7 +69,7 @@ export function StatusTrafficChart({
           dataKey="label"
           tickLine={false}
           axisLine={false}
-          tickMargin={10}
+          tickMargin={8}
           minTickGap={24}
         />
         <YAxis hide />

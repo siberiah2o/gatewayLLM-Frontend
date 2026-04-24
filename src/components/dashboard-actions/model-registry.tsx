@@ -271,7 +271,7 @@ export function CreateModelCatalogForm({ workspaceId }: { workspaceId?: string }
   }
 
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
+    <form className="rounded-md border p-2.5" onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="provider">{t("forms.provider")}</FieldLabel>
@@ -667,7 +667,7 @@ export function CreateProviderCredentialForm({
   }
 
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
+    <form className="rounded-md border p-2.5" onSubmit={handleSubmit}>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="credential-name">
@@ -1121,7 +1121,7 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
   }
 
   return (
-    <form className="rounded-lg border p-3" onSubmit={handleSubmit}>
+    <form className="rounded-md border p-2.5" onSubmit={handleSubmit}>
       <FieldGroup>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field>
@@ -1314,7 +1314,7 @@ export function CreateProviderSetupForm({ workspaceId }: { workspaceId?: string 
           />
         </Field>
 
-        <FieldSet className="grid gap-3 rounded-lg border p-3">
+        <FieldSet className="grid gap-3 rounded-md border p-2.5">
           <FieldLegend>{t("forms.advancedOptions")}</FieldLegend>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field>

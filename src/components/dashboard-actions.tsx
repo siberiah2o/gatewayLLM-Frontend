@@ -12,6 +12,12 @@ export {
   EditModelDeploymentDialog,
 } from "./dashboard-actions/deployments"
 export {
+  CreateWorkspaceDepartmentForm,
+  DeleteWorkspaceDepartmentButton,
+  EditWorkspaceDepartmentDialog,
+  ManageDepartmentModelPermissionsDialog,
+} from "./dashboard-actions/department"
+export {
   CreateModelCatalogForm,
   CreateProviderCredentialForm,
   CreateProviderSetupForm,
@@ -35,7 +41,6 @@ export {
   CreateWorkspaceForm,
   CreateWorkspaceUserDialog,
   ManageModelPermissionsDialog,
-  RemoveWorkspaceMemberButton,
   UpdateWorkspaceMemberForm,
 } from "./dashboard-actions/workspace"
 export {

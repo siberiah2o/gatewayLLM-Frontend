@@ -63,6 +63,7 @@ export function DashboardFormSelect({
   triggerClassName?: string
 }) {
   const labelId = `${id}-label`
+  const selectKey = `${id}:${defaultValue ?? "__empty__"}`
 
   return (
     <>
@@ -70,6 +71,7 @@ export function DashboardFormSelect({
         {label}
       </FieldLabel>
       <Select
+        key={selectKey}
         name={name}
         items={options}
         defaultValue={defaultValue ?? null}

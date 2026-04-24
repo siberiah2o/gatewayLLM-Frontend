@@ -32,14 +32,12 @@ export function DashboardSectionSkeleton({
       return <RequestLogsSectionSkeleton />
     case "logs":
       return <RequestLogsSectionSkeleton />
-    case "workspaces":
-      return <WorkspacesSectionSkeleton />
     case "account":
       return <AccountSectionSkeleton />
     case "users":
       return <UsersSectionSkeleton />
-    case "members":
-      return <MembersSectionSkeleton />
+    case "departments":
+      return <DepartmentsSectionSkeleton />
     case "registration":
       return <RegistrationSectionSkeleton />
     case "api-keys":
@@ -59,16 +57,11 @@ export function DashboardSectionSkeleton({
 
 function StatusSectionSkeleton() {
   return (
-    <section className="grid gap-3">
-      <Card>
+    <section className="grid gap-2.5">
+      <Card size="sm">
         <PanelHeaderSkeleton titleWidth="w-40" descriptionWidth="w-80" />
-        <DashboardPanelContent className="grid gap-3">
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-muted/25 p-2.5">
-            <Skeleton className="h-5 w-28 rounded-md" />
-            <Skeleton className="h-4 w-48" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-          <div className="grid gap-3 lg:grid-cols-3 2xl:grid-cols-6">
+        <DashboardPanelContent className="grid gap-2.5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             {Array.from({ length: 6 }).map((_, index) => (
               <SummaryTileSkeleton key={index} />
             ))}
@@ -76,12 +69,12 @@ function StatusSectionSkeleton() {
         </DashboardPanelContent>
       </Card>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(19rem,0.95fr)]">
-        <Card>
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)]">
+        <Card size="sm">
           <PanelHeaderSkeleton titleWidth="w-36" descriptionWidth="w-64" />
-          <DashboardPanelContent className="grid gap-4">
-            <Skeleton className="h-[320px] w-full rounded-xl" />
-            <div className="grid gap-2 sm:grid-cols-3">
+          <DashboardPanelContent className="grid gap-2.5">
+            <Skeleton className="h-[220px] w-full rounded-xl" />
+            <div className="grid gap-2 md:grid-cols-3">
               {Array.from({ length: 3 }).map((_, index) => (
                 <SummaryTileSkeleton key={index} />
               ))}
@@ -89,59 +82,63 @@ function StatusSectionSkeleton() {
           </DashboardPanelContent>
         </Card>
 
-        <Card>
+        <Card size="sm">
           <PanelHeaderSkeleton titleWidth="w-32" descriptionWidth="w-56" />
-          <DashboardStackContent>
-            {Array.from({ length: 4 }).map((_, index) => (
-              <DashboardRow
-                key={index}
-                className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
-              >
-                <PrimaryBlockSkeleton
-                  titleWidth="w-36"
-                  detailWidths={["w-48"]}
-                />
-                <Skeleton className="h-7 w-16 rounded-md" />
-              </DashboardRow>
-            ))}
-          </DashboardStackContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Card>
-          <PanelHeaderSkeleton titleWidth="w-32" descriptionWidth="w-72" />
           <DashboardPanelContent>
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="grid gap-3 rounded-lg border border-border/70 p-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="size-8 rounded-md" />
-                      <div className="grid gap-1">
-                        <Skeleton className="h-4 w-20" />
-                        <Skeleton className="h-3 w-32" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-6 w-14 rounded-md" />
-                  </div>
-                  <Skeleton className="h-6 w-24" />
-                </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <SummaryTileSkeleton key={index} />
               ))}
             </div>
           </DashboardPanelContent>
         </Card>
+      </div>
 
-        <Card>
+      <Card size="sm">
+        <PanelHeaderSkeleton titleWidth="w-32" descriptionWidth="w-72" />
+        <DashboardPanelContent>
+          <div className="grid gap-2.5 xl:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div
+                key={index}
+                className="grid gap-2.5 rounded-md border border-border/70 p-2.5"
+              >
+                <div className="flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="size-7 rounded-md" />
+                    <div className="grid gap-1">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-3 w-32" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-6 w-14 rounded-md" />
+                </div>
+                <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 7 }).map((_, metricIndex) => (
+                    <Skeleton
+                      key={metricIndex}
+                      className="h-[58px] rounded-md"
+                    />
+                  ))}
+                </div>
+                <div className="flex gap-1.5">
+                  <Skeleton className="h-5 w-20 rounded-md" />
+                  <Skeleton className="h-5 w-28 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </DashboardPanelContent>
+      </Card>
+
+      <div className="grid gap-2.5 xl:grid-cols-2">
+        <Card size="sm">
           <PanelHeaderSkeleton titleWidth="w-36" descriptionWidth="w-72" />
-          <DashboardStackContent>
+          <DashboardStackContent className="gap-1.5">
             {Array.from({ length: 5 }).map((_, index) => (
               <DashboardRow
                 key={index}
-                className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                className="gap-2 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
               >
                 <PrimaryBlockSkeleton
                   titleWidth="w-32"
@@ -155,27 +152,14 @@ function StatusSectionSkeleton() {
             ))}
           </DashboardStackContent>
         </Card>
-      </div>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <Card>
-          <PanelHeaderSkeleton titleWidth="w-36" descriptionWidth="w-64" />
-          <DashboardPanelContent>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <SummaryTileSkeleton key={index} />
-              ))}
-            </div>
-          </DashboardPanelContent>
-        </Card>
-
-        <Card>
+        <Card size="sm">
           <PanelHeaderSkeleton titleWidth="w-32" descriptionWidth="w-64" />
-          <DashboardStackContent>
+          <DashboardStackContent className="gap-1.5">
             {Array.from({ length: 5 }).map((_, index) => (
               <DashboardRow
                 key={index}
-                className="gap-3 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                className="gap-2 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
               >
                 <PrimaryBlockSkeleton
                   titleWidth="w-40"
@@ -194,44 +178,12 @@ function StatusSectionSkeleton() {
   )
 }
 
-function WorkspacesSectionSkeleton() {
-  return (
-    <section className="grid gap-3">
-      <Card id="workspaces">
-        <PanelHeaderSkeleton
-          titleWidth="w-28"
-          descriptionWidth="w-56"
-          actionWidth={null}
-        />
-        <DashboardStackContent>
-          <InlineFormSkeleton fields={2} buttonWidth="w-28" />
-          {Array.from({ length: 3 }).map((_, index) => (
-            <DashboardRow
-              key={index}
-              className="gap-3 p-3 md:grid-cols-[1fr_auto] md:items-center"
-            >
-              <PrimaryBlockSkeleton
-                titleWidth="w-40"
-                detailWidths={["w-48"]}
-              />
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-5 w-14 rounded-md" />
-                <Skeleton className="h-4 w-10" />
-              </div>
-            </DashboardRow>
-          ))}
-        </DashboardStackContent>
-      </Card>
-    </section>
-  )
-}
-
 function ProviderSetupsSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <Card>
           <PanelHeaderSkeleton titleWidth="w-40" />
           <DashboardPanelContent>
@@ -280,11 +232,11 @@ function ProviderSetupsSectionSkeleton() {
 
 function AccountSectionSkeleton() {
   return (
-    <section className="grid gap-4">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} size="default" />
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <Card>
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Card size="sm">
           <PanelHeaderSkeleton
             titleWidth="w-36"
             descriptionWidth="w-40"
@@ -299,8 +251,8 @@ function AccountSectionSkeleton() {
           </DashboardPanelContent>
         </Card>
 
-        <div className="grid gap-4">
-          <Card>
+        <div className="grid gap-2.5">
+          <Card size="sm">
             <PanelHeaderSkeleton
               titleWidth="w-32"
               descriptionWidth={null}
@@ -337,10 +289,10 @@ function AccountSectionSkeleton() {
 
 function UsersSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <PanelHeaderSkeleton titleWidth="w-24" />
           <DashboardPanelContent>
@@ -376,29 +328,30 @@ function UsersSectionSkeleton() {
   )
 }
 
-function MembersSectionSkeleton() {
+function DepartmentsSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
       <Card>
-        <PanelHeaderSkeleton titleWidth="w-28" />
+        <PanelHeaderSkeleton titleWidth="w-32" />
         <DashboardPanelContent>
           <div className="flex flex-col gap-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <DashboardRow
                 key={index}
-                className="gap-3 p-3 xl:grid-cols-[minmax(12rem,1fr)_5rem_minmax(12rem,0.7fr)_minmax(26rem,1fr)]"
+                className="gap-3 p-3 xl:grid-cols-[minmax(12rem,1fr)_minmax(18rem,1fr)_minmax(10rem,0.7fr)_auto]"
               >
                 <PrimaryBlockSkeleton
                   titleWidth="w-32"
-                  detailWidths={["w-44", "w-36"]}
+                  detailWidths={["w-44"]}
                 />
-                <BadgeClusterSkeleton widths={["w-10"]} />
+                <PrimaryBlockSkeleton
+                  titleWidth="w-48"
+                  detailWidths={["w-36"]}
+                />
                 <BadgeClusterSkeleton widths={["w-14", "w-28"]} />
-                <ActionClusterSkeleton
-                  widths={["w-20", "w-20", "w-14", "w-24", "w-14"]}
-                />
+                <ActionClusterSkeleton widths={["w-20", "w-14"]} />
               </DashboardRow>
             ))}
           </div>
@@ -410,7 +363,7 @@ function MembersSectionSkeleton() {
 
 function RegistrationSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
       <Card>
@@ -446,10 +399,10 @@ function RegistrationSectionSkeleton() {
 
 function ApiKeysSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <PanelHeaderSkeleton titleWidth="w-36" />
           <DashboardPanelContent>
@@ -494,10 +447,10 @@ function ApiKeysSectionSkeleton() {
 
 function ModelsSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <Card>
           <PanelHeaderSkeleton titleWidth="w-28" />
           <DashboardPanelContent>
@@ -538,10 +491,10 @@ function ModelsSectionSkeleton() {
 
 function CredentialsSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <Card>
           <PanelHeaderSkeleton titleWidth="w-36" />
           <DashboardPanelContent>
@@ -582,10 +535,10 @@ function CredentialsSectionSkeleton() {
 
 function DeploymentsSectionSkeleton() {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2.5">
       <SummaryCardSkeleton count={2} />
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_28rem]">
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_28rem]">
         <Card>
           <PanelHeaderSkeleton titleWidth="w-36" />
           <DashboardPanelContent>
@@ -640,7 +593,7 @@ function ChatSmokeSectionSkeleton() {
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={index}
-                className="rounded-lg border bg-background/70 p-3 shadow-xs"
+                className="rounded-md border bg-background/70 p-2.5 shadow-xs"
               >
                 <div className="mb-3 flex gap-2.5">
                   <Skeleton className="size-7 rounded-md" />
@@ -649,7 +602,7 @@ function ChatSmokeSectionSkeleton() {
                     <Skeleton className="h-3 w-32" />
                   </div>
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-2.5">
                   <FieldSkeleton
                     labelWidth="w-20"
                     controlClassName="h-8 w-full"
@@ -669,8 +622,8 @@ function ChatSmokeSectionSkeleton() {
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-3 w-64 max-w-full" />
             <CardAction className="flex gap-2">
-              <Skeleton className="h-7 w-20 rounded-lg" />
-              <Skeleton className="h-7 w-20 rounded-lg" />
+              <Skeleton className="h-7 w-20 rounded-md" />
+              <Skeleton className="h-7 w-20 rounded-md" />
             </CardAction>
             <div className="col-span-full flex gap-2 pt-1">
               <Skeleton className="h-6 w-32 rounded-md" />
@@ -696,7 +649,7 @@ function ChatSmokeSectionSkeleton() {
               <div className="mx-auto max-w-4xl overflow-hidden rounded-xl border bg-card shadow-xs">
                 <div className="flex items-end gap-2 p-3">
                   <Skeleton className="h-11 flex-1 rounded-md" />
-                  <Skeleton className="size-8 rounded-lg" />
+                  <Skeleton className="size-8 rounded-md" />
                 </div>
                 <div className="flex justify-between border-t bg-muted/20 px-3 py-2">
                   <Skeleton className="h-3 w-28" />
@@ -713,42 +666,34 @@ function ChatSmokeSectionSkeleton() {
 
 function UsageSectionSkeleton() {
   return (
-    <section className="grid gap-3">
-      <Card id="usage">
+    <section className="grid gap-2.5">
+      <Card id="usage" size="sm">
         <PanelHeaderSkeleton
           titleWidth="w-40"
           descriptionWidth="w-80"
           actionWidth="w-28"
         />
-        <DashboardPanelContent className="grid gap-4">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <DashboardPanelContent className="grid gap-2.5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             {Array.from({ length: 6 }).map((_, index) => (
-              <MetricCardSkeleton key={`usage-summary-${index}`} />
+              <SummaryTileSkeleton key={`usage-summary-${index}`} />
             ))}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-5 w-24 rounded-md" />
-            <Skeleton className="h-5 w-40 rounded-md" />
-          </div>
-          <div className="grid gap-1">
-            <Skeleton className="h-3 w-80 max-w-full" />
-            <Skeleton className="h-3 w-72 max-w-full" />
           </div>
         </DashboardPanelContent>
       </Card>
 
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)]">
-        <Card>
+      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)]">
+        <Card size="sm">
           <PanelHeaderSkeleton
             titleWidth="w-36"
             descriptionWidth="w-72"
             actionWidth="w-20"
           />
-          <DashboardStackContent>
+          <DashboardStackContent className="gap-1.5">
             {Array.from({ length: 6 }).map((_, index) => (
               <DashboardRow
                 key={`usage-daily-${index}`}
-                className="gap-3 rounded-lg border p-3"
+                className="gap-2 rounded-md border p-2"
               >
                 <PrimaryBlockSkeleton
                   titleWidth="w-24"
@@ -760,17 +705,17 @@ function UsageSectionSkeleton() {
           </DashboardStackContent>
         </Card>
 
-        <Card>
+        <Card size="sm">
           <PanelHeaderSkeleton
             titleWidth="w-32"
             descriptionWidth="w-64"
             actionWidth={null}
           />
-          <DashboardPanelContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+          <DashboardPanelContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
             {Array.from({ length: 4 }).map((_, index) => (
               <div
                 key={`usage-signal-${index}`}
-                className="rounded-lg border border-border/70 p-3"
+                className="rounded-md border border-border/70 p-2"
               >
                 <Skeleton className="h-3 w-24" />
                 <Skeleton className="mt-2 h-6 w-28" />
@@ -781,57 +726,61 @@ function UsageSectionSkeleton() {
         </Card>
       </div>
 
-      {Array.from({ length: 2 }).map((_, rowIndex) => (
-        <div key={`usage-breakdown-row-${rowIndex}`} className="grid gap-3 xl:grid-cols-2">
-          {Array.from({ length: 2 }).map((__, columnIndex) => (
-            <Card key={`usage-breakdown-${rowIndex}-${columnIndex}`}>
-              <PanelHeaderSkeleton
-                titleWidth="w-36"
-                descriptionWidth="w-72"
-                actionWidth="w-28"
-              />
-              <DashboardPanelContent className="grid gap-2">
-                {Array.from({ length: 4 }).map((___, itemIndex) => (
-                  <div
-                    key={`usage-breakdown-item-${rowIndex}-${columnIndex}-${itemIndex}`}
-                    className="rounded-lg border border-border/70 p-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <PrimaryBlockSkeleton
-                        titleWidth="w-28"
-                        detailWidths={["w-44", "w-40"]}
-                      />
-                      <PrimaryBlockSkeleton
-                        titleWidth="w-16"
-                        detailWidths={["w-20"]}
-                      />
-                    </div>
-                    <Skeleton className="mt-2 h-2 w-full rounded-full" />
+      <div className="grid gap-2.5 xl:grid-cols-2">
+        {Array.from({ length: 4 }).map((_, cardIndex) => (
+          <Card key={`usage-breakdown-${cardIndex}`} size="sm">
+            <PanelHeaderSkeleton
+              titleWidth="w-36"
+              descriptionWidth="w-72"
+              actionWidth="w-28"
+            />
+            <DashboardPanelContent className="grid gap-1.5">
+              {Array.from({ length: 4 }).map((__, itemIndex) => (
+                <div
+                  key={`usage-breakdown-item-${cardIndex}-${itemIndex}`}
+                  className="rounded-md border border-border/70 p-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <PrimaryBlockSkeleton
+                      titleWidth="w-28"
+                      detailWidths={["w-44", "w-40"]}
+                    />
+                    <PrimaryBlockSkeleton
+                      titleWidth="w-16"
+                      detailWidths={["w-20"]}
+                    />
                   </div>
-                ))}
-              </DashboardPanelContent>
-            </Card>
-          ))}
-        </div>
-      ))}
+                  <Skeleton className="mt-1.5 h-1 w-full rounded-full" />
+                </div>
+              ))}
+            </DashboardPanelContent>
+          </Card>
+        ))}
+      </div>
     </section>
   )
 }
 
 function RequestLogsSectionSkeleton() {
   return (
-    <section className="grid gap-3">
-      <Card id="request-logs">
+    <section className="grid gap-2.5">
+      <Card id="request-logs" size="sm">
         <PanelHeaderSkeleton
           titleWidth="w-36"
           descriptionWidth="w-72"
           actionWidth={null}
         />
-        <DashboardStackContent>
+        <DashboardStackContent className="gap-1.5">
+          <div className="flex min-w-0 flex-col gap-1.5 rounded-md border border-border/70 p-2 md:flex-row">
+            <Skeleton className="h-7 min-w-0 flex-1 rounded-md" />
+            <Skeleton className="h-7 w-32 rounded-md" />
+            <Skeleton className="h-7 w-32 rounded-md" />
+            <Skeleton className="h-7 w-16 rounded-md" />
+          </div>
           {Array.from({ length: 5 }).map((_, index) => (
             <DashboardRow
               key={index}
-              className="gap-3 p-3 xl:grid-cols-[minmax(13rem,1.2fr)_minmax(10rem,0.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.7fr)_auto]"
+              className="gap-2 p-2 xl:grid-cols-[minmax(13rem,1.2fr)_minmax(10rem,0.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.65fr)_minmax(8rem,0.65fr)_auto]"
             >
               <PrimaryBlockSkeleton
                 titleWidth="w-40"
@@ -847,26 +796,16 @@ function RequestLogsSectionSkeleton() {
                 titleWidth="w-20"
                 detailWidths={["w-28"]}
               />
+              <PrimaryBlockSkeleton
+                titleWidth="w-20"
+                detailWidths={["w-28"]}
+              />
               <Skeleton className="h-7 w-16 xl:justify-self-end" />
             </DashboardRow>
           ))}
         </DashboardStackContent>
       </Card>
     </section>
-  )
-}
-
-function MetricCardSkeleton() {
-  return (
-    <Card size="sm">
-      <CardHeader>
-        <Skeleton className="h-4 w-20" />
-        <Skeleton className="h-6 w-14" />
-      </CardHeader>
-      <CardContent>
-        <Skeleton className="h-3 w-24" />
-      </CardContent>
-    </Card>
   )
 }
 
@@ -975,7 +914,7 @@ function InlineFormSkeleton({
   buttonWidth: string
 }) {
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {Array.from({ length: fields }).map((_, index) => (
         <FieldSkeleton
           key={index}

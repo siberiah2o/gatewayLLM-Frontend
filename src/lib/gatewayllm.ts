@@ -120,6 +120,21 @@ export type WorkspaceList = {
   data: Workspace[]
 }
 
+export type WorkspaceDepartment = {
+  id: string
+  workspace_id: string
+  name: string
+  description: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export type WorkspaceDepartmentList = {
+  object: string
+  data: WorkspaceDepartment[]
+}
+
 export type WorkspaceMember = {
   workspace_id: string
   user_id: string
@@ -127,6 +142,9 @@ export type WorkspaceMember = {
   display_name: string
   role: string
   status: string
+  department_id?: string
+  department_name?: string
+  department_status?: string
   created_at: string
 }
 
@@ -146,6 +164,9 @@ export type User = {
   email_verified_at?: string
   role?: string
   workspace_member_status?: string
+  department_id?: string
+  department_name?: string
+  department_status?: string
   created_at: string
   updated_at: string
 }
@@ -167,6 +188,20 @@ export type UserModelPermission = {
 export type UserModelPermissionList = {
   object: string
   data: UserModelPermission[]
+}
+
+export type DepartmentModelPermission = {
+  workspace_id: string
+  department_id: string
+  model_catalog_id: string
+  model_canonical_name: string
+  provider: string
+  created_at: string
+}
+
+export type DepartmentModelPermissionList = {
+  object: string
+  data: DepartmentModelPermission[]
 }
 
 export type APIKey = {
@@ -209,6 +244,44 @@ export type DailyUsageList = {
   data: DailyUsage[]
 }
 
+export type UsageInsightTotals = {
+  request_count: number
+  success_count: number
+  failure_count: number
+  retried_request_count: number
+  prompt_tokens: number
+  completion_tokens: number
+  spend_usd: string
+  failed_spend_usd: string
+  average_latency_ms?: number
+  window_start?: string
+  window_end?: string
+}
+
+export type UsageInsightBreakdown = {
+  key: string
+  label: string
+  request_count: number
+  success_count: number
+  failure_count: number
+  prompt_tokens: number
+  completion_tokens: number
+  spend_usd: string
+  average_latency_ms?: number
+}
+
+export type UsageInsights = {
+  object: string
+  days: number
+  captured_at: string
+  totals: UsageInsightTotals
+  providers: UsageInsightBreakdown[]
+  models: UsageInsightBreakdown[]
+  api_keys: UsageInsightBreakdown[]
+  endpoints: UsageInsightBreakdown[]
+  departments: UsageInsightBreakdown[]
+}
+
 export type RequestLogAttempt = {
   id: string
   request_id: string
@@ -235,6 +308,8 @@ export type RequestLog = {
   api_key_display_name?: string
   api_key_owner_user_id?: string
   api_key_owner_name?: string
+  department_id?: string
+  department_name?: string
   model_catalog_id?: string
   model_canonical_name?: string
   model_provider?: string

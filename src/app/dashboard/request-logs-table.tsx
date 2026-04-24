@@ -23,7 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table"
-import type { ProviderSetup, RequestLog } from "@/lib/gatewayllm"
+import type {
+  ProviderSetup,
+  RequestLog,
+  WorkspaceDepartment,
+} from "@/lib/gatewayllm"
 import { cn } from "@/lib/utils"
 import type { DashboardPaginationState } from "./dashboard-pagination"
 import { DashboardTablePagination } from "./dashboard-table-pagination"
@@ -31,22 +35,25 @@ import { DashboardTablePagination } from "./dashboard-table-pagination"
 type DetailStatus = "idle" | "loading" | "ready" | "error"
 
 const REQUEST_LOGS_GRID_CLASS =
-  "xl:grid-cols-[minmax(13rem,1.2fr)_minmax(10rem,0.8fr)_minmax(9rem,0.7fr)_minmax(8rem,0.6fr)_minmax(8rem,0.65fr)_minmax(8rem,0.65fr)_auto]"
+  "xl:grid-cols-[minmax(13rem,1.1fr)_minmax(10rem,0.75fr)_minmax(9rem,0.7fr)_minmax(8rem,0.65fr)_minmax(8rem,0.55fr)_minmax(8rem,0.6fr)_minmax(8rem,0.6fr)_auto]"
 const REQUEST_LOG_QUERY_PARAM = "q"
 const REQUEST_LOG_STATUS_PARAM = "status"
 const REQUEST_LOG_PROVIDER_PARAM = "provider"
+const REQUEST_LOG_DEPARTMENT_PARAM = "department_id"
 const REQUEST_LOG_STATUS_OPTIONS = ["in_progress", "succeeded", "failed"]
 
 export function RequestLogsTable({
   logs,
   pagination,
   providerSetupList,
+  departments,
   workspaceID,
   emptyMessage,
 }: {
   logs: RequestLog[]
   pagination?: DashboardPaginationState
   providerSetupList: ProviderSetup[]
+  departments: WorkspaceDepartment[]
   workspaceID: string
   emptyMessage: string
 }) {
@@ -54,16 +61,13 @@ export function RequestLogsTable({
   const [detailCache, setDetailCache] = useState<Record<string, RequestLog>>({})
   const [detailStatus, setDetailStatus] = useState<DetailStatus>("idle")
   const [detailError, setDetailError] = useState<string | null>(null)
-  const [queryInput, setQueryInput] = useState("")
-  const [statusInput, setStatusInput] = useState("")
-  const [providerInput, setProviderInput] = useState("")
-  const pathname = usePathname()
-  const router = useRouter()
   const searchParams = useSearchParams()
   const { t } = useI18n()
   const appliedQuery = searchParams.get(REQUEST_LOG_QUERY_PARAM) ?? ""
   const appliedStatus = searchParams.get(REQUEST_LOG_STATUS_PARAM) ?? ""
   const appliedProvider = searchParams.get(REQUEST_LOG_PROVIDER_PARAM) ?? ""
+  const appliedDepartmentID =
+    searchParams.get(REQUEST_LOG_DEPARTMENT_PARAM) ?? ""
   const statusOptions = useMemo(() => {
     const options = new Set(REQUEST_LOG_STATUS_OPTIONS)
     if (appliedStatus) {
@@ -93,6 +97,10 @@ export function RequestLogsTable({
     }
     return Array.from(options).sort()
   }, [appliedProvider, logs, providerSetupList])
+  const departmentOptions = useMemo(
+    () => buildDepartmentOptions(departments, logs, appliedDepartmentID, t),
+    [appliedDepartmentID, departments, logs, t]
+  )
 
   const selectedSummary = useMemo(
     () => logs.find((log) => log.id === selectedID) ?? null,
@@ -159,143 +167,29 @@ export function RequestLogsTable({
     }
   }, [detailCache, selectedID, t, workspaceID])
 
-  useEffect(() => {
-    setQueryInput(appliedQuery)
-    setStatusInput(appliedStatus)
-    setProviderInput(appliedProvider)
-  }, [appliedProvider, appliedQuery, appliedStatus])
-
-  function submitFilters(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const params = new URLSearchParams(searchParams)
-    syncRequestLogParam(params, REQUEST_LOG_QUERY_PARAM, queryInput)
-    syncRequestLogParam(params, REQUEST_LOG_STATUS_PARAM, statusInput)
-    syncRequestLogParam(params, REQUEST_LOG_PROVIDER_PARAM, providerInput)
-    params.delete("request_logs_page")
-
-    const nextQuery = params.toString()
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
-      scroll: false,
-    })
-  }
-
-  function clearFilters() {
-    setQueryInput("")
-    setStatusInput("")
-    setProviderInput("")
-
-    const params = new URLSearchParams(searchParams)
-    params.delete(REQUEST_LOG_QUERY_PARAM)
-    params.delete(REQUEST_LOG_STATUS_PARAM)
-    params.delete(REQUEST_LOG_PROVIDER_PARAM)
-    params.delete("request_logs_page")
-
-    const nextQuery = params.toString()
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
-      scroll: false,
-    })
-  }
-
   return (
     <>
       <div className="flex min-w-0 flex-col gap-2">
-        <form
-          className="flex min-w-0 flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-2.5 md:flex-row md:items-center"
-          onSubmit={submitFilters}
-        >
-          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center">
-            <Input
-              value={queryInput}
-              onChange={(event) => setQueryInput(event.target.value)}
-              className="h-8 w-full min-w-0 flex-1 text-xs sm:text-sm"
-              placeholder={t("dashboard.requestLogQuery")}
-              aria-label={t("dashboard.requestLogQuery")}
-            />
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {t("nav.status")}
-              </span>
-              <Select
-                value={statusInput || "__all__"}
-                onValueChange={(value) =>
-                  setStatusInput(!value || value === "__all__" ? "" : value)
-                }
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="h-8 w-full text-xs sm:w-40 sm:text-sm"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value="__all__">{t("dashboard.allStatuses")}</SelectItem>
-                  {statusOptions.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {status}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="shrink-0 text-xs text-muted-foreground">
-                {t("forms.provider")}
-              </span>
-              <Select
-                value={providerInput || "__all__"}
-                onValueChange={(value) =>
-                  setProviderInput(!value || value === "__all__" ? "" : value)
-                }
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="h-8 w-full text-xs sm:w-40 sm:text-sm"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectItem value="__all__">{t("dashboard.allProviders")}</SelectItem>
-                  {providerOptions.map((provider) => (
-                    <SelectItem key={provider} value={provider}>
-                      {provider}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 md:ml-auto">
-            <Button type="submit" size="sm" className="h-8 px-3">
-              {t("actions.apply")}
-            </Button>
-            {(appliedQuery ||
-              appliedStatus ||
-              appliedProvider ||
-              queryInput ||
-              statusInput ||
-              providerInput) ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 px-3"
-                onClick={clearFilters}
-              >
-                {t("actions.clear")}
-              </Button>
-            ) : null}
-          </div>
-        </form>
+        <RequestLogFilters
+          key={`${appliedQuery}:${appliedStatus}:${appliedProvider}:${appliedDepartmentID}`}
+          appliedQuery={appliedQuery}
+          appliedStatus={appliedStatus}
+          appliedProvider={appliedProvider}
+          appliedDepartmentID={appliedDepartmentID}
+          statusOptions={statusOptions}
+          providerOptions={providerOptions}
+          departmentOptions={departmentOptions}
+        />
 
         <div
           className={cn(
-            "hidden min-w-0 gap-2.5 px-[13px] text-[0.72rem] font-medium text-muted-foreground xl:grid",
+            "hidden min-w-0 gap-2 px-2.5 text-xs font-medium text-muted-foreground xl:grid",
             REQUEST_LOGS_GRID_CLASS
           )}
         >
           <div className="min-w-0 truncate">{t("dashboard.requestUID")}</div>
           <div className="min-w-0 truncate">{t("forms.model")}</div>
+          <div className="min-w-0 truncate">{t("dashboard.department")}</div>
           <div className="min-w-0 truncate">{t("nav.status")}</div>
           <div className="min-w-0 truncate">{t("dashboard.totalTokens")}</div>
           <div className="min-w-0 truncate">{t("dashboard.latency")}</div>
@@ -318,7 +212,7 @@ export function RequestLogsTable({
                   key={log.id}
                   type="button"
                   className={cn(
-                    "grid min-w-0 gap-2.5 rounded-lg border p-3 text-left text-sm transition-colors hover:border-foreground/15 hover:bg-muted/40 xl:items-center",
+                    "grid min-w-0 gap-2 rounded-md border p-2 text-left text-sm transition-colors hover:border-foreground/15 hover:bg-muted/40 xl:items-center",
                     REQUEST_LOGS_GRID_CLASS
                   )}
                   onClick={() => {
@@ -332,7 +226,7 @@ export function RequestLogsTable({
                     <div className="truncate font-mono text-xs font-medium text-foreground/90">
                       {log.request_uid}
                     </div>
-                    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
                       <FileTextIcon className="size-3.5 shrink-0" />
                       <span className="truncate">{log.endpoint}</span>
                     </div>
@@ -343,9 +237,21 @@ export function RequestLogsTable({
                     <div className="truncate text-xs font-medium">
                       {log.model_canonical_name || t("dashboard.notSet")}
                     </div>
-                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
                       {log.api_key_display_name || log.api_key_id || t("dashboard.notSet")}
                     </div>
+                  </div>
+
+                  <div className="min-w-0">
+                    <MobileLabel>{t("dashboard.department")}</MobileLabel>
+                    <div className="truncate text-xs font-medium">
+                      {getDepartmentLabel(log, t)}
+                    </div>
+                    {log.department_id ? (
+                      <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                        {log.department_id}
+                      </div>
+                    ) : null}
                   </div>
 
                   <div className="min-w-0">
@@ -358,7 +264,7 @@ export function RequestLogsTable({
                     <div className="font-mono text-xs tabular-nums">
                       {formatNumber(log.total_tokens)}
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">
+                    <div className="mt-0.5 text-xs text-muted-foreground">
                       ${log.spend_usd}
                     </div>
                   </div>
@@ -368,7 +274,7 @@ export function RequestLogsTable({
                     <div className="font-mono text-xs tabular-nums">
                       {formatDuration(log.duration_ms)}
                     </div>
-                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
                       {formatDate(log.completed_at ?? log.request_started_at)}
                     </div>
                   </div>
@@ -380,13 +286,13 @@ export function RequestLogsTable({
                         ? formatDuration(firstTokenLatencyMS)
                         : t("dashboard.notSet")}
                     </div>
-                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
                       {formatDate(log.first_token_at ?? log.request_started_at)}
                     </div>
                   </div>
 
                   <div className="flex items-center justify-end">
-                    <span className="inline-flex h-7 items-center rounded-md border px-2.5 text-xs font-medium text-foreground/80">
+                    <span className="inline-flex h-6 items-center rounded-md border px-2 text-xs font-medium text-foreground/80">
                       {t("actions.view")}
                     </span>
                   </div>
@@ -395,7 +301,7 @@ export function RequestLogsTable({
             })}
           </DashboardTablePagination>
         ) : (
-          <div className="rounded-lg border border-dashed px-4 py-8 text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed px-3 py-6 text-sm text-muted-foreground">
             {emptyMessage}
           </div>
         )}
@@ -425,6 +331,192 @@ export function RequestLogsTable({
   )
 }
 
+function RequestLogFilters({
+  appliedQuery,
+  appliedStatus,
+  appliedProvider,
+  appliedDepartmentID,
+  statusOptions,
+  providerOptions,
+  departmentOptions,
+}: {
+  appliedQuery: string
+  appliedStatus: string
+  appliedProvider: string
+  appliedDepartmentID: string
+  statusOptions: string[]
+  providerOptions: string[]
+  departmentOptions: Array<{ value: string; label: string }>
+}) {
+  const pathname = usePathname()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { t } = useI18n()
+  const [queryInput, setQueryInput] = useState(appliedQuery)
+  const [statusInput, setStatusInput] = useState(appliedStatus)
+  const [providerInput, setProviderInput] = useState(appliedProvider)
+  const [departmentInput, setDepartmentInput] = useState(appliedDepartmentID)
+  const hasFilters = Boolean(
+    appliedQuery ||
+      appliedStatus ||
+      appliedProvider ||
+      appliedDepartmentID ||
+      queryInput ||
+      statusInput ||
+      providerInput ||
+      departmentInput
+  )
+
+  function submitFilters(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const params = new URLSearchParams(searchParams)
+    syncRequestLogParam(params, REQUEST_LOG_QUERY_PARAM, queryInput)
+    syncRequestLogParam(params, REQUEST_LOG_STATUS_PARAM, statusInput)
+    syncRequestLogParam(params, REQUEST_LOG_PROVIDER_PARAM, providerInput)
+    syncRequestLogParam(
+      params,
+      REQUEST_LOG_DEPARTMENT_PARAM,
+      departmentInput
+    )
+    params.delete("request_logs_page")
+
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    })
+  }
+
+  function clearFilters() {
+    setQueryInput("")
+    setStatusInput("")
+    setProviderInput("")
+    setDepartmentInput("")
+
+    const params = new URLSearchParams(searchParams)
+    params.delete(REQUEST_LOG_QUERY_PARAM)
+    params.delete(REQUEST_LOG_STATUS_PARAM)
+    params.delete(REQUEST_LOG_PROVIDER_PARAM)
+    params.delete(REQUEST_LOG_DEPARTMENT_PARAM)
+    params.delete("request_logs_page")
+
+    const nextQuery = params.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+      scroll: false,
+    })
+  }
+
+  return (
+    <form
+      className="flex min-w-0 flex-col gap-1.5 rounded-md border border-border/70 bg-muted/20 p-2 md:flex-row md:items-center"
+      onSubmit={submitFilters}
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-1.5 lg:flex-row lg:items-center">
+        <Input
+          value={queryInput}
+          onChange={(event) => setQueryInput(event.target.value)}
+          className="h-7 w-full min-w-0 flex-1 text-xs"
+          placeholder={t("dashboard.requestLogQuery")}
+          aria-label={t("dashboard.requestLogQuery")}
+        />
+        <div className="flex items-center gap-1.5">
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {t("nav.status")}
+          </span>
+          <Select
+            value={statusInput || "__all__"}
+            onValueChange={(value) =>
+              setStatusInput(!value || value === "__all__" ? "" : value)
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className="h-7 w-full text-xs sm:w-36"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="__all__">{t("dashboard.allStatuses")}</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {t("forms.provider")}
+          </span>
+          <Select
+            value={providerInput || "__all__"}
+            onValueChange={(value) =>
+              setProviderInput(!value || value === "__all__" ? "" : value)
+            }
+          >
+            <SelectTrigger
+              size="sm"
+              className="h-7 w-full text-xs sm:w-36"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="__all__">{t("dashboard.allProviders")}</SelectItem>
+              {providerOptions.map((provider) => (
+                <SelectItem key={provider} value={provider}>
+                  {provider}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {t("dashboard.department")}
+          </span>
+          <Select
+            value={departmentInput || "__all__"}
+            onValueChange={(value) =>
+              setDepartmentInput(!value || value === "__all__" ? "" : value)
+            }
+          >
+            <SelectTrigger size="sm" className="h-7 w-full text-xs sm:w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              <SelectItem value="__all__">
+                {t("dashboard.allDepartments")}
+              </SelectItem>
+              {departmentOptions.map((department) => (
+                <SelectItem key={department.value} value={department.value}>
+                  {department.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 md:ml-auto">
+        <Button type="submit" size="sm" className="h-7 px-2.5">
+          {t("actions.apply")}
+        </Button>
+        {hasFilters ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 px-2.5"
+            onClick={clearFilters}
+          >
+            {t("actions.clear")}
+          </Button>
+        ) : null}
+      </div>
+    </form>
+  )
+}
+
 function RequestLogDetails({
   log,
   detailStatus,
@@ -443,6 +535,7 @@ function RequestLogDetails({
     [t("nav.status"), log.status],
     [t("forms.model"), log.model_canonical_name],
     [t("dashboard.provider"), log.model_provider],
+    [t("dashboard.department"), getDepartmentLabel(log, t)],
     [t("dashboard.apiKey"), log.api_key_display_name ?? log.api_key_id],
     [t("dashboard.requestStartedAt"), formatDate(log.request_started_at)],
     [t("dashboard.firstTokenAt"), formatDate(log.first_token_at)],
@@ -466,7 +559,7 @@ function RequestLogDetails({
         <DialogDescription>{log.request_uid}</DialogDescription>
       </DialogHeader>
 
-      <div className="grid gap-4">
+      <div className="grid gap-2.5">
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
           <MetricCard label={t("nav.status")} value={log.status} />
           <MetricCard
@@ -491,7 +584,7 @@ function RequestLogDetails({
         <KeyValueTable rows={rows} fallback={t("dashboard.notSet")} />
 
         {latest?.error_message ? (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-sm leading-6 text-destructive">
+          <div className="rounded-md border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm leading-6 text-destructive">
             {latest.error_message}
           </div>
         ) : null}
@@ -505,7 +598,7 @@ function RequestLogDetails({
           <PayloadNotice destructive>{detailError || t("dashboard.failedRequestLog")}</PayloadNotice>
         ) : (
           <>
-            <div className="grid gap-3 xl:grid-cols-2">
+            <div className="grid gap-2.5 xl:grid-cols-2">
               <PayloadCard
                 title={t("dashboard.requestPayload")}
                 payload={log.request_payload}
@@ -519,7 +612,7 @@ function RequestLogDetails({
               />
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-2">
               <div className="text-sm font-medium">{t("dashboard.attemptOutputs")}</div>
               {attemptPayloads.length > 0 ? (
                 attemptPayloads.map((attempt) => (
@@ -540,16 +633,16 @@ function RequestLogDetails({
 
         <div className="grid gap-2">
           <div className="text-sm font-medium">{t("dashboard.attempts")}</div>
-          <div className="overflow-hidden rounded-lg border bg-background">
+          <div className="overflow-hidden rounded-md border bg-background">
             <Table>
               <TableBody>
                 {log.attempts.length > 0 ? (
                   log.attempts.map((attempt) => (
                     <TableRow key={attempt.id} className="align-top">
-                      <TableCell className="w-20 font-mono text-xs">
+                      <TableCell className="w-20 py-1.5 font-mono text-xs">
                         #{attempt.attempt_no}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1.5">
                         <div className="font-medium">{attempt.provider}</div>
                         <div className="text-xs text-muted-foreground">
                           {attempt.deployment_name ||
@@ -557,19 +650,19 @@ function RequestLogDetails({
                             t("dashboard.notSet")}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="py-1.5">
                         <StatusPill status={attempt.status} />
                       </TableCell>
-                      <TableCell className="font-mono text-xs tabular-nums">
+                      <TableCell className="py-1.5 font-mono text-xs tabular-nums">
                         {formatDuration(attempt.latency_ms)}
                       </TableCell>
-                      <TableCell className="font-mono text-xs tabular-nums">
+                      <TableCell className="py-1.5 font-mono text-xs tabular-nums">
                         {formatNumber(
                           (attempt.prompt_tokens ?? 0) +
                             (attempt.completion_tokens ?? 0)
                         )}
                       </TableCell>
-                      <TableCell className="max-w-56 text-xs text-muted-foreground">
+                      <TableCell className="max-w-56 py-1.5 text-xs text-muted-foreground">
                         {attempt.error_message || attempt.error_code || ""}
                       </TableCell>
                     </TableRow>
@@ -592,7 +685,7 @@ function RequestLogDetails({
 
 function MobileLabel({ children }: { children: string }) {
   return (
-    <div className="mb-1 text-[0.72rem] text-muted-foreground xl:hidden">
+    <div className="mb-1 text-xs text-muted-foreground xl:hidden">
       {children}
     </div>
   )
@@ -603,7 +696,7 @@ function StatusPill({ status }: { status: string }) {
   return (
     <span
       className={cn(
-        "inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-[0.72rem] font-medium",
+        "inline-flex h-5 shrink-0 items-center rounded-md border px-1.5 text-xs font-medium",
         (normalized === "success" || normalized === "succeeded") &&
           "border-emerald-500/25 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
         (normalized === "failed" || normalized === "error") &&
@@ -619,11 +712,11 @@ function StatusPill({ status }: { status: string }) {
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-background px-3 py-2.5">
-      <div className="text-[0.68rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+    <div className="rounded-md border bg-background px-2.5 py-2">
+      <div className="text-xs font-medium uppercase text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 truncate font-mono text-sm font-semibold tabular-nums">
+      <div className="mt-0.5 truncate font-mono text-sm font-semibold tabular-nums">
         {value}
       </div>
     </div>
@@ -638,15 +731,15 @@ function KeyValueTable({
   fallback: string
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border bg-background">
+    <div className="overflow-hidden rounded-md border bg-background">
       <Table>
         <TableBody>
           {rows.map(([label, value]) => (
             <TableRow key={label} className="hover:bg-transparent">
-              <th className="w-40 px-3 py-2 text-left text-[0.72rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              <th className="w-40 px-2.5 py-1.5 text-left text-xs font-medium uppercase text-muted-foreground">
                 {label}
               </th>
-              <TableCell className="px-3 py-2 font-mono text-xs break-all">
+              <TableCell className="px-2.5 py-1.5 font-mono text-xs break-all">
                 {value === undefined || value === null || value === ""
                   ? fallback
                   : String(value)}
@@ -674,16 +767,16 @@ function PayloadCard({
   const formatted = formatPayload(payload, contentType)
 
   return (
-    <div className="overflow-hidden rounded-lg border bg-background">
-      <div className="flex items-center justify-between gap-3 border-b bg-muted/20 px-3 py-2">
+    <div className="overflow-hidden rounded-md border bg-background">
+      <div className="flex items-center justify-between gap-2.5 border-b bg-muted/20 px-2.5 py-1.5">
         <div className="text-sm font-medium">{title}</div>
         {contentType ? (
-          <div className="text-[0.72rem] text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
             {t("dashboard.responseContentType")}: {contentType}
           </div>
         ) : null}
       </div>
-      <pre className="max-h-[24rem] overflow-auto px-4 py-3 font-mono text-[0.76rem] leading-6 whitespace-pre-wrap break-all">
+      <pre className="max-h-[20rem] overflow-auto px-3 py-2 font-mono text-xs leading-5 whitespace-pre-wrap break-all">
         {formatted || fallback}
       </pre>
     </div>
@@ -700,7 +793,7 @@ function PayloadNotice({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg border px-3.5 py-3 text-sm",
+        "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
         destructive
           ? "border-destructive/20 bg-destructive/5 text-destructive"
           : "border-border bg-muted/20 text-muted-foreground"
@@ -813,6 +906,46 @@ function safeParseJSON(value: string) {
   } catch {
     return value
   }
+}
+
+function buildDepartmentOptions(
+  departments: WorkspaceDepartment[],
+  logs: RequestLog[],
+  appliedDepartmentID: string,
+  t: (key: string, values?: Record<string, string | number>) => string
+) {
+  const options = new Map<string, string>()
+
+  for (const department of departments) {
+    options.set(department.id, department.name || department.id)
+  }
+
+  for (const log of logs) {
+    const departmentID = log.department_id?.trim()
+    if (!departmentID || options.has(departmentID)) {
+      continue
+    }
+    options.set(departmentID, getDepartmentLabel(log, t))
+  }
+
+  if (appliedDepartmentID && !options.has(appliedDepartmentID)) {
+    options.set(appliedDepartmentID, appliedDepartmentID)
+  }
+
+  return Array.from(options.entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((left, right) => left.label.localeCompare(right.label))
+}
+
+function getDepartmentLabel(
+  log: RequestLog,
+  t: (key: string, values?: Record<string, string | number>) => string
+) {
+  return (
+    log.department_name?.trim() ||
+    log.department_id?.trim() ||
+    t("dashboard.noDepartment")
+  )
 }
 
 function syncRequestLogParam(

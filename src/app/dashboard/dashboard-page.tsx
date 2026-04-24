@@ -20,12 +20,15 @@ import {
   type RegistrationRequestList,
   type RequestLogList,
   type RuntimeResourceSnapshot,
+  type UsageInsights,
   type UserList,
+  type WorkspaceDepartmentList,
   type WorkspaceMemberList,
   type WorkspaceList,
 } from "@/lib/gatewayllm"
 import { normalizeLocale, translate } from "@/lib/i18n"
 import { getSessionToken } from "@/lib/session"
+import { loadDashboardWorkspaceAccess } from "./dashboard-access"
 import {
   loadWorkspaceResource,
   settle,
@@ -38,6 +41,7 @@ import {
   type DashboardPaginationState,
   type DashboardSearchParams,
 } from "./dashboard-pagination"
+import { isUserDashboardSection } from "./dashboard-permissions"
 import type { DashboardSection } from "./dashboard-routes"
 import { DashboardSectionContent } from "./dashboard-sections"
 
@@ -47,6 +51,7 @@ const REQUEST_LOG_STATUS_PARAM = "status"
 const REQUEST_LOG_PROVIDER_PARAM = "provider"
 const REQUEST_LOG_API_KEY_PARAM = "api_key_id"
 const REQUEST_LOG_USER_PARAM = "user"
+const REQUEST_LOG_DEPARTMENT_PARAM = "department_id"
 export async function DashboardPage({
   section = "status",
   searchParams,
@@ -80,42 +85,53 @@ export async function DashboardPage({
     throw error
   }
 
-  const workspaces = await settle(
-    gatewayRequest<WorkspaceList>("/control/v1/me/workspaces?limit=20", {
-      token,
-    })
-  )
+  const { activeWorkspace, canManageWorkspace } =
+    await loadDashboardWorkspaceAccess(token)
 
-  const workspaceList = workspaces.ok ? workspaces.data.data : []
-  const activeWorkspace = workspaceList[0]
+  if (!canManageWorkspace && !isUserDashboardSection(section)) {
+    redirect("/dashboard/models")
+  }
+
   const noWorkspaceMessage = t("dashboard.noWorkspaceAvailable")
   const needsStatus = section === "status"
   const needsUsage = section === "usage"
   const needsApiKeys =
-    section === "api-keys" ||
     section === "chat-smoke" ||
-    section === "usage-details" ||
-    needsStatus
+    section === "api-keys" ||
+    (canManageWorkspace &&
+      (section === "usage-details" || needsStatus))
   const needsModelCatalogs =
-    needsStatus ||
-    section === "members" ||
     section === "models" ||
-    section === "deployments" ||
-    section === "chat-smoke"
+    section === "chat-smoke" ||
+    (canManageWorkspace &&
+      (needsStatus ||
+        section === "users" ||
+        section === "departments" ||
+        section === "deployments"))
   const needsProviderCredentials =
-    needsStatus || section === "credentials" || section === "deployments"
+    canManageWorkspace &&
+    (needsStatus || section === "credentials" || section === "deployments")
   const needsProviderSetups =
-    needsStatus || section === "provider-setups" || section === "logs"
+    canManageWorkspace &&
+    (needsStatus || section === "provider-setups" || section === "logs")
   const needsDailyUsage = needsUsage || needsStatus
   const needsRequestLogs =
-    section === "logs" || section === "usage-details" || needsUsage || needsStatus
+    canManageWorkspace &&
+    (section === "logs" || section === "usage-details" || needsUsage || needsStatus)
+  const needsUsageInsights = canManageWorkspace && needsUsage
+  const needsDepartments =
+    canManageWorkspace &&
+    (section === "users" ||
+      section === "departments" ||
+      section === "logs" ||
+      section === "usage-details")
   const needsModelDeployments =
-    needsStatus || section === "deployments" || section === "chat-smoke"
+    canManageWorkspace &&
+    (needsStatus || section === "deployments" || section === "chat-smoke")
   const workspaceUsersPage = parseDashboardPagination(
     searchParams,
     "workspace_users"
   )
-  const membersPage = parseDashboardPagination(searchParams, "members")
   const apiKeysPage = parseDashboardPagination(searchParams, "api_keys")
   const requestLogsPage = parseDashboardPagination(searchParams, "request_logs")
   const usageDetailsPage = parseDashboardPagination(searchParams, "usage_details")
@@ -136,7 +152,6 @@ export async function DashboardPage({
     "model_deployments"
   )
   const pageWorkspaceUsers = section === "users"
-  const pageMembers = section === "members"
   const pageApiKeys = section === "api-keys"
   const pageRequestLogs = section === "logs"
   const pageUsageDetails = section === "usage-details"
@@ -169,9 +184,11 @@ export async function DashboardPage({
     balance,
     apiKeys,
     dailyUsage,
+    usageInsights,
     requestLogs,
     workspaceUsers,
     workspaceMembers,
+    workspaceDepartments,
     registrationRequests,
     modelCatalogs,
     providerCredentials,
@@ -215,6 +232,18 @@ export async function DashboardPage({
         )
     ),
     loadWorkspaceResource(
+      needsUsageInsights,
+      activeWorkspace,
+      noWorkspaceMessage,
+      (workspace) =>
+        gatewayRequest<UsageInsights>(
+          `/control/v1/me/usage-insights?workspace_id=${encodeURIComponent(
+            workspace.id
+          )}&days=30&limit=5`,
+          { token }
+        )
+    ),
+    loadWorkspaceResource(
       needsRequestLogs,
       activeWorkspace,
       noWorkspaceMessage,
@@ -246,14 +275,26 @@ export async function DashboardPage({
         )
     ),
     loadWorkspaceResource(
-      needsStatus || section === "members",
+      needsStatus,
       activeWorkspace,
       noWorkspaceMessage,
       (workspace) =>
         gatewayRequest<WorkspaceMemberList>(
           `/control/v1/workspaces/${encodeURIComponent(
             workspace.id
-          )}/members?${paginationQuery(membersPage, pageMembers)}`,
+          )}/members?limit=${RESOURCE_LIST_LIMIT}`,
+          { token }
+        )
+    ),
+    loadWorkspaceResource(
+      needsDepartments,
+      activeWorkspace,
+      noWorkspaceMessage,
+      (workspace) =>
+        gatewayRequest<WorkspaceDepartmentList>(
+          `/control/v1/workspaces/${encodeURIComponent(
+            workspace.id
+          )}/departments?limit=${RESOURCE_LIST_LIMIT}`,
           { token }
         )
     ),
@@ -325,11 +366,6 @@ export async function DashboardPage({
     finalizePaginatedResult(requestLogs, usageDetailsPage, pageUsageDetails)
   const [pagedWorkspaceUsers, workspaceUsersPagination] =
     finalizePaginatedResult(workspaceUsers, workspaceUsersPage, pageWorkspaceUsers)
-  const [pagedWorkspaceMembers, membersPagination] = finalizePaginatedResult(
-    workspaceMembers,
-    membersPage,
-    pageMembers
-  )
   const [pagedModelCatalogs, modelCatalogsPagination] =
     finalizePaginatedResult(modelCatalogs, modelCatalogsPage, pageModelCatalogs)
   const [pagedProviderCredentials, providerCredentialsPagination] =
@@ -349,8 +385,8 @@ export async function DashboardPage({
 
   const pendingRegistrationRequests =
     needsStatus || section === "registration"
-      ? await loadRegistrationRequestsForWorkspaces(
-          workspaceList,
+      ? await loadRegistrationRequestsForWorkspace(
+          activeWorkspace,
           token,
           noWorkspaceMessage
         )
@@ -363,8 +399,8 @@ export async function DashboardPage({
     ? pagedUsageDetailsRequestLogs
     : pagedRequestLogs
 
-  const workspaceMemberList = pagedWorkspaceMembers.ok
-    ? pagedWorkspaceMembers.data.data
+  const workspaceDepartmentList = workspaceDepartments.ok
+    ? workspaceDepartments.data.data
     : []
   const modelCatalogList = pagedModelCatalogs.ok
     ? pagedModelCatalogs.data.data
@@ -389,22 +425,27 @@ export async function DashboardPage({
     activeModelCatalogList[0]?.canonical_name ??
     "gpt-4o-mini"
   const showUserManagement =
-    section === "users" || showPrivilegedSection(activeWorkspace, workspaceUsers)
-  const showMemberManagement =
-    section === "members" ||
-    showPrivilegedSection(activeWorkspace, workspaceMembers)
+    canManageWorkspace &&
+    (section === "users" || showPrivilegedSection(activeWorkspace, workspaceUsers))
+  const showDepartmentManagement =
+    canManageWorkspace &&
+    (section === "departments" ||
+      showPrivilegedSection(activeWorkspace, workspaceDepartments))
   const showRegistration =
-    section === "registration" ||
-    showPrivilegedSection(activeWorkspace, pendingRegistrationRequests)
+    canManageWorkspace &&
+    (section === "registration" ||
+      showPrivilegedSection(activeWorkspace, pendingRegistrationRequests))
   const showModelCatalogManagement =
-    section === "models" ||
-    showPrivilegedSection(activeWorkspace, modelCatalogs)
+    canManageWorkspace &&
+    (section === "models" || showPrivilegedSection(activeWorkspace, modelCatalogs))
   const showProviderCredentialManagement =
-    section === "credentials" ||
-    showPrivilegedSection(activeWorkspace, providerCredentials)
+    canManageWorkspace &&
+    (section === "credentials" ||
+      showPrivilegedSection(activeWorkspace, providerCredentials))
   const showModelDeploymentManagement =
-    section === "deployments" ||
-    showPrivilegedSection(activeWorkspace, modelDeployments)
+    canManageWorkspace &&
+    (section === "deployments" ||
+      showPrivilegedSection(activeWorkspace, modelDeployments))
 
   return (
     <DashboardSectionContent
@@ -412,8 +453,6 @@ export async function DashboardPage({
       t={t}
       user={me.user}
       activeWorkspace={activeWorkspace}
-      workspaceList={workspaceList}
-      workspaces={workspaces}
       health={health}
       ready={ready}
       frontendRuntime={frontendRuntime}
@@ -421,11 +460,13 @@ export async function DashboardPage({
       balance={balance}
       apiKeys={pagedApiKeys}
       dailyUsage={dailyUsage}
+      usageInsights={usageInsights}
       requestLogs={resolvedRequestLogs}
       workspaceUsers={pagedWorkspaceUsers}
       workspaceUserList={workspaceUserList}
-      workspaceMembers={pagedWorkspaceMembers}
-      workspaceMemberList={workspaceMemberList}
+      workspaceMembers={workspaceMembers}
+      workspaceDepartments={workspaceDepartments}
+      workspaceDepartmentList={workspaceDepartmentList}
       registrationRequests={pendingRegistrationRequests}
       modelCatalogs={pagedModelCatalogs}
       modelCatalogList={modelCatalogList}
@@ -437,7 +478,6 @@ export async function DashboardPage({
       modelDeploymentList={modelDeploymentList}
       tablePagination={{
         workspace_users: workspaceUsersPagination,
-        members: membersPagination,
         api_keys: apiKeysPagination,
         request_logs: requestLogsPagination,
         usage_details: usageDetailsPagination,
@@ -448,8 +488,9 @@ export async function DashboardPage({
       }}
       chatSmokeModel={chatSmokeModel}
       chatSmokeBaseUrl={chatSmokeBaseUrl}
+      canManageWorkspace={canManageWorkspace}
       showUserManagement={showUserManagement}
-      showMemberManagement={showMemberManagement}
+      showDepartmentManagement={showDepartmentManagement}
       showRegistration={showRegistration}
       showModelCatalogManagement={showModelCatalogManagement}
       showProviderCredentialManagement={showProviderCredentialManagement}
@@ -492,49 +533,26 @@ function publicGatewayBaseURL(headerStore: Headers, configuredBaseURL: string) {
   }
 }
 
-async function loadRegistrationRequestsForWorkspaces(
-  workspaces: WorkspaceList["data"],
+async function loadRegistrationRequestsForWorkspace(
+  workspace: WorkspaceList["data"][number] | undefined,
   token: string,
   noWorkspaceMessage: string
 ): Promise<Settled<RegistrationRequestList>> {
-  if (workspaces.length === 0) {
+  if (!workspace) {
     return {
       ok: false,
       error: noWorkspaceMessage,
     }
   }
 
-  const results = await Promise.all(
-    workspaces.map((workspace) =>
-      settle(
-        gatewayRequest<RegistrationRequestList>(
-          `/control/v1/workspaces/${encodeURIComponent(
-            workspace.id
-          )}/registration-requests?status=pending&limit=${RESOURCE_LIST_LIMIT}`,
-          { token }
-        )
-      )
+  return settle(
+    gatewayRequest<RegistrationRequestList>(
+      `/control/v1/workspaces/${encodeURIComponent(
+        workspace.id
+      )}/registration-requests?status=pending&limit=${RESOURCE_LIST_LIMIT}`,
+      { token }
     )
   )
-  const successful = results.filter((result) => result.ok)
-
-  if (successful.length === 0) {
-    const firstError = results.find((result) => !result.ok)
-
-    return {
-      ok: false,
-      error: firstError?.error ?? noWorkspaceMessage,
-      status: firstError && !firstError.ok ? firstError.status : undefined,
-    }
-  }
-
-  return {
-    ok: true,
-    data: {
-      object: "list",
-      data: successful.flatMap((result) => result.data.data),
-    },
-  }
 }
 
 type ParsedDashboardPagination = ReturnType<typeof parseDashboardPagination>
@@ -576,6 +594,9 @@ function requestLogQuery(
   if (filters.user) {
     params.set(REQUEST_LOG_USER_PARAM, filters.user)
   }
+  if (filters.departmentID) {
+    params.set(REQUEST_LOG_DEPARTMENT_PARAM, filters.departmentID)
+  }
 
   return params.toString()
 }
@@ -589,6 +610,9 @@ function parseRequestLogFilters(searchParams: DashboardSearchParams | undefined)
       readSearchParam(searchParams, REQUEST_LOG_API_KEY_PARAM)
     ),
     user: normalizeRequestLogParam(readSearchParam(searchParams, REQUEST_LOG_USER_PARAM)),
+    departmentID: normalizeRequestLogParam(
+      readSearchParam(searchParams, REQUEST_LOG_DEPARTMENT_PARAM)
+    ),
   }
 }
 

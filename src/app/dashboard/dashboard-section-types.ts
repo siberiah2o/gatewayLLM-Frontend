@@ -16,11 +16,12 @@ import type {
   RequestLogList,
   RuntimeResourceSnapshot,
   SessionUser,
+  UsageInsights,
   User,
   UserList,
   Workspace,
-  WorkspaceList,
-  WorkspaceMember,
+  WorkspaceDepartment,
+  WorkspaceDepartmentList,
   WorkspaceMemberList,
 } from "@/lib/gatewayllm"
 import type { Settled } from "./dashboard-data"
@@ -33,8 +34,6 @@ export type DashboardSectionContentProps = {
   t: Translator
   user: SessionUser
   activeWorkspace?: Workspace
-  workspaceList: Workspace[]
-  workspaces: Settled<WorkspaceList>
   health: Settled<HealthResponse>
   ready: Settled<ReadyResponse>
   frontendRuntime: Settled<RuntimeResourceSnapshot>
@@ -42,11 +41,13 @@ export type DashboardSectionContentProps = {
   balance: Settled<Balance>
   apiKeys: Settled<APIKeyList>
   dailyUsage: Settled<DailyUsageList>
+  usageInsights: Settled<UsageInsights>
   requestLogs: Settled<RequestLogList>
   workspaceUsers: Settled<UserList>
   workspaceUserList: User[]
   workspaceMembers: Settled<WorkspaceMemberList>
-  workspaceMemberList: WorkspaceMember[]
+  workspaceDepartments: Settled<WorkspaceDepartmentList>
+  workspaceDepartmentList: WorkspaceDepartment[]
   registrationRequests: Settled<RegistrationRequestList>
   modelCatalogs: Settled<ModelCatalogList>
   modelCatalogList: ModelCatalog[]
@@ -59,8 +60,9 @@ export type DashboardSectionContentProps = {
   tablePagination: Record<string, DashboardPaginationState | undefined>
   chatSmokeModel: string
   chatSmokeBaseUrl: string
+  canManageWorkspace: boolean
   showUserManagement: boolean
-  showMemberManagement: boolean
+  showDepartmentManagement: boolean
   showRegistration: boolean
   showModelCatalogManagement: boolean
   showProviderCredentialManagement: boolean

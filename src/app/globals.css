@@ -122,7 +122,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
   html {
     @apply font-sans;
@@ -131,8 +134,8 @@
 
 @layer components {
   [data-slot="field-description"] {
-    font-size: 0.875rem;
-    line-height: 1.5;
+    font-size: 0.8125rem;
+    line-height: 1.45;
   }
 
   [data-slot="field-legend"][data-variant="legend"]

@@ -43,11 +43,11 @@ export function ModelAccessTabs({
   }
 
   return (
-    <Tabs.Root defaultValue="all-models" className="grid min-w-0 gap-3">
+    <Tabs.Root defaultValue="all-models" className="grid min-w-0 gap-2.5">
       <Tabs.List
         aria-label={ariaLabel}
         activateOnFocus
-        className="grid min-w-0 grid-cols-2 gap-1 rounded-lg border bg-muted/35 p-1"
+        className="grid min-w-0 grid-cols-2 gap-1 rounded-md border bg-muted/35 p-1"
       >
         {tabItems.map((item) => (
           <Tabs.Tab
@@ -62,7 +62,7 @@ export function ModelAccessTabs({
             <span className="shrink-0">{item.icon}</span>
             <span className="min-w-0 truncate">{labels[item.value]}</span>
             {item.value === "all-models" ? (
-              <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md border bg-background px-1 text-[0.72rem] tabular-nums">
+              <span className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md border bg-background px-1 text-xs tabular-nums">
                 {allModelsCount}
               </span>
             ) : null}
