@@ -43,6 +43,8 @@ import {
 } from "./dashboard-pagination"
 import { isUserDashboardSection } from "./dashboard-permissions"
 import type { DashboardSection } from "./dashboard-routes"
+
+const DAILY_USAGE_LOOKBACK_DAYS = 90
 import { DashboardSectionContent } from "./dashboard-sections"
 
 const RESOURCE_LIST_LIMIT = 200
@@ -227,7 +229,7 @@ export async function DashboardPage({
         gatewayRequest<DailyUsageList>(
           `/control/v1/me/daily-usage?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&days=30`,
+          )}&days=${DAILY_USAGE_LOOKBACK_DAYS}`,
           { token }
         )
     ),

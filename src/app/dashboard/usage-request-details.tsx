@@ -507,14 +507,20 @@ function getAPIKeyLabel(
   log: RequestLog,
   t: (key: string, values?: Record<string, string | number>) => string,
 ) {
+  const ownerName = log.api_key_owner_name?.trim();
+  const ownerEmail = log.api_key_owner_email?.trim();
+  const ownerID = log.api_key_owner_user_id?.trim();
   const apiKeyDisplayName = log.api_key_display_name?.trim();
   const apiKeyID = log.api_key_id?.trim();
+  const apiKeyLabel =
+    apiKeyDisplayName && apiKeyID && apiKeyDisplayName !== apiKeyID
+      ? `${apiKeyDisplayName} (${apiKeyID})`
+      : apiKeyDisplayName || apiKeyID;
+  const labelParts = [ownerName, ownerEmail || ownerID, apiKeyLabel].filter(
+    (part): part is string => Boolean(part),
+  );
 
-  if (apiKeyDisplayName && apiKeyID && apiKeyDisplayName !== apiKeyID) {
-    return `${apiKeyDisplayName} · ${apiKeyID}`;
-  }
-
-  return apiKeyDisplayName || apiKeyID || t("dashboard.notSet");
+  return labelParts.length > 0 ? labelParts.join(" -> ") : t("dashboard.notSet");
 }
 
 function getRequestOwnerLabel(
@@ -523,6 +529,7 @@ function getRequestOwnerLabel(
 ) {
   return (
     log.api_key_owner_name?.trim() ||
+    log.api_key_owner_email?.trim() ||
     log.api_key_owner_user_id?.trim() ||
     t("dashboard.notSet")
   );

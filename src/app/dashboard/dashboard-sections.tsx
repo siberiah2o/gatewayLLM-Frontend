@@ -30,8 +30,11 @@ import {
   Building2Icon,
   ClipboardListIcon,
   Clock3Icon,
+  CpuIcon,
   GaugeIcon,
+  HardDriveIcon,
   KeyRoundIcon,
+  MemoryStickIcon,
   ShieldCheckIcon,
   TriangleAlertIcon,
   UserCheckIcon,
@@ -70,6 +73,7 @@ import { ModelAccessTabs } from "./model-access-tabs";
 import { RequestLogsTable } from "./request-logs-table";
 import type { DashboardSectionContentProps } from "./dashboard-section-types";
 import { StatusTrafficChart } from "./status-traffic-chart";
+import { UsageBusinessTrendChart } from "./usage-business-trend-chart";
 import { UsageRequestDetails } from "./usage-request-details";
 import { WorkspaceUsersTable } from "./workspace-user-row";
 
@@ -143,6 +147,8 @@ function DashboardSettledEmptyState<T>({
   );
 }
 
+const STATUS_SLOW_REQUEST_THRESHOLD_MS = 6_000;
+
 function StatusSection({
   t,
   health,
@@ -169,32 +175,36 @@ function StatusSection({
         left.usage_date.localeCompare(right.usage_date),
       )
     : [];
-  const recentRequestLogList = requestLogs.ok
+  const dailyUsage30dList = dailyUsageList.slice(-30);
+  const recentStatusRequestLogList = requestLogs.ok
     ? [...requestLogs.data.data]
         .sort(
           (left, right) =>
             getTimestamp(right.completed_at ?? right.request_started_at) -
             getTimestamp(left.completed_at ?? left.request_started_at),
         )
-        .slice(0, 6)
     : [];
+  const recentRequestLogList = recentStatusRequestLogList.slice(0, 6);
+  const recentRequestIssueList = recentStatusRequestLogList
+    .filter(isStatusRequestIssue)
+    .slice(0, 6);
   const statusRequestLogList = requestLogs.ok ? requestLogs.data.data : [];
   const thirtyDayRequests = sumValues(
-    dailyUsageList.map((usage) => usage.request_count),
+    dailyUsage30dList.map((usage) => usage.request_count),
   );
   const thirtyDaySuccesses = sumValues(
-    dailyUsageList.map((usage) => usage.success_count),
+    dailyUsage30dList.map((usage) => usage.success_count),
   );
   const thirtyDayFailures = sumValues(
-    dailyUsageList.map((usage) => usage.failure_count),
+    dailyUsage30dList.map((usage) => usage.failure_count),
   );
   const thirtyDayTokens = sumValues(
-    dailyUsageList.map(
+    dailyUsage30dList.map(
       (usage) => usage.prompt_tokens + usage.completion_tokens,
     ),
   );
   const thirtyDaySpend = sumValues(
-    dailyUsageList.map((usage) => parseNumericValue(usage.spend_usd)),
+    dailyUsage30dList.map((usage) => parseNumericValue(usage.spend_usd)),
   );
   const successRate =
     thirtyDayRequests > 0
@@ -231,7 +241,7 @@ function StatusSection({
   const recentFailureCount = recentRequestLogList.filter(
     (log) => log.status !== "succeeded",
   ).length;
-  const trafficChartData = dailyUsageList.slice(-30).map((usage) => ({
+  const trafficChartData = dailyUsage30dList.map((usage) => ({
     date: usage.usage_date,
     label: usage.usage_date.slice(5),
     succeeded: usage.success_count,
@@ -250,8 +260,6 @@ function StatusSection({
           requests: 0,
           succeeded: 0,
           failed: 0,
-          spend: 0,
-          totalTokens: 0,
           latencies: [] as number[],
           firstTokenLatencies: [] as number[],
           lastSeen: "",
@@ -260,8 +268,6 @@ function StatusSection({
       current.requests += 1;
       current.succeeded += log.status === "succeeded" ? 1 : 0;
       current.failed += log.status === "failed" ? 1 : 0;
-      current.spend += parseNumericValue(log.spend_usd);
-      current.totalTokens += log.total_tokens;
       if (typeof log.duration_ms === "number") {
         current.latencies.push(log.duration_ms);
       }
@@ -287,10 +293,16 @@ function StatusSection({
       averageFirstTokenLatencyMS: averageValues(entry[1].firstTokenLatencies),
     }))
     .sort((left, right) => {
+      if (right.failed !== left.failed) {
+        return right.failed - left.failed;
+      }
+      if ((left.successRate ?? 0) !== (right.successRate ?? 0)) {
+        return (left.successRate ?? 0) - (right.successRate ?? 0);
+      }
       if (right.requests !== left.requests) {
         return right.requests - left.requests;
       }
-      return right.spend - left.spend;
+      return (right.averageLatencyMS ?? 0) - (left.averageLatencyMS ?? 0);
     })
     .slice(0, 5);
   const attentionItems: StatusAttentionItemModel[] = [
@@ -356,6 +368,7 @@ function StatusSection({
     healthStatus: health.ok ? health.data.status : undefined,
     readyStatus: ready.ok ? ready.data.status : undefined,
   });
+  const hostRuntime = getHostRuntimeSnapshot(frontendRuntime, backendRuntime);
 
   return (
     <section id="status" className="grid gap-2.5">
@@ -548,7 +561,20 @@ function StatusSection({
             {t("dashboard.runtimeResourcesDescription")}
           </CardDescription>
         </DashboardPanelHeader>
-        <DashboardPanelContent>
+        <DashboardPanelContent className="grid gap-2.5">
+          {hostRuntime ? (
+            <StatusHostResourceSummary snapshot={hostRuntime} t={t} />
+          ) : (
+            <DashboardSettledEmptyState
+              result={backendRuntime}
+              emptyMessage={getRuntimeUnavailableMessage(
+                backendRuntime,
+                t,
+                "backend",
+              )}
+              icon={<GaugeIcon />}
+            />
+          )}
           <div className="grid gap-2.5 xl:grid-cols-2">
             <StatusRuntimeResourceCard
               kind="frontend"
@@ -606,16 +632,26 @@ function StatusSection({
             <CardDescription>
               {t("dashboard.recentRequestsDescription")}
             </CardDescription>
+            <CardAction>
+              <StatusBadge>
+                {t("dashboard.requestIssueCriteria", {
+                  threshold: formatLatency(
+                    STATUS_SLOW_REQUEST_THRESHOLD_MS,
+                    t("dashboard.notSet"),
+                  ),
+                })}
+              </StatusBadge>
+            </CardAction>
           </DashboardPanelHeader>
           <DashboardStackContent className="gap-1.5">
-            {recentRequestLogList.length > 0 ? (
-              recentRequestLogList.map((log) => (
+            {recentRequestIssueList.length > 0 ? (
+              recentRequestIssueList.map((log) => (
                 <StatusRecentRequestRow key={log.id} log={log} t={t} />
               ))
             ) : (
               <DashboardSettledEmptyState
                 result={requestLogs}
-                emptyMessage={t("dashboard.noRequestLogs")}
+                emptyMessage={t("dashboard.noRecentRequestIssues")}
                 icon={<ClipboardListIcon />}
               />
             )}
@@ -640,8 +676,6 @@ type StatusProviderStatModel = {
   requests: number;
   succeeded: number;
   failed: number;
-  spend: number;
-  totalTokens: number;
   latencies: number[];
   firstTokenLatencies: number[];
   lastSeen: string;
@@ -653,6 +687,21 @@ type StatusProviderStatModel = {
 type StatusTone =
   | StatusAttentionItemModel["tone"]
   | StatusSeverityTone;
+
+function getHostRuntimeSnapshot(
+  frontendRuntime: Settled<RuntimeResourceSnapshot>,
+  backendRuntime: Settled<RuntimeResourceSnapshot>,
+) {
+  if (backendRuntime.ok) {
+    return backendRuntime.data;
+  }
+
+  if (frontendRuntime.ok) {
+    return frontendRuntime.data;
+  }
+
+  return undefined;
+}
 
 function getStatusToneIconClass(tone: StatusTone) {
   return cn(
@@ -842,22 +891,6 @@ function StatusRuntimeResourceCard({
               )}
             />
             <RuntimeMetric
-              label={t("dashboard.hostMemory")}
-              value={formatHostMemoryUsage(
-                result.data.host.total_memory_bytes,
-                result.data.host.free_memory_bytes,
-                t("dashboard.notSet"),
-              )}
-            />
-            <RuntimeMetric
-              label={t("dashboard.diskUsage")}
-              value={formatDiskUsage(
-                result.data.host.disk_total_bytes,
-                result.data.host.disk_free_bytes,
-                t("dashboard.notSet"),
-              )}
-            />
-            <RuntimeMetric
               label={t("dashboard.tcpSockets")}
               value={formatTCPConnections(
                 result.data.process.tcp_connection_count,
@@ -874,29 +907,104 @@ function StatusRuntimeResourceCard({
               )}
             />
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            <StatusBadge>
-              {formatWholeNumber(result.data.host.cpu_count)} {t("dashboard.cpuCores")}
-            </StatusBadge>
-            <StatusBadge>
-              {t("dashboard.loadAverage")}{" "}
-              {formatLoadAverage(
-                result.data.host.load_avg_1m,
-                result.data.host.cpu_count,
-                t("dashboard.notSet"),
-              )}
-            </StatusBadge>
-            <DashboardDetailText className="min-w-0">
-              {t("dashboard.capturedAt")}{" "}
-              {formatStableTimestamp(result.data.captured_at, t("dashboard.notSet"))}
-            </DashboardDetailText>
-          </div>
         </>
       ) : (
         <div className="rounded-md border border-border/70 bg-muted/35 px-2.5 py-2 text-sm text-foreground">
           {getRuntimeUnavailableMessage(result, t, kind)}
         </div>
       )}
+    </div>
+  );
+}
+
+function StatusHostResourceSummary({
+  snapshot,
+  t,
+}: {
+  snapshot: RuntimeResourceSnapshot;
+  t: DashboardSectionContentProps["t"];
+}) {
+  return (
+    <div className="grid gap-2 rounded-md border border-border/70 bg-muted/25 p-2.5">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-sm font-medium">
+            {t("dashboard.hostResourcesTitle")}
+          </div>
+          <DashboardDetailText>
+            {t("dashboard.capturedAt")}{" "}
+            {formatStableTimestamp(snapshot.captured_at, t("dashboard.notSet"))}
+          </DashboardDetailText>
+        </div>
+        <StatusBadge>
+          {formatWholeNumber(snapshot.host.cpu_count)} {t("dashboard.cpuCores")}
+        </StatusBadge>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <HostResourceMetric
+          icon={<CpuIcon className="size-4" />}
+          label={t("dashboard.cpuCores")}
+          value={formatWholeNumber(snapshot.host.cpu_count)}
+          detail={t("dashboard.hostResourcesDetail")}
+        />
+        <HostResourceMetric
+          icon={<GaugeIcon className="size-4" />}
+          label={t("dashboard.loadAverage")}
+          value={formatLoadAverage(
+            snapshot.host.load_avg_1m,
+            snapshot.host.cpu_count,
+            t("dashboard.notSet"),
+          )}
+          detail={t("dashboard.hostLoadDetail")}
+        />
+        <HostResourceMetric
+          icon={<MemoryStickIcon className="size-4" />}
+          label={t("dashboard.hostMemory")}
+          value={formatHostMemoryUsage(
+            snapshot.host.total_memory_bytes,
+            snapshot.host.free_memory_bytes,
+            t("dashboard.notSet"),
+          )}
+          detail={t("dashboard.hostResourcesDetail")}
+        />
+        <HostResourceMetric
+          icon={<HardDriveIcon className="size-4" />}
+          label={t("dashboard.diskUsage")}
+          value={formatDiskUsage(
+            snapshot.host.disk_total_bytes,
+            snapshot.host.disk_free_bytes,
+            t("dashboard.notSet"),
+          )}
+          detail={t("dashboard.hostResourcesDetail")}
+        />
+      </div>
+    </div>
+  );
+}
+
+function HostResourceMetric({
+  icon,
+  label,
+  value,
+  detail,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  detail: string;
+}) {
+  return (
+    <div className="grid min-w-0 grid-cols-[1.75rem_minmax(0,1fr)] gap-2.5 rounded-md border border-border/60 bg-background/70 p-2.5">
+      <div className="flex size-7 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-foreground/10">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-xs leading-4 text-muted-foreground">{label}</div>
+        <div className="break-words font-heading text-base font-semibold leading-6 text-foreground">
+          {value}
+        </div>
+        <DashboardDetailText>{detail}</DashboardDetailText>
+      </div>
     </div>
   );
 }
@@ -943,21 +1051,17 @@ function StatusProviderPerformanceRow({
             failure: formatWholeNumber(provider.failed),
           })}
         </DashboardDetailText>
-        <DashboardDetailText>
-          {t("dashboard.firstTokenLatency")}:{" "}
-          {formatLatency(
-            provider.averageFirstTokenLatencyMS,
-            t("dashboard.notSet"),
-          )}
-        </DashboardDetailText>
       </div>
       <div className="grid gap-0.5 text-left md:text-right">
         <DashboardMonoDetailText className="font-medium text-foreground/80">
           {formatLatency(provider.averageLatencyMS, t("dashboard.notSet"))}
         </DashboardMonoDetailText>
         <DashboardDetailText>
-          {formatCurrency(provider.spend)} ·{" "}
-          {formatWholeNumber(provider.totalTokens)} tokens
+          {t("dashboard.firstTokenLatency")}:{" "}
+          {formatLatency(
+            provider.averageFirstTokenLatencyMS,
+            t("dashboard.notSet"),
+          )}
         </DashboardDetailText>
         <DashboardDetailText>
           {formatStableTimestamp(provider.lastSeen, t("dashboard.notSet"))}
@@ -974,6 +1078,8 @@ function StatusRecentRequestRow({
   log: RequestLog;
   t: DashboardSectionContentProps["t"];
 }) {
+  const isSlow = isSlowStatusRequest(log);
+
   return (
     <DashboardRow className="gap-2 p-2 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
       <div className="min-w-0">
@@ -982,6 +1088,7 @@ function StatusRecentRequestRow({
             {log.model_canonical_name ?? t("dashboard.notSet")}
           </div>
           <StatusBadge>{localizeValue(t, log.status)}</StatusBadge>
+          {isSlow ? <StatusBadge>{t("dashboard.slowRequest")}</StatusBadge> : null}
         </div>
         <DashboardDetailText className="mt-0.5">
           {(log.model_provider ?? t("dashboard.notSet"))} · {log.endpoint}
@@ -993,8 +1100,8 @@ function StatusRecentRequestRow({
           {formatLatency(log.duration_ms, t("dashboard.notSet"))}
         </DashboardMonoDetailText>
         <DashboardDetailText>
-          {formatCurrency(parseNumericValue(log.spend_usd))} ·{" "}
-          {formatWholeNumber(log.total_tokens)} tokens
+          {t("dashboard.firstTokenLatency")}:{" "}
+          {formatLatency(log.first_token_latency_ms, t("dashboard.notSet"))}
         </DashboardDetailText>
         <DashboardDetailText>
           {formatStableTimestamp(
@@ -1004,6 +1111,18 @@ function StatusRecentRequestRow({
         </DashboardDetailText>
       </div>
     </DashboardRow>
+  );
+}
+
+function isStatusRequestIssue(log: RequestLog) {
+  return log.status !== "succeeded" || isSlowStatusRequest(log);
+}
+
+function isSlowStatusRequest(log: RequestLog) {
+  return (
+    typeof log.duration_ms === "number" &&
+    Number.isFinite(log.duration_ms) &&
+    log.duration_ms >= STATUS_SLOW_REQUEST_THRESHOLD_MS
   );
 }
 
@@ -2074,6 +2193,49 @@ function buildUsageBreakdown(
     });
 }
 
+function formatUsageAPIKeyOwnerLabel(log: RequestLog, fallback: string) {
+  const ownerName = log.api_key_owner_name?.trim();
+  const ownerEmail = log.api_key_owner_email?.trim();
+  const ownerID = log.api_key_owner_user_id?.trim();
+  const apiKeyName = log.api_key_display_name?.trim();
+  const apiKeyID = log.api_key_id?.trim();
+  const apiKeyLabel =
+    apiKeyName && apiKeyID && apiKeyName !== apiKeyID
+      ? `${apiKeyName} (${apiKeyID})`
+      : apiKeyName || apiKeyID;
+  const labelParts = [ownerName, ownerEmail || ownerID, apiKeyLabel].filter(
+    (part): part is string => Boolean(part),
+  );
+
+  return labelParts.length > 0 ? labelParts.join(" -> ") : fallback;
+}
+
+function formatUsageUserLabel(log: RequestLog, fallback: string) {
+  return (
+    log.api_key_owner_name?.trim() ||
+    log.api_key_owner_email?.trim() ||
+    log.api_key_owner_user_id?.trim() ||
+    fallback
+  );
+}
+
+function formatUsageDeploymentLabel(log: RequestLog, fallback: string) {
+  return (
+    log.latest_attempt?.deployment_name?.trim() ||
+    log.latest_attempt?.deployment_id?.trim() ||
+    fallback
+  );
+}
+
+function formatUsageTrafficModeLabel(
+  log: RequestLog,
+  t: DashboardSectionContentProps["t"],
+) {
+  return log.stream
+    ? t("dashboard.usageStreamRequests")
+    : t("dashboard.usageNonStreamRequests");
+}
+
 function buildUsageInsightBreakdown(
   breakdowns: UsageInsightBreakdown[],
   totalSpend: number,
@@ -2108,17 +2270,6 @@ function formatOptionalCurrency(
   }
 
   return formatCurrency(value);
-}
-
-function formatOptionalWholeNumber(
-  value: number | undefined,
-  fallback: string,
-): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return fallback;
-  }
-
-  return formatWholeNumber(value);
 }
 
 function formatUsageSpendMomentum(
@@ -2159,6 +2310,7 @@ function UsageSection({
         left.usage_date.localeCompare(right.usage_date),
       )
     : [];
+  const dailyUsage30dList = dailyUsageList.slice(-30);
   const recentRequestSample = requestLogs.ok
     ? [...requestLogs.data.data].sort(
         (left, right) =>
@@ -2167,33 +2319,7 @@ function UsageSection({
       )
     : [];
   const notSet = t("dashboard.notSet");
-  const totalSpend30d = sumValues(dailyUsageList.map((usage) => usage.spend_usd));
-  const totalRequests30d = sumValues(
-    dailyUsageList.map((usage) => usage.request_count),
-  );
-  const totalSuccess30d = sumValues(
-    dailyUsageList.map((usage) => usage.success_count),
-  );
-  const totalFailures30d = sumValues(
-    dailyUsageList.map((usage) => usage.failure_count),
-  );
-  const promptTokens30d = sumValues(
-    dailyUsageList.map((usage) => usage.prompt_tokens),
-  );
-  const completionTokens30d = sumValues(
-    dailyUsageList.map((usage) => usage.completion_tokens),
-  );
-  const totalTokens30d = promptTokens30d + completionTokens30d;
-  const successRate30d =
-    totalRequests30d > 0 ? (totalSuccess30d / totalRequests30d) * 100 : 0;
-  const averageCostPerRequest =
-    totalRequests30d > 0 ? totalSpend30d / totalRequests30d : undefined;
-  const costPerMillionTokens =
-    totalTokens30d > 0 ? (totalSpend30d / totalTokens30d) * 1_000_000 : undefined;
-  const averageTokensPerRequest =
-    totalRequests30d > 0 ? totalTokens30d / totalRequests30d : undefined;
-  const completionTokenShare =
-    totalTokens30d > 0 ? (completionTokens30d / totalTokens30d) * 100 : 0;
+  const totalSpend30d = sumValues(dailyUsage30dList.map((usage) => usage.spend_usd));
   const last7dSpend = sumValues(
     dailyUsageList.slice(-7).map((usage) => usage.spend_usd),
   );
@@ -2204,14 +2330,14 @@ function UsageSection({
   const last7dSpendDeltaPercent =
     previous7dSpend > 0 ? (last7dSpendDelta / previous7dSpend) * 100 : undefined;
   const averageDailySpend =
-    dailyUsageList.length > 0 ? totalSpend30d / dailyUsageList.length : undefined;
+    dailyUsage30dList.length > 0 ? totalSpend30d / dailyUsage30dList.length : undefined;
   const latestDailyRows = [...dailyUsageList].slice(-10).reverse();
-  const maxDailySpend = dailyUsageList.reduce((currentMax, usage) => {
+  const maxDailySpend = dailyUsage30dList.reduce((currentMax, usage) => {
     const spend = parseNumericValue(usage.spend_usd);
     return spend > currentMax ? spend : currentMax;
   }, 0);
-  let peakUsageDay = dailyUsageList[0];
-  for (const usage of dailyUsageList.slice(1)) {
+  let peakUsageDay = dailyUsage30dList[0];
+  for (const usage of dailyUsage30dList.slice(1)) {
     if (parseNumericValue(usage.spend_usd) > parseNumericValue(peakUsageDay?.spend_usd)) {
       peakUsageDay = usage;
     }
@@ -2221,22 +2347,6 @@ function UsageSection({
   const sampleCount = requestLogs.ok
     ? recentRequestSample.length
     : insightTotals?.request_count ?? 0;
-  const failedSampleLogs = recentRequestSample.filter(
-    (log) => log.status !== "succeeded",
-  );
-  const failedRequestCount = requestLogs.ok
-    ? failedSampleLogs.length
-    : insightTotals?.failure_count ?? 0;
-  const failedSpendSample = requestLogs.ok
-    ? sumValues(failedSampleLogs.map((log) => log.spend_usd))
-    : insightTotals
-      ? parseNumericValue(insightTotals.failed_spend_usd)
-      : undefined;
-  const retriedRequestCount = requestLogs.ok
-    ? recentRequestSample.filter((log) => log.attempt_count > 1).length
-    : insightTotals?.retried_request_count ?? 0;
-  const retriedRequestShare =
-    sampleCount > 0 ? (retriedRequestCount / sampleCount) * 100 : undefined;
   const hasRequestLogResult =
     requestLogs.ok || (!requestLogs.ok && requestLogs.error);
   const breakdownResult: Settled<unknown> = hasRequestLogResult
@@ -2245,13 +2355,6 @@ function UsageSection({
   const insightSpend = insightTotals
     ? parseNumericValue(insightTotals.spend_usd)
     : 0;
-  const sampleSpend = requestLogs.ok
-    ? sumValues(recentRequestSample.map((log) => log.spend_usd))
-    : insightSpend;
-  const failedSpendShare =
-    sampleSpend > 0 && typeof failedSpendSample === "number"
-      ? (failedSpendSample / sampleSpend) * 100
-      : 0;
 
   const providerBreakdown = requestLogs.ok
     ? buildUsageBreakdown(
@@ -2279,8 +2382,7 @@ function UsageSection({
   const apiKeyBreakdown = requestLogs.ok
     ? buildUsageBreakdown(
         recentRequestSample,
-        (log) =>
-          log.api_key_display_name?.trim() || log.api_key_id?.trim() || notSet,
+        (log) => formatUsageAPIKeyOwnerLabel(log, notSet),
       ).slice(0, 5)
     : usageInsights.ok
       ? buildUsageInsightBreakdown(
@@ -2309,7 +2411,35 @@ function UsageSection({
     : usageInsights.ok
       ? buildUsageInsightBreakdown(usageInsights.data.endpoints, insightSpend, notSet)
       : [];
+  const userBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) => formatUsageUserLabel(log, notSet),
+      ).slice(0, 5)
+    : [];
+  const deploymentBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) => formatUsageDeploymentLabel(log, notSet),
+      ).slice(0, 5)
+    : [];
+  const statusBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) => localizeValue(t, log.status),
+      ).slice(0, 5)
+    : [];
+  const trafficModeBreakdown = requestLogs.ok
+    ? buildUsageBreakdown(
+        recentRequestSample,
+        (log) => formatUsageTrafficModeLabel(log, t),
+      ).slice(0, 5)
+    : [];
   const topContributor = [
+    ...userBreakdown.slice(0, 1).map((item) => ({
+      ...item,
+      dimension: t("dashboard.usageUserMixTitle"),
+    })),
     ...departmentBreakdown.slice(0, 1).map((item) => ({
       ...item,
       dimension: t("dashboard.usageDepartmentMixTitle"),
@@ -2318,12 +2448,33 @@ function UsageSection({
       ...item,
       dimension: t("dashboard.usageModelMixTitle"),
     })),
+    ...deploymentBreakdown.slice(0, 1).map((item) => ({
+      ...item,
+      dimension: t("dashboard.usageDeploymentMixTitle"),
+    })),
     ...apiKeyBreakdown.slice(0, 1).map((item) => ({
       ...item,
       dimension: t("dashboard.usageApiKeyMixTitle"),
     })),
+    ...providerBreakdown.slice(0, 1).map((item) => ({
+      ...item,
+      dimension: t("dashboard.usageProviderMixTitle"),
+    })),
+    ...endpointBreakdown.slice(0, 1).map((item) => ({
+      ...item,
+      dimension: t("dashboard.usageEndpointMixTitle"),
+    })),
   ].sort((left, right) => right.spendShare - left.spendShare)[0];
   const usageDimensionGroups = [
+    ...(requestLogs.ok
+      ? [
+          {
+            title: t("dashboard.usageUserMixTitle"),
+            description: t("dashboard.usageUserMixDescription"),
+            items: userBreakdown,
+          },
+        ]
+      : []),
     {
       title: t("dashboard.usageDepartmentMixTitle"),
       description: t("dashboard.usageDepartmentMixDescription"),
@@ -2339,6 +2490,15 @@ function UsageSection({
       description: t("dashboard.usageApiKeyMixDescription"),
       items: apiKeyBreakdown,
     },
+    ...(requestLogs.ok
+      ? [
+          {
+            title: t("dashboard.usageDeploymentMixTitle"),
+            description: t("dashboard.usageDeploymentMixDescription"),
+            items: deploymentBreakdown,
+          },
+        ]
+      : []),
     {
       title: t("dashboard.usageProviderMixTitle"),
       description: t("dashboard.usageProviderMixDescription"),
@@ -2349,7 +2509,28 @@ function UsageSection({
       description: t("dashboard.usageEndpointMixDescription"),
       items: endpointBreakdown,
     },
+    ...(requestLogs.ok
+      ? [
+          {
+            title: t("dashboard.usageStatusMixTitle"),
+            description: t("dashboard.usageStatusMixDescription"),
+            items: statusBreakdown,
+          },
+          {
+            title: t("dashboard.usageTrafficModeMixTitle"),
+            description: t("dashboard.usageTrafficModeMixDescription"),
+            items: trafficModeBreakdown,
+          },
+        ]
+      : []),
   ];
+  const usageTrendChartData = dailyUsageList.map((usage) => ({
+    date: usage.usage_date,
+    label: usage.usage_date.slice(5),
+    spend: parseNumericValue(usage.spend_usd),
+    requests: usage.request_count,
+    failures: usage.failure_count,
+  }));
 
   return (
     <section className="grid gap-2.5">
@@ -2370,9 +2551,8 @@ function UsageSection({
           ) : null}
         </DashboardPanelHeader>
         <DashboardPanelContent className="grid gap-2.5">
-          <div className="grid gap-2.5 lg:grid-cols-2 2xl:grid-cols-4">
-            <UsageExecutiveMetric
-              icon={<BadgeDollarSignIcon className="size-4" />}
+          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+            <UsageBusinessMetric
               label={t("dashboard.usageMonthToDateSpend")}
               value={
                 balance.ok
@@ -2386,9 +2566,9 @@ function UsageSection({
                     })
                   : getSettledMessage(balance, t("dashboard.monthToDate"))
               }
+              tone="neutral"
             />
-            <UsageExecutiveMetric
-              icon={<BadgeDollarSignIcon className="size-4" />}
+            <UsageBusinessMetric
               label={t("dashboard.usageTrailing30dSpend")}
               value={
                 dailyUsage.ok ? formatCurrency(totalSpend30d) : t("dashboard.notSet")
@@ -2403,94 +2583,9 @@ function UsageSection({
                     )
                   : getSettledMessage(dailyUsage, t("dashboard.last30Days"))
               }
-            />
-            <UsageExecutiveMetric
-              icon={<GaugeIcon className="size-4" />}
-              label={t("dashboard.usageUnitEconomics")}
-              value={formatOptionalCurrency(averageCostPerRequest, notSet)}
-              detail={
-                dailyUsage.ok
-                  ? t("dashboard.usageUnitEconomicsDetail", {
-                      tokens: formatOptionalWholeNumber(
-                        averageTokensPerRequest,
-                        notSet,
-                      ),
-                      cost: formatOptionalCurrency(costPerMillionTokens, notSet),
-                    })
-                  : dailyUsage.error
-              }
-            />
-            <UsageExecutiveMetric
-              icon={<ShieldCheckIcon className="size-4" />}
-              label={t("dashboard.usageReliability")}
-              value={dailyUsage.ok ? formatPercent(successRate30d) : t("dashboard.notSet")}
-              detail={
-                dailyUsage.ok
-                  ? t("dashboard.usageReliabilityDetail", {
-                      count: formatWholeNumber(totalFailures30d),
-                      retries: formatPercent(retriedRequestShare ?? 0),
-                    })
-                  : dailyUsage.error
-              }
-            />
-          </div>
-        </DashboardPanelContent>
-      </Card>
-
-      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.95fr)]">
-        <Card size="sm">
-          <DashboardPanelHeader>
-            <CardTitle>{t("dashboard.usageDailyTrendTitle")}</CardTitle>
-            <CardDescription>
-              {t("dashboard.usageDailyTrendDescription")}
-            </CardDescription>
-            <CardAction>
-              <StatusBadge>{t("dashboard.last30Days")}</StatusBadge>
-            </CardAction>
-          </DashboardPanelHeader>
-          <DashboardStackContent className="gap-1.5">
-            {dailyUsage.ok && latestDailyRows.length > 0 ? (
-              latestDailyRows.map((usage) => (
-                <UsageDailySpendRow
-                  key={usage.usage_date}
-                  usage={usage}
-                  maxSpend={maxDailySpend}
-                  t={t}
-                />
-              ))
-            ) : (
-              <DashboardSettledEmptyState
-                result={dailyUsage}
-                emptyMessage={t("dashboard.noDailyUsage")}
-              />
-            )}
-          </DashboardStackContent>
-        </Card>
-
-        <Card size="sm">
-          <DashboardPanelHeader>
-            <CardTitle>{t("dashboard.usageOperatingSignalsTitle")}</CardTitle>
-            <CardDescription>
-              {t("dashboard.usageOperatingSignalsDescription")}
-            </CardDescription>
-          </DashboardPanelHeader>
-          <DashboardPanelContent className="grid gap-2">
-            <UsageOperatingSignal
-              label={t("dashboard.usageSpendMomentum")}
-              value={dailyUsage.ok ? formatCurrency(last7dSpend) : notSet}
-              detail={
-                dailyUsage.ok
-                  ? formatUsageSpendMomentum(
-                      t,
-                      last7dSpendDelta,
-                      last7dSpendDeltaPercent,
-                      previous7dSpend,
-                    )
-                  : dailyUsage.error
-              }
               tone={last7dSpendDelta > 0 ? "warning" : "neutral"}
             />
-            <UsageOperatingSignal
+            <UsageBusinessMetric
               label={t("dashboard.usageAverageDailySpend")}
               value={formatOptionalCurrency(averageDailySpend, notSet)}
               detail={
@@ -2503,7 +2598,7 @@ function UsageSection({
               }
               tone="neutral"
             />
-            <UsageOperatingSignal
+            <UsageBusinessMetric
               label={t("dashboard.usageConcentration")}
               value={
                 topContributor
@@ -2524,40 +2619,70 @@ function UsageSection({
                   : "neutral"
               }
             />
-            <UsageOperatingSignal
-              label={t("dashboard.usageWaste")}
-              value={
-                breakdownResult.ok
-                  ? formatPercent(failedSpendShare)
-                  : t("dashboard.notSet")
-              }
-              detail={
-                breakdownResult.ok
-                  ? t("dashboard.usageWasteDetail", {
-                      spend: formatCurrency(failedSpendSample ?? 0),
-                      count: formatWholeNumber(failedRequestCount),
-                    })
-                  : breakdownResult.error
-              }
-              tone={failedSpendShare > 5 ? "critical" : "neutral"}
+          </div>
+          <div className="grid gap-2 rounded-md border border-border/70 bg-muted/20 p-2.5">
+          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-medium">
+                {t("dashboard.usageOperatingTrendTitle")}
+              </div>
+                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                {t("dashboard.usageOperatingTrendDescription")}
+              </div>
+            </div>
+          </div>
+          {usageTrendChartData.length > 0 ? (
+            <UsageBusinessTrendChart
+              data={usageTrendChartData}
+              spendLabel={t("dashboard.spend")}
+              requestsLabel={t("dashboard.requests")}
+              failuresLabel={t("dashboard.failures")}
+              successesLabel={t("values.succeeded")}
+              rangeLabels={{
+                last7Days: t("dashboard.last7Days"),
+                last30Days: t("dashboard.last30Days"),
+                thisMonth: t("dashboard.thisMonth"),
+              }}
             />
-            <UsageOperatingSignal
-              label={t("dashboard.usageTokenMix")}
-              value={dailyUsage.ok ? formatWholeNumber(totalTokens30d) : notSet}
-              detail={
-                dailyUsage.ok
-                  ? t("dashboard.usageTokenMixDetail", {
-                      completion: formatPercent(completionTokenShare),
-                      prompt: formatWholeNumber(promptTokens30d),
-                      output: formatWholeNumber(completionTokens30d),
-                    })
-                  : dailyUsage.error
-              }
-              tone="neutral"
+          ) : (
+              <DashboardSettledEmptyState
+                result={dailyUsage}
+                emptyMessage={t("dashboard.noDailyUsage")}
+                icon={<ActivityIcon />}
+              />
+            )}
+          </div>
+        </DashboardPanelContent>
+      </Card>
+
+      <Card size="sm">
+        <DashboardPanelHeader>
+          <CardTitle>{t("dashboard.usageDailyTrendTitle")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.usageDailyTrendDescription")}
+          </CardDescription>
+          <CardAction>
+            <StatusBadge>{t("dashboard.last30Days")}</StatusBadge>
+          </CardAction>
+        </DashboardPanelHeader>
+        <DashboardStackContent className="gap-1.5">
+          {dailyUsage.ok && latestDailyRows.length > 0 ? (
+            latestDailyRows.map((usage) => (
+              <UsageDailySpendRow
+                key={usage.usage_date}
+                usage={usage}
+                maxSpend={maxDailySpend}
+                t={t}
+              />
+            ))
+          ) : (
+            <DashboardSettledEmptyState
+              result={dailyUsage}
+              emptyMessage={t("dashboard.noDailyUsage")}
             />
-          </DashboardPanelContent>
-        </Card>
-      </div>
+          )}
+        </DashboardStackContent>
+      </Card>
 
       <UsageAllocationMatrix
         title={t("dashboard.usageAllocationTitle")}
@@ -2663,34 +2788,7 @@ function UsageDailySpendRow({
   );
 }
 
-function UsageExecutiveMetric({
-  icon,
-  label,
-  value,
-  detail,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  detail: string;
-}) {
-  return (
-    <div className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] gap-2.5 rounded-md border border-border/70 bg-muted/25 p-3">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <div className="text-xs font-medium text-muted-foreground">{label}</div>
-        <div className="mt-0.5 truncate font-mono text-lg font-semibold leading-6 tabular-nums text-foreground">
-          {value}
-        </div>
-        <DashboardDetailText className="mt-0.5">{detail}</DashboardDetailText>
-      </div>
-    </div>
-  );
-}
-
-function UsageOperatingSignal({
+function UsageBusinessMetric({
   label,
   value,
   detail,
@@ -2704,7 +2802,7 @@ function UsageOperatingSignal({
   return (
     <div
       className={cn(
-        "rounded-md border border-border/70 px-2.5 py-2",
+        "min-w-0 rounded-md border border-border/70 px-2.5 py-2",
         tone === "critical"
           ? "bg-destructive/5"
           : tone === "warning"
@@ -2717,12 +2815,12 @@ function UsageOperatingSignal({
           <div className="text-xs font-medium text-muted-foreground">
             {label}
           </div>
-          <div className="mt-0.5 font-mono text-base font-semibold tabular-nums text-foreground">
+          <div className="mt-0.5 truncate font-mono text-base font-semibold leading-5 tabular-nums text-foreground">
             {value}
           </div>
-          <DashboardDetailText className="mt-0.5 whitespace-normal">
+          <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
             {detail}
-          </DashboardDetailText>
+          </div>
         </div>
         {tone !== "neutral" ? (
           <span
@@ -2775,7 +2873,7 @@ function UsageAllocationMatrix({
       </DashboardPanelHeader>
       <DashboardPanelContent>
         {result.ok && groups.some((group) => group.items.length > 0) ? (
-          <div className="grid gap-2.5 xl:grid-cols-2 2xl:grid-cols-5">
+          <div className="grid gap-2.5 xl:grid-cols-2 2xl:grid-cols-3">
             {groups.map((group) => (
               <UsageAllocationGroupCard key={group.title} group={group} t={t} />
             ))}
@@ -2801,6 +2899,10 @@ function UsageAllocationGroupCard({
 }) {
   const topItems = group.items.slice(0, 3);
   const topItem = topItems[0];
+  const topItemSuccessRate =
+    topItem && topItem.requests > 0
+      ? (topItem.succeeded / topItem.requests) * 100
+      : 0;
 
   return (
     <div className="flex min-w-0 flex-col gap-2 rounded-md border border-border/70 bg-muted/15 p-2.5">
@@ -2816,9 +2918,26 @@ function UsageAllocationGroupCard({
         <div className="rounded-md border border-border/70 bg-background p-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate font-medium">{topItem.label}</div>
+              <div className="break-words font-medium leading-5">
+                {topItem.label}
+              </div>
               <DashboardDetailText>
                 {t("dashboard.usageTopContributor")}
+              </DashboardDetailText>
+              <DashboardMonoDetailText>
+                {t("dashboard.usageRequestVolumeDetail", {
+                  requests: formatWholeNumber(topItem.requests),
+                  tokens: formatWholeNumber(topItem.tokens),
+                })}
+              </DashboardMonoDetailText>
+              <DashboardDetailText>
+                {t("dashboard.usageSuccessRateLatency", {
+                  successRate: formatPercent(topItemSuccessRate),
+                  latency: formatLatency(
+                    topItem.averageLatencyMS,
+                    t("dashboard.notSet"),
+                  ),
+                })}
               </DashboardDetailText>
             </div>
             <div className="shrink-0 text-right">
@@ -2853,7 +2972,7 @@ function UsageAllocationGroupCard({
             key={item.key}
             className="flex min-w-0 items-center justify-between gap-2 text-xs"
           >
-            <span className="min-w-0 truncate text-muted-foreground">
+            <span className="min-w-0 break-words text-muted-foreground">
               {item.label}
             </span>
             <span className="shrink-0 font-mono tabular-nums">

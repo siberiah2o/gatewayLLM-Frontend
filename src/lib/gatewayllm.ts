@@ -308,6 +308,7 @@ export type RequestLog = {
   api_key_display_name?: string
   api_key_owner_user_id?: string
   api_key_owner_name?: string
+  api_key_owner_email?: string
   department_id?: string
   department_name?: string
   model_catalog_id?: string
@@ -529,12 +530,28 @@ export async function gatewayRequest<T>(
     requestBody = JSON.stringify(body)
   }
 
-  const response = await fetch(gatewayURL(path), {
-    method,
-    headers: requestHeaders,
-    body: requestBody,
-    cache: "no-store",
-  })
+  let response: Response
+  try {
+    response = await fetch(gatewayURL(path), {
+      method,
+      headers: requestHeaders,
+      body: requestBody,
+      cache: "no-store",
+    })
+  } catch (error) {
+    const causeMessage =
+      error instanceof Error && error.message ? ` ${error.message}` : ""
+
+    throw new GatewayAPIError({
+      status: 503,
+      message: `GatewayLLM control plane is unreachable at ${gatewayBaseURL()}.${causeMessage}`,
+      code: "gateway_unreachable",
+      type: "connection_error",
+      payload: {
+        url: gatewayBaseURL(),
+      },
+    })
+  }
 
   const payload = await readJSON(response)
 

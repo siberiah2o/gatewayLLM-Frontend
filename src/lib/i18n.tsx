@@ -78,6 +78,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.title": "Control plane",
     "dashboard.connectedTo": "Connected to {url}",
     "dashboard.dashboard": "Dashboard",
+    "dashboard.controlPlaneUnavailableTitle": "Control plane unavailable",
+    "dashboard.controlPlaneUnavailableDescription":
+      "The frontend is running, but it cannot reach the GatewayLLM backend right now.",
+    "dashboard.controlPlaneUnavailableDetail":
+      "Check that the GatewayLLM backend is listening on the configured gateway URL, then retry.",
     "dashboard.httpServer": "HTTP server",
     "dashboard.readiness": "Readiness",
     "dashboard.statusOverviewTitle": "System command center",
@@ -85,7 +90,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "The admin view for health, traffic, routing coverage, and issues that need action.",
     "dashboard.runtimeResourcesTitle": "Runtime resources",
     "dashboard.runtimeResourcesDescription":
-      "Live process and host resource snapshots for the frontend server and backend gateway.",
+      "Host capacity is summarized once; process cards focus on frontend and backend runtime pressure.",
+    "dashboard.hostResourcesTitle": "Host resources",
+    "dashboard.hostResourcesDetail": "shared host snapshot",
+    "dashboard.hostLoadDetail": "1-minute load / CPU",
     "dashboard.frontendRuntimeTitle": "Frontend runtime",
     "dashboard.backendRuntimeTitle": "Backend runtime",
     "dashboard.uptime": "Uptime",
@@ -219,6 +227,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "Breakdowns below use the latest request sample, not the full 30-day billing ledger.",
     "dashboard.usageSampleWindow": "{start} to {end}",
     "dashboard.usageSampleCount": "{count} recent requests",
+    "dashboard.usageOperatingTrendTitle": "Operating trend",
+    "dashboard.usageOperatingTrendDescription":
+      "Spend bars are shown first, with request and failure lines available in the request tab.",
     "dashboard.usageDailyTrendTitle": "Daily spend ledger",
     "dashboard.usageDailyTrendDescription":
       "Rolling 30-day billing aggregates for spend, volume, and success rate.",
@@ -251,30 +262,44 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageRetriedRequestsSample": "Retried requests sample",
     "dashboard.usageRetriedShareSample":
       "{count} retried · {share} of sample",
+    "dashboard.usageUserMixTitle": "User cost mix",
+    "dashboard.usageUserMixDescription":
+      "Which users are driving the latest spend, traffic, and reliability.",
     "dashboard.usageProviderMixTitle": "Provider cost mix",
     "dashboard.usageProviderMixDescription":
-      "Which providers are absorbing the most recent spend and traffic.",
-    "dashboard.usageModelMixTitle": "Model cost mix",
+      "Which upstream providers are absorbing the most recent spend and traffic.",
+    "dashboard.usageModelMixTitle": "Public model name mix",
     "dashboard.usageModelMixDescription":
-      "The models currently driving cost, requests, and latency.",
-    "dashboard.usageApiKeyMixTitle": "API key cost mix",
+      "The public model routes currently driving cost, requests, and latency.",
+    "dashboard.usageApiKeyMixTitle": "Virtual key cost mix",
     "dashboard.usageApiKeyMixDescription":
-      "Which API keys are consuming the most recent budget.",
+      "Which virtual keys are consuming the most recent budget.",
+    "dashboard.usageDeploymentMixTitle": "Deployment route mix",
+    "dashboard.usageDeploymentMixDescription":
+      "Which backend deployments are carrying recent spend and latency.",
     "dashboard.usageDepartmentMixTitle": "Department cost mix",
     "dashboard.usageDepartmentMixDescription":
       "Which departments are driving recent spend and traffic.",
     "dashboard.usageEndpointMixTitle": "Endpoint cost mix",
     "dashboard.usageEndpointMixDescription":
       "The request shapes currently creating the most spend.",
-    "dashboard.usageAllocationTitle": "Cost allocation by business dimension",
+    "dashboard.usageStatusMixTitle": "Status mix",
+    "dashboard.usageStatusMixDescription":
+      "How spend and traffic split across successful and failed requests.",
+    "dashboard.usageTrafficModeMixTitle": "Traffic mode mix",
+    "dashboard.usageTrafficModeMixDescription":
+      "How spend and traffic split between streaming and non-streaming requests.",
+    "dashboard.usageStreamRequests": "Streaming",
+    "dashboard.usageNonStreamRequests": "Non-streaming",
+    "dashboard.usageAllocationTitle": "LiteLLM-style usage dimensions",
     "dashboard.usageAllocationDescription":
-      "Rank spend ownership across departments, models, API keys, providers, and endpoints.",
+      "Rank spend ownership across users, departments, virtual keys, public model names, deployments, providers, endpoints, status, and traffic mode.",
     "dashboard.usageTopContributor": "Top contributor",
     "dashboard.usageRequestDetailsTitle": "Usage details",
     "dashboard.usageRequestDetailsUserFilterPlaceholder":
       "Filter by user name or ID",
     "dashboard.usageRequestDetailsNoMatches":
-      "No requests match the current API key or user filter.",
+      "No requests match the current usage detail filters.",
     "dashboard.downloadCSV": "Download CSV",
     "dashboard.downloadXLSX": "Download XLSX",
     "dashboard.usageRequestVolumeDetail": "{requests} req · {tokens} tokens",
@@ -292,7 +317,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.statusTrafficTitle": "Traffic trend",
     "dashboard.statusTrafficDescription":
       "Successful and failed requests across the last 30 days.",
+    "dashboard.last7Days": "Last 7 days",
     "dashboard.last30Days": "Last 30 days",
+    "dashboard.thisMonth": "This month",
     "dashboard.last60Requests": "Last 60 requests",
     "dashboard.statusTokens30d": "tokens across the same window",
     "dashboard.attentionQueueTitle": "Attention queue",
@@ -318,9 +345,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.alertThresholdsTitle": "Alert thresholds",
     "dashboard.alertThresholdsDescription":
       "Opinionated thresholds that help an admin decide if intervention is needed.",
-    "dashboard.providerPerformanceTitle": "Provider performance",
+    "dashboard.providerPerformanceTitle": "Provider health",
     "dashboard.providerPerformanceDescription":
-      "A provider-level snapshot built from the most recent request sample.",
+      "Recent provider reliability and latency signals, without cost allocation details.",
     "dashboard.noProviderTraffic":
       "No provider traffic is available for the current request sample.",
     "dashboard.systemHealth": "System health",
@@ -343,9 +370,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.statusRegistrationsThresholdDetail":
       "A queue of pending registrations should be reviewed regularly.",
     "dashboard.credentialsReady": "Credentials ready",
-    "dashboard.recentRequestsTitle": "Recent requests",
+    "dashboard.recentRequestsTitle": "Recent request issues",
     "dashboard.recentRequestsDescription":
-      "Latest model calls, with status, spend, tokens, and latency.",
+      "Only non-success or slow model calls that need operational attention.",
+    "dashboard.requestIssueCriteria": "Non-success or > {threshold}",
+    "dashboard.noRecentRequestIssues": "No recent failed or slow requests.",
+    "dashboard.slowRequest": "Slow",
     "dashboard.requestsShort": "req",
     "dashboard.noDailyUsage": "No daily usage returned.",
     "dashboard.requestLogsTitle": "API call logs",
@@ -374,6 +404,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.firstTokenLatency": "First-token latency",
     "dashboard.completedAt": "Completed",
     "dashboard.spend": "Spend",
+    "dashboard.requests": "Requests",
+    "dashboard.failures": "Failures",
     "dashboard.attempts": "Attempts",
     "dashboard.traceID": "Trace ID",
     "dashboard.clientIP": "Client IP",
@@ -456,6 +488,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "actions.apply": "Apply",
     "actions.selectAll": "Select all",
     "actions.clear": "Clear",
+    "actions.retry": "Retry",
     "actions.created": "Created {name}.",
     "forms.workspaceRequired": "Account setup is not ready.",
     "forms.newWorkspace": "New account",
@@ -800,6 +833,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.title": "控制平面",
     "dashboard.connectedTo": "已连接到 {url}",
     "dashboard.dashboard": "仪表盘",
+    "dashboard.controlPlaneUnavailableTitle": "控制面暂不可用",
+    "dashboard.controlPlaneUnavailableDescription":
+      "前端正在运行，但当前无法连接 GatewayLLM 后端。",
+    "dashboard.controlPlaneUnavailableDetail":
+      "确认 GatewayLLM 后端正在监听配置的网关地址，然后重试。",
     "dashboard.httpServer": "HTTP 服务",
     "dashboard.readiness": "就绪状态",
     "dashboard.statusOverviewTitle": "系统总览",
@@ -807,7 +845,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "管理员优先查看系统健康、调用趋势、路由覆盖和待处理风险。",
     "dashboard.runtimeResourcesTitle": "运行资源状态",
     "dashboard.runtimeResourcesDescription":
-      "前端服务与后端网关当前进程资源和宿主机资源快照。",
+      "宿主机资源统一汇总一次，前端和后端卡片聚焦各自进程压力。",
+    "dashboard.hostResourcesTitle": "宿主机资源",
+    "dashboard.hostResourcesDetail": "共享宿主机快照",
+    "dashboard.hostLoadDetail": "1 分钟负载 / CPU",
     "dashboard.frontendRuntimeTitle": "前端运行状态",
     "dashboard.backendRuntimeTitle": "后端运行状态",
     "dashboard.uptime": "运行时长",
@@ -934,6 +975,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "下面的拆分分析基于最近请求样本，不等同于完整 30 天账单口径。",
     "dashboard.usageSampleWindow": "{start} 至 {end}",
     "dashboard.usageSampleCount": "最近 {count} 条请求",
+    "dashboard.usageOperatingTrendTitle": "经营趋势",
+    "dashboard.usageOperatingTrendDescription":
+      "优先展示费用柱状图，请求量与失败调用可切换到请求 tab 查看折线趋势。",
     "dashboard.usageDailyTrendTitle": "每日费用账本",
     "dashboard.usageDailyTrendDescription":
       "按天查看最近 30 天费用、请求量和成功率变化。",
@@ -966,30 +1010,44 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageRetriedRequestsSample": "重试请求数",
     "dashboard.usageRetriedShareSample":
       "{count} 次重试 · 占样本 {share}",
+    "dashboard.usageUserMixTitle": "用户费用分布",
+    "dashboard.usageUserMixDescription":
+      "哪些用户正在驱动最近费用、流量和可靠性指标。",
     "dashboard.usageProviderMixTitle": "供应商费用分布",
     "dashboard.usageProviderMixDescription":
-      "最近请求里，费用和流量主要落在哪些供应商上。",
-    "dashboard.usageModelMixTitle": "模型费用分布",
+      "最近请求里，费用和流量主要落在哪些上游供应商上。",
+    "dashboard.usageModelMixTitle": "公开模型名费用分布",
     "dashboard.usageModelMixDescription":
-      "当前真正驱动费用、请求量和时延的模型。",
-    "dashboard.usageApiKeyMixTitle": "API 密钥费用分布",
+      "当前真正驱动费用、请求量和时延的公开模型路由。",
+    "dashboard.usageApiKeyMixTitle": "虚拟密钥费用分布",
     "dashboard.usageApiKeyMixDescription":
-      "哪些 API 密钥正在消耗最近一段预算。",
+      "哪些虚拟密钥正在消耗最近一段预算。",
+    "dashboard.usageDeploymentMixTitle": "部署路由费用分布",
+    "dashboard.usageDeploymentMixDescription":
+      "哪些后端部署正在承接最近费用和时延。",
     "dashboard.usageDepartmentMixTitle": "部门费用分布",
     "dashboard.usageDepartmentMixDescription":
       "哪些部门正在驱动最近费用和请求量。",
     "dashboard.usageEndpointMixTitle": "接口费用分布",
     "dashboard.usageEndpointMixDescription":
       "哪些接口形态正在制造主要费用。",
-    "dashboard.usageAllocationTitle": "按业务维度归因成本",
+    "dashboard.usageStatusMixTitle": "状态费用分布",
+    "dashboard.usageStatusMixDescription":
+      "费用和流量在成功、失败等请求状态之间的拆分。",
+    "dashboard.usageTrafficModeMixTitle": "流量模式费用分布",
+    "dashboard.usageTrafficModeMixDescription":
+      "费用和流量在流式与非流式请求之间的拆分。",
+    "dashboard.usageStreamRequests": "流式",
+    "dashboard.usageNonStreamRequests": "非流式",
+    "dashboard.usageAllocationTitle": "LiteLLM 风格用量维度",
     "dashboard.usageAllocationDescription":
-      "用部门、模型、API 密钥、供应商和接口五个维度定位费用归属。",
+      "按用户、部门、虚拟密钥、公开模型名、部署、供应商、接口、状态和流量模式定位费用归属。",
     "dashboard.usageTopContributor": "最大贡献项",
     "dashboard.usageRequestDetailsTitle": "用量详情",
     "dashboard.usageRequestDetailsUserFilterPlaceholder":
       "按用户名字或 ID 筛选",
     "dashboard.usageRequestDetailsNoMatches":
-      "当前 API 密钥或用户筛选条件下没有匹配的请求。",
+      "当前用量详情筛选条件下没有匹配的请求。",
     "dashboard.downloadCSV": "下载 CSV",
     "dashboard.downloadXLSX": "下载 XLSX",
     "dashboard.usageRequestVolumeDetail": "{requests} 次请求 · {tokens} 个 token",
@@ -1005,7 +1063,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.dailyUsageDescription": "当前账户最近 30 天的数据。",
     "dashboard.statusTrafficTitle": "流量趋势",
     "dashboard.statusTrafficDescription": "最近 30 天成功请求与失败请求的变化情况。",
+    "dashboard.last7Days": "最近 7 天",
     "dashboard.last30Days": "最近 30 天",
+    "dashboard.thisMonth": "本月",
     "dashboard.last60Requests": "最近 60 条请求",
     "dashboard.statusTokens30d": "同周期累计 tokens",
     "dashboard.attentionQueueTitle": "待关注事项",
@@ -1021,8 +1081,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.resourceReadinessDescription": "当前账户此刻真正可提供服务的资源情况。",
     "dashboard.alertThresholdsTitle": "告警阈值",
     "dashboard.alertThresholdsDescription": "用明确阈值判断是否需要管理员介入，而不是只看现象。",
-    "dashboard.providerPerformanceTitle": "供应商表现",
-    "dashboard.providerPerformanceDescription": "基于最近一批请求样本计算出的供应商级表现快照。",
+    "dashboard.providerPerformanceTitle": "供应商健康",
+    "dashboard.providerPerformanceDescription":
+      "最近请求样本里的供应商可靠性和延迟信号，不展示成本归因明细。",
     "dashboard.noProviderTraffic": "当前请求样本里还没有可用于统计的供应商流量。",
     "dashboard.systemHealth": "系统健康",
     "dashboard.healthReadinessDetail":
@@ -1038,8 +1099,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.statusDeploymentsThresholdDetail": "没有活跃部署时为严重，存在部分停用部署时为预警。",
     "dashboard.statusRegistrationsThresholdDetail": "待处理注册申请积压后应及时审核。",
     "dashboard.credentialsReady": "已就绪凭据",
-    "dashboard.recentRequestsTitle": "最近请求",
-    "dashboard.recentRequestsDescription": "最近的模型调用状态、费用、tokens 和耗时。",
+    "dashboard.recentRequestsTitle": "最近异常请求",
+    "dashboard.recentRequestsDescription":
+      "只展示需要运维关注的非成功或慢模型调用。",
+    "dashboard.requestIssueCriteria": "非成功或 > {threshold}",
+    "dashboard.noRecentRequestIssues": "最近没有失败或慢请求。",
+    "dashboard.slowRequest": "慢请求",
     "dashboard.requestsShort": "请求",
     "dashboard.noDailyUsage": "没有返回每日用量。",
     "dashboard.requestLogsTitle": "API 调用日志",
@@ -1068,6 +1133,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.firstTokenLatency": "首 token 延时",
     "dashboard.completedAt": "完成时间",
     "dashboard.spend": "费用",
+    "dashboard.requests": "请求",
+    "dashboard.failures": "失败",
     "dashboard.attempts": "尝试",
     "dashboard.traceID": "Trace ID",
     "dashboard.clientIP": "客户端 IP",
@@ -1150,6 +1217,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "actions.apply": "应用",
     "actions.selectAll": "全选",
     "actions.clear": "清空",
+    "actions.retry": "重试",
     "actions.created": "已创建 {name}。",
     "forms.workspaceRequired": "账户初始化尚未完成。",
     "forms.newWorkspace": "新账户",
