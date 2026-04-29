@@ -8,6 +8,10 @@ type CreateModelCatalogBody = {
   workspace_id?: string
   canonical_name?: string
   provider?: string
+  pricing_currency?: string
+  prompt_cache_hit_micro_amount_per_million?: string | number
+  prompt_micro_amount_per_million?: string | number
+  completion_micro_amount_per_million?: string | number
   prompt_microusd_per_million?: string | number
   completion_microusd_per_million?: string | number
 }
@@ -36,9 +40,16 @@ export async function POST(request: Request) {
     const workspaceID = body.workspace_id?.trim()
     const canonicalName = body.canonical_name?.trim()
     const provider = body.provider?.trim()
-    const promptPrice = parseOptionalNumeric(body.prompt_microusd_per_million)
+    const pricingCurrency = (body.pricing_currency?.trim() || "USD").toUpperCase()
+    const promptCacheHitPrice = parseOptionalNumeric(
+      body.prompt_cache_hit_micro_amount_per_million
+    )
+    const promptPrice = parseOptionalNumeric(
+      body.prompt_micro_amount_per_million ?? body.prompt_microusd_per_million
+    )
     const completionPrice = parseOptionalNumeric(
-      body.completion_microusd_per_million
+      body.completion_micro_amount_per_million ??
+        body.completion_microusd_per_million
     )
 
     if (!workspaceID || !canonicalName || !provider) {
@@ -47,6 +58,8 @@ export async function POST(request: Request) {
 
     if (
       (promptPrice !== undefined && !Number.isFinite(promptPrice)) ||
+      (promptCacheHitPrice !== undefined &&
+        !Number.isFinite(promptCacheHitPrice)) ||
       (completionPrice !== undefined && !Number.isFinite(completionPrice))
     ) {
       return badRequest("Pricing values must be numbers.")
@@ -72,10 +85,12 @@ export async function POST(request: Request) {
               ? undefined
               : {
                   version: 1,
-                  currency: "USD",
+                  currency: pricingCurrency,
                   token_rates: {
-                    prompt_microusd_per_million: promptPrice,
-                    completion_microusd_per_million: completionPrice,
+                    prompt_cache_hit_micro_amount_per_million:
+                      promptCacheHitPrice ?? promptPrice,
+                    prompt_micro_amount_per_million: promptPrice,
+                    completion_micro_amount_per_million: completionPrice,
                   },
                 },
           status: "active",

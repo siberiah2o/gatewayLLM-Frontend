@@ -120,14 +120,15 @@ export function CreateWorkspaceForm() {
         <Field orientation="responsive">
           <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
             <div>
-              <FieldLabel htmlFor="billing-currency">
-                {t("forms.currency")}
-              </FieldLabel>
-              <Input
+              <DashboardFormSelect
                 id="billing-currency"
                 name="billing-currency"
+                label={t("forms.currency")}
+                options={[
+                  { value: "USD", label: t("forms.currencyUsd") },
+                  { value: "CNY", label: t("forms.currencyCny") },
+                ]}
                 defaultValue="USD"
-                maxLength={3}
                 required
               />
             </div>

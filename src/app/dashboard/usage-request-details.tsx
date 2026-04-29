@@ -17,6 +17,7 @@ import {
 import type { APIKey, RequestLog, WorkspaceDepartment } from "@/lib/gatewayllm";
 import { cn } from "@/lib/utils";
 import type { DashboardPaginationState } from "./dashboard-pagination";
+import type { DashboardTimeRange } from "./dashboard-time-range";
 import { DashboardTablePagination } from "./dashboard-table-pagination";
 import {
   DashboardDetailText,
@@ -38,6 +39,7 @@ export function UsageRequestDetails({
   workspaceID,
   pagination,
   paginationId,
+  timeRange,
 }: {
   logs: RequestLog[];
   apiKeys: APIKey[];
@@ -45,6 +47,7 @@ export function UsageRequestDetails({
   workspaceID: string;
   pagination?: DashboardPaginationState;
   paginationId: string;
+  timeRange: DashboardTimeRange;
 }) {
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -55,10 +58,7 @@ export function UsageRequestDetails({
   const hasActiveFilters = Boolean(
     appliedApiKeyID || appliedUser || appliedDepartmentID,
   );
-  const currentPageSpend = logs.reduce(
-    (sum, log) => sum + parseSpendUSD(log.spend_usd),
-    0,
-  );
+  const currentPageSpendBreakdown = sumSpendBreakdown(logs);
   const apiKeyOptions = useMemo(
     () => buildAPIKeyOptions(apiKeys, logs, appliedApiKeyID, t),
     [apiKeys, appliedApiKeyID, logs, t],
@@ -77,10 +77,11 @@ export function UsageRequestDetails({
         appliedDepartmentID={appliedDepartmentID}
         apiKeyOptions={apiKeyOptions}
         departmentOptions={departmentOptions}
-        currentPageSpend={currentPageSpend}
+        currentPageSpend={formatMoneyBreakdown(currentPageSpendBreakdown)}
         resultCount={logs.length}
         workspaceID={workspaceID}
         paginationId={paginationId}
+        timeRange={timeRange}
       />
 
       <div
@@ -176,7 +177,7 @@ export function UsageRequestDetails({
               <div className="min-w-0">
                 <MobileLabel>{t("dashboard.spend")}</MobileLabel>
                 <div className="truncate font-mono text-sm font-semibold tabular-nums text-foreground">
-                  {formatSpendUSD(log.spend_usd)}
+                  {formatSpendAmount(log)}
                 </div>
               </div>
 
@@ -210,16 +211,18 @@ function UsageRequestDetailsFilters({
   resultCount,
   workspaceID,
   paginationId,
+  timeRange,
 }: {
   appliedApiKeyID: string;
   appliedUser: string;
   appliedDepartmentID: string;
   apiKeyOptions: Array<{ value: string; label: string }>;
   departmentOptions: Array<{ value: string; label: string }>;
-  currentPageSpend: number;
+  currentPageSpend: string;
   resultCount: number;
   workspaceID: string;
   paginationId: string;
+  timeRange: DashboardTimeRange;
 }) {
   const { t } = useI18n();
   const pathname = usePathname();
@@ -244,6 +247,7 @@ function UsageRequestDetailsFilters({
     apiKeyID: apiKeyInput,
     user: userInput,
     departmentID: departmentInput,
+    timeRange,
   });
   const xlsxExportHref = buildUsageDetailsExportHref({
     workspaceID,
@@ -251,6 +255,7 @@ function UsageRequestDetailsFilters({
     apiKeyID: apiKeyInput,
     user: userInput,
     departmentID: departmentInput,
+    timeRange,
   });
 
   function submitFilters(event: React.FormEvent<HTMLFormElement>) {
@@ -349,7 +354,7 @@ function UsageRequestDetailsFilters({
           {t("dashboard.resultCount")} {formatWholeNumber(resultCount)}
         </StatusBadge>
         <StatusBadge>
-          {t("dashboard.spend")} {formatSpendUSD(currentPageSpend)}
+          {t("dashboard.spend")} {currentPageSpend}
         </StatusBadge>
         {csvExportHref ? (
           <a
@@ -398,12 +403,14 @@ function buildUsageDetailsExportHref({
   apiKeyID,
   user,
   departmentID,
+  timeRange,
 }: {
   workspaceID: string;
   format: "csv" | "xlsx";
   apiKeyID: string;
   user: string;
   departmentID: string;
+  timeRange: DashboardTimeRange;
 }) {
   const trimmedWorkspaceID = workspaceID.trim();
   if (!trimmedWorkspaceID) {
@@ -428,6 +435,8 @@ function buildUsageDetailsExportHref({
   if (normalizedDepartmentID) {
     params.set(REQUEST_LOG_DEPARTMENT_PARAM, normalizedDepartmentID);
   }
+  params.set("started_after", timeRange.startedAfter);
+  params.set("started_before", timeRange.startedBefore);
 
   return `/api/control/request-logs/export?${params.toString()}`;
 }
@@ -552,7 +561,12 @@ function formatWholeNumber(value: number) {
   }).format(value);
 }
 
-function parseSpendUSD(value: string | number | undefined) {
+type SpendAmount = {
+  currency: string;
+  amount: number;
+};
+
+function parseMoneyValue(value: string | number | undefined) {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : 0;
   }
@@ -561,17 +575,78 @@ function parseSpendUSD(value: string | number | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function formatSpendUSD(value: string | number | undefined) {
-  const parsed = parseSpendUSD(value);
-  const fractionDigits =
-    parsed > 0 && parsed < 0.01 ? 6 : parsed > 0 && parsed < 1 ? 4 : 2;
+function parseSpendAmount(log: RequestLog | undefined) {
+  return parseMoneyValue(log?.spend_amount ?? log?.spend_usd);
+}
 
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: fractionDigits,
-    maximumFractionDigits: 6,
-  }).format(parsed);
+function getSpendCurrency(log: RequestLog | undefined) {
+  return (log?.spend_currency?.trim() || "USD").toUpperCase();
+}
+
+function formatSpendAmount(log: RequestLog) {
+  return formatMoney(parseSpendAmount(log), getSpendCurrency(log));
+}
+
+function formatMoney(value: string | number | undefined, currency = "USD") {
+  const parsed = parseMoneyValue(value);
+  const normalizedCurrency = currency.trim().toUpperCase();
+  if (normalizedCurrency === "MIXED") {
+    return formatMoney(parsed, "USD");
+  }
+  const prefix =
+    normalizedCurrency === "CNY"
+      ? "¥"
+      : normalizedCurrency === "USD"
+        ? "$"
+        : `${normalizedCurrency || "USD"} `;
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return `${prefix}0`;
+  }
+  if (parsed >= 1000) {
+    return `${prefix}${Math.round(parsed).toLocaleString("en-US")}`;
+  }
+  if (parsed >= 1) {
+    return `${prefix}${parsed.toFixed(2)}`;
+  }
+  return `${prefix}${parsed.toFixed(parsed < 0.01 ? 6 : 4)}`;
+}
+
+function sumSpendBreakdown(logs: RequestLog[]) {
+  const totals = new Map<string, number>();
+
+  for (const log of logs) {
+    const currency = getSpendCurrency(log);
+    const normalizedCurrency = currency === "MIXED" ? "USD" : currency;
+    const amount =
+      currency === "MIXED" ? parseMoneyValue(log.spend_usd) : parseSpendAmount(log);
+    totals.set(normalizedCurrency, (totals.get(normalizedCurrency) ?? 0) + amount);
+  }
+
+  return Array.from(totals.entries())
+    .map(([currency, amount]) => ({ currency, amount }))
+    .filter((item) => Number.isFinite(item.amount) && item.amount > 0)
+    .sort((left, right) => currencySortKey(left.currency) - currencySortKey(right.currency));
+}
+
+function formatMoneyBreakdown(values: SpendAmount[]) {
+  if (values.length === 0) {
+    return formatMoney(0, "USD");
+  }
+
+  return values
+    .map((value) => formatMoney(value.amount, value.currency))
+    .join(" + ");
+}
+
+function currencySortKey(currency: string) {
+  if (currency === "CNY") {
+    return 0;
+  }
+  if (currency === "USD") {
+    return 1;
+  }
+  return 2;
 }
 
 function formatTimestamp(value: string | undefined, fallback: string) {

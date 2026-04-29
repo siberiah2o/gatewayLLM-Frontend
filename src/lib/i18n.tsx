@@ -115,7 +115,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.members": "Members",
     "dashboard.deployments": "Deployments",
     "dashboard.monthSpend": "Month spend",
-    "dashboard.thirtyDayRequests": "30-day requests",
+    "dashboard.thirtyDayRequests": "Requests",
     "dashboard.successRate": "Success rate",
     "dashboard.avgLatencyRecent": "Avg latency",
     "dashboard.statusRecentAverage": "recent requests",
@@ -126,8 +126,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.statusSuccessFailure": "{success} success / {failure} failed",
     "dashboard.visibleToSession": "visible to session",
     "dashboard.registrationRequests": "registration requests",
-    "dashboard.workspaceUsers": "users",
-    "dashboard.workspaceMembers": "members",
     "dashboard.activeModels": "active models",
     "dashboard.activeDeployments": "active deployments",
     "dashboard.monthToDate": "month to date",
@@ -207,6 +205,13 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageOverviewTitle": "Usage business dashboard",
     "dashboard.usageOverviewDescription":
       "Executive view of spend, unit economics, reliability, and cost ownership.",
+    "dashboard.timeRange": "Time range",
+    "dashboard.customRange": "Custom",
+    "dashboard.startDate": "Start date",
+    "dashboard.endDate": "End date",
+    "dashboard.usagePeriodSpend": "Period spend",
+    "dashboard.usagePeriodRequests": "Period requests",
+    "dashboard.usagePeriodTokens": "{tokens} tokens in selected range",
     "dashboard.usageMonthToDateSpend": "Month-to-date spend",
     "dashboard.usageTrailing30dSpend": "Trailing 30-day spend",
     "dashboard.usageThirtyDayRequests": "30-day requests",
@@ -226,13 +231,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageLatestSampleDescription":
       "Breakdowns below use the latest request sample, not the full 30-day billing ledger.",
     "dashboard.usageSampleWindow": "{start} to {end}",
-    "dashboard.usageSampleCount": "{count} recent requests",
+    "dashboard.usageSampleCount": "{count} requests",
     "dashboard.usageOperatingTrendTitle": "Operating trend",
-    "dashboard.usageOperatingTrendDescription":
-      "Spend bars are shown first, with request and failure lines available in the request tab.",
     "dashboard.usageDailyTrendTitle": "Daily spend ledger",
     "dashboard.usageDailyTrendDescription":
-      "Rolling 30-day billing aggregates for spend, volume, and success rate.",
+      "Billing aggregates for spend, volume, and success rate in the selected range.",
     "dashboard.usageSignalsTitle": "Cost signals",
     "dashboard.usageSignalsDescription":
       "The fastest way to spot spikes, waste, and retry-heavy traffic.",
@@ -245,6 +248,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageSpendFlat": "flat",
     "dashboard.usageSpendMomentumDetail":
       "{direction} {delta} ({percent}) vs previous 7d",
+    "dashboard.usageMixedCurrencyMomentumDetail":
+      "Mixed currencies are shown separately.",
     "dashboard.usageConcentration": "Cost concentration",
     "dashboard.usageConcentrationDetail":
       "{dimension}: {name} is the largest cost owner",
@@ -291,9 +296,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "How spend and traffic split between streaming and non-streaming requests.",
     "dashboard.usageStreamRequests": "Streaming",
     "dashboard.usageNonStreamRequests": "Non-streaming",
-    "dashboard.usageAllocationTitle": "LiteLLM-style usage dimensions",
+    "dashboard.usageAllocationTitle": "Usage attribution dimensions",
     "dashboard.usageAllocationDescription":
-      "Rank spend ownership across users, departments, virtual keys, public model names, deployments, providers, endpoints, status, and traffic mode.",
+      "Rank spend ownership across users, departments, virtual keys, providers, endpoints, and status.",
     "dashboard.usageTopContributor": "Top contributor",
     "dashboard.usageRequestDetailsTitle": "Usage details",
     "dashboard.usageRequestDetailsUserFilterPlaceholder":
@@ -313,10 +318,10 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.lastProjectedAt": "Projected {time}",
     "dashboard.dailyUsageTitle": "Daily usage",
     "dashboard.dailyUsageDescription":
-      "Last 30 days for this account.",
+      "Selected time range for this account.",
     "dashboard.statusTrafficTitle": "Traffic trend",
     "dashboard.statusTrafficDescription":
-      "Successful and failed requests across the last 30 days.",
+      "Successful and failed requests across the selected time range.",
     "dashboard.last7Days": "Last 7 days",
     "dashboard.last30Days": "Last 30 days",
     "dashboard.thisMonth": "This month",
@@ -339,9 +344,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "Recent request activity includes non-succeeded calls.",
     "dashboard.statusUnverifiedUsersDetail":
       "Some users still need email verification.",
-    "dashboard.resourceReadinessTitle": "Resource readiness",
-    "dashboard.resourceReadinessDescription":
-      "What this account can actually serve right now.",
     "dashboard.alertThresholdsTitle": "Alert thresholds",
     "dashboard.alertThresholdsDescription":
       "Opinionated thresholds that help an admin decide if intervention is needed.",
@@ -369,7 +371,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "Critical when no active deployment remains; warning when some are inactive.",
     "dashboard.statusRegistrationsThresholdDetail":
       "A queue of pending registrations should be reviewed regularly.",
-    "dashboard.credentialsReady": "Credentials ready",
     "dashboard.recentRequestsTitle": "Recent request issues",
     "dashboard.recentRequestsDescription":
       "Only non-success or slow model calls that need operational attention.",
@@ -413,7 +414,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.yes": "Yes",
     "dashboard.no": "No",
     "dashboard.protectedOwner": "Protected owner",
-    "dashboard.region": "Region",
     "dashboard.priority": "Priority",
     "dashboard.weight": "Weight",
     "dashboard.latency": "Latency",
@@ -494,6 +494,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.newWorkspace": "New account",
     "forms.productionPlaceholder": "Production",
     "forms.currency": "Currency",
+    "forms.currencyCny": "Chinese yuan (CNY)",
+    "forms.currencyUsd": "US dollar (USD)",
     "forms.createWorkspaceFailed": "Could not create account.",
     "forms.newWorkspaceUser": "New user",
     "forms.displayName": "Display name",
@@ -564,9 +566,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.modelRoute": "Model route",
     "forms.modelNameHelp":
       "Use the canonical model name that GatewayLLM should route.",
+    "forms.modelRoutePlaceholder": "Select a registry model or type a custom route",
     "forms.provider": "Provider",
-    "forms.providerRegistryHelp":
-      "Type any provider, or choose one from the backend model registry.",
+    "forms.providerPlaceholder": "Select a registry provider or type a custom provider",
     "forms.loadingProviderRegistryOptions": "Loading provider registry...",
     "forms.noProviderRegistryOptions":
       "No registry providers found. You can still type a custom provider.",
@@ -576,7 +578,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.registryMatches": "Registry matches",
     "forms.registryMatchesHelp":
       "Select a match to fill the model name, or keep a custom canonical name.",
-    "forms.registryRouteExample": "Registry route example: {value}",
     "forms.loadingModelCatalogOptions": "Loading model registry...",
     "forms.loadModelCatalogOptionsFailed": "Could not load model registry.",
     "forms.noModelCatalogOptions":
@@ -584,6 +585,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.noExactModelMatch":
       "Current model name does not have an exact registry match.",
     "forms.registrySource": "Registry source",
+    "forms.upstreamModelName": "Upstream model ID",
     "forms.registryModes": "Modes",
     "forms.inputModalities": "Input modalities",
     "forms.outputModalities": "Output modalities",
@@ -596,12 +598,32 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.capabilityReasoning": "reasoning",
     "forms.capabilityAudioInput": "audio input",
     "forms.capabilityAudioOutput": "audio output",
-    "forms.promptPrice": "Prompt price",
+    "forms.promptCacheHitPrice": "Input cache-hit price",
+    "forms.promptPrice": "Input cache-miss price",
     "forms.completionPrice": "Completion price",
+    "forms.currencyUnitCny": "CNY",
+    "forms.currencyUnitUsd": "USD",
+    "forms.priceLabelWithUnit": "{label} ({unit})",
+    "forms.pricePerMillionAmount": "{amount} {unit}",
+    "forms.pricePerMillionTokens": "{currency}/1M tokens",
+    "forms.priorityHelp":
+      "Lower numbers are tried first. Deployments with the same priority share traffic by weight.",
+    "forms.weightHelp":
+      "Relative traffic share within the same priority. 100 and 100 split evenly; 200 and 100 is about 2:1.",
     "forms.createModel": "Create model",
     "forms.createModelFailed": "Could not create model catalog.",
     "forms.newCredential": "New provider credential",
     "forms.secret": "Secret",
+    "forms.bedrockConnection": "Bedrock connection",
+    "forms.bedrockAccessKeyID": "Access key ID (AK)",
+    "forms.bedrockSecretAccessKey": "Secret access key (SK)",
+    "forms.bedrockRegion": "Region",
+    "forms.bedrockBaseURL": "Base URL",
+    "forms.bedrockBaseURLHelp":
+      "Optional. Overrides the deployment Endpoint URL for Bedrock runtime requests.",
+    "forms.bedrockSSLVerify": "Verify TLS certificate",
+    "forms.bedrockSSLVerifyHelp":
+      "Turn this off to send ssl_verify=false for self-signed HTTPS endpoints.",
     "forms.createCredential": "Create credential",
     "forms.createCredentialFailed": "Could not create provider credential.",
     "forms.createProviderSetup": "Add Model",
@@ -673,6 +695,14 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.loadApiKeyFailed": "Could not load API key.",
     "forms.model": "Model",
     "forms.temperature": "Temperature",
+    "forms.thinkingMode": "Thinking mode",
+    "forms.thinkingEnabled": "Enabled",
+    "forms.thinkingDisabled": "Disabled",
+    "forms.reasoningEffort": "Reasoning effort",
+    "forms.reasoningLow": "Low",
+    "forms.reasoningMedium": "Medium",
+    "forms.reasoningHigh": "High",
+    "forms.reasoningXHigh": "xhigh",
     "forms.prompt": "Prompt",
     "forms.debugModeSingle": "Single",
     "forms.debugModeCompare": "Compare",
@@ -731,6 +761,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "errors.modelPermissionArrays":
       "Model permission values must be string arrays.",
     "errors.temperatureNumber": "Temperature must be a number.",
+    "errors.thinkingMode": "Thinking mode must be enabled or disabled.",
+    "errors.reasoningEffort": "Reasoning effort must be low, medium, high, or xhigh.",
     "errors.workspaceNameRequired": "Account name is required.",
     "errors.workspaceDisplayNameRequired":
       "Account and display name are required.",
@@ -870,7 +902,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.members": "成员",
     "dashboard.deployments": "部署",
     "dashboard.monthSpend": "本月支出",
-    "dashboard.thirtyDayRequests": "30 天请求量",
+    "dashboard.thirtyDayRequests": "请求量",
     "dashboard.successRate": "成功率",
     "dashboard.avgLatencyRecent": "平均耗时",
     "dashboard.statusRecentAverage": "最近请求平均值",
@@ -881,8 +913,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.statusSuccessFailure": "{success} 成功 / {failure} 失败",
     "dashboard.visibleToSession": "当前会话可见",
     "dashboard.registrationRequests": "注册申请",
-    "dashboard.workspaceUsers": "用户",
-    "dashboard.workspaceMembers": "成员",
     "dashboard.activeModels": "活跃模型",
     "dashboard.activeDeployments": "活跃部署",
     "dashboard.monthToDate": "本月至今",
@@ -955,6 +985,13 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageOverviewTitle": "用量经营看板",
     "dashboard.usageOverviewDescription":
       "从费用、单位经济、稳定性和成本归属四个角度看当前 AI 消耗。",
+    "dashboard.timeRange": "统计周期",
+    "dashboard.customRange": "自定义",
+    "dashboard.startDate": "开始日期",
+    "dashboard.endDate": "结束日期",
+    "dashboard.usagePeriodSpend": "周期费用",
+    "dashboard.usagePeriodRequests": "周期请求量",
+    "dashboard.usagePeriodTokens": "所选周期 {tokens} tokens",
     "dashboard.usageMonthToDateSpend": "本月至今费用",
     "dashboard.usageTrailing30dSpend": "近 30 天费用",
     "dashboard.usageThirtyDayRequests": "30 天请求量",
@@ -974,13 +1011,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageLatestSampleDescription":
       "下面的拆分分析基于最近请求样本，不等同于完整 30 天账单口径。",
     "dashboard.usageSampleWindow": "{start} 至 {end}",
-    "dashboard.usageSampleCount": "最近 {count} 条请求",
+    "dashboard.usageSampleCount": "{count} 条请求",
     "dashboard.usageOperatingTrendTitle": "经营趋势",
-    "dashboard.usageOperatingTrendDescription":
-      "优先展示费用柱状图，请求量与失败调用可切换到请求 tab 查看折线趋势。",
     "dashboard.usageDailyTrendTitle": "每日费用账本",
     "dashboard.usageDailyTrendDescription":
-      "按天查看最近 30 天费用、请求量和成功率变化。",
+      "所选周期内按天汇总的费用、请求量和成功率。",
     "dashboard.usageSignalsTitle": "成本信号",
     "dashboard.usageSignalsDescription":
       "优先暴露费用突增、失败浪费和重试过多的问题。",
@@ -993,6 +1028,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.usageSpendFlat": "持平",
     "dashboard.usageSpendMomentumDetail":
       "较前 7 天{direction} {delta}（{percent}）",
+    "dashboard.usageMixedCurrencyMomentumDetail":
+      "多币种费用已按币种拆分显示。",
     "dashboard.usageConcentration": "成本集中度",
     "dashboard.usageConcentrationDetail":
       "{dimension}：{name} 是最大成本归属",
@@ -1039,9 +1076,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "费用和流量在流式与非流式请求之间的拆分。",
     "dashboard.usageStreamRequests": "流式",
     "dashboard.usageNonStreamRequests": "非流式",
-    "dashboard.usageAllocationTitle": "LiteLLM 风格用量维度",
+    "dashboard.usageAllocationTitle": "用量归因维度",
     "dashboard.usageAllocationDescription":
-      "按用户、部门、虚拟密钥、公开模型名、部署、供应商、接口、状态和流量模式定位费用归属。",
+      "按用户、部门、虚拟密钥、供应商、接口和状态定位费用归属。",
     "dashboard.usageTopContributor": "最大贡献项",
     "dashboard.usageRequestDetailsTitle": "用量详情",
     "dashboard.usageRequestDetailsUserFilterPlaceholder":
@@ -1060,9 +1097,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       "当前没有可用于用量拆分分析的最近请求样本。",
     "dashboard.lastProjectedAt": "最近投影 {time}",
     "dashboard.dailyUsageTitle": "每日用量",
-    "dashboard.dailyUsageDescription": "当前账户最近 30 天的数据。",
+    "dashboard.dailyUsageDescription": "当前账户所选周期的数据。",
     "dashboard.statusTrafficTitle": "流量趋势",
-    "dashboard.statusTrafficDescription": "最近 30 天成功请求与失败请求的变化情况。",
+    "dashboard.statusTrafficDescription": "所选周期内成功请求与失败请求的变化情况。",
     "dashboard.last7Days": "最近 7 天",
     "dashboard.last30Days": "最近 30 天",
     "dashboard.thisMonth": "本月",
@@ -1077,8 +1114,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.statusFailedDaysDetail": "最近 30 天内至少出现过一次失败请求的日期数量。",
     "dashboard.statusRecentFailuresDetail": "最近的请求活动里包含非成功状态调用。",
     "dashboard.statusUnverifiedUsersDetail": "部分用户还没有完成邮箱验证。",
-    "dashboard.resourceReadinessTitle": "资源就绪度",
-    "dashboard.resourceReadinessDescription": "当前账户此刻真正可提供服务的资源情况。",
     "dashboard.alertThresholdsTitle": "告警阈值",
     "dashboard.alertThresholdsDescription": "用明确阈值判断是否需要管理员介入，而不是只看现象。",
     "dashboard.providerPerformanceTitle": "供应商健康",
@@ -1098,7 +1133,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.statusSecretsThresholdDetail": "任何缺失供应商密钥的情况都应视为部署阻塞。",
     "dashboard.statusDeploymentsThresholdDetail": "没有活跃部署时为严重，存在部分停用部署时为预警。",
     "dashboard.statusRegistrationsThresholdDetail": "待处理注册申请积压后应及时审核。",
-    "dashboard.credentialsReady": "已就绪凭据",
     "dashboard.recentRequestsTitle": "最近异常请求",
     "dashboard.recentRequestsDescription":
       "只展示需要运维关注的非成功或慢模型调用。",
@@ -1142,7 +1176,6 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "dashboard.yes": "是",
     "dashboard.no": "否",
     "dashboard.protectedOwner": "受保护的所有者",
-    "dashboard.region": "区域",
     "dashboard.priority": "优先级",
     "dashboard.weight": "权重",
     "dashboard.latency": "耗时",
@@ -1223,6 +1256,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.newWorkspace": "新账户",
     "forms.productionPlaceholder": "生产环境",
     "forms.currency": "币种",
+    "forms.currencyCny": "人民币（CNY）",
+    "forms.currencyUsd": "美元（USD）",
     "forms.createWorkspaceFailed": "无法创建账户。",
     "forms.newWorkspaceUser": "新用户",
     "forms.displayName": "显示名称",
@@ -1287,9 +1322,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.modelName": "模型名称",
     "forms.modelRoute": "模型路由",
     "forms.modelNameHelp": "填写 GatewayLLM 实际路由使用的规范模型名。",
+    "forms.modelRoutePlaceholder": "选择注册表模型或输入自定义路由",
     "forms.provider": "供应商",
-    "forms.providerRegistryHelp":
-      "你可以手动输入任意 provider，也可以从后端模型注册表里选择。",
+    "forms.providerPlaceholder": "选择注册表供应商或输入自定义 provider",
     "forms.loadingProviderRegistryOptions": "正在加载供应商注册表...",
     "forms.noProviderRegistryOptions":
       "没有可用的注册表供应商，你仍然可以手动输入自定义 provider。",
@@ -1299,13 +1334,13 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.registryMatches": "注册表匹配",
     "forms.registryMatchesHelp":
       "可选择注册表匹配项回填模型名，也可以保留自定义规范名。",
-    "forms.registryRouteExample": "注册表路由示例：{value}",
     "forms.loadingModelCatalogOptions": "正在加载模型注册表...",
     "forms.loadModelCatalogOptionsFailed": "无法加载模型注册表。",
     "forms.noModelCatalogOptions":
       "当前输入没有匹配到注册表模型，你仍然可以保留手动输入的模型名。",
     "forms.noExactModelMatch": "当前模型名称在注册表里没有精确匹配。",
     "forms.registrySource": "注册表来源",
+    "forms.upstreamModelName": "上游接入 ID",
     "forms.registryModes": "模式",
     "forms.inputModalities": "输入模态",
     "forms.outputModalities": "输出模态",
@@ -1318,12 +1353,30 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.capabilityReasoning": "推理",
     "forms.capabilityAudioInput": "音频输入",
     "forms.capabilityAudioOutput": "音频输出",
-    "forms.promptPrice": "输入价格",
+    "forms.promptCacheHitPrice": "缓存命中输入价格",
+    "forms.promptPrice": "缓存未命中输入价格",
     "forms.completionPrice": "输出价格",
+    "forms.currencyUnitCny": "元",
+    "forms.currencyUnitUsd": "USD",
+    "forms.priceLabelWithUnit": "{label}（{unit}）",
+    "forms.pricePerMillionAmount": "{amount} {unit}",
+    "forms.pricePerMillionTokens": "{currency}/百万 tokens",
+    "forms.priorityHelp": "数字越小优先级越高；同优先级内才按权重分流。",
+    "forms.weightHelp": "同优先级内的相对流量比例；100/100 平分，200/100 约为 2:1。",
     "forms.createModel": "创建模型",
     "forms.createModelFailed": "无法创建模型目录。",
     "forms.newCredential": "新供应商凭据",
     "forms.secret": "密钥",
+    "forms.bedrockConnection": "Bedrock 连接",
+    "forms.bedrockAccessKeyID": "AK",
+    "forms.bedrockSecretAccessKey": "SK",
+    "forms.bedrockRegion": "地区",
+    "forms.bedrockBaseURL": "Base URL",
+    "forms.bedrockBaseURLHelp":
+      "可选。填写后会覆盖部署 Endpoint URL，用于 Bedrock runtime 请求。",
+    "forms.bedrockSSLVerify": "校验 TLS 证书",
+    "forms.bedrockSSLVerifyHelp":
+      "关闭后会发送 ssl_verify=false，适用于自签名 HTTPS endpoint。",
     "forms.createCredential": "创建凭据",
     "forms.createCredentialFailed": "无法创建供应商凭据。",
     "forms.createProviderSetup": "添加模型",
@@ -1386,6 +1439,14 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "forms.loadApiKeyFailed": "无法加载 API 密钥。",
     "forms.model": "模型",
     "forms.temperature": "温度",
+    "forms.thinkingMode": "思考模式",
+    "forms.thinkingEnabled": "开启",
+    "forms.thinkingDisabled": "关闭",
+    "forms.reasoningEffort": "思考强度",
+    "forms.reasoningLow": "low",
+    "forms.reasoningMedium": "medium",
+    "forms.reasoningHigh": "high",
+    "forms.reasoningXHigh": "xhigh",
     "forms.prompt": "提示词",
     "forms.debugModeSingle": "单模型",
     "forms.debugModeCompare": "对比",
@@ -1437,6 +1498,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
     "errors.apiKeyRequired": "API 密钥为必填项。",
     "errors.modelPermissionArrays": "模型权限值必须是字符串数组。",
     "errors.temperatureNumber": "温度必须是数字。",
+    "errors.thinkingMode": "思考模式必须是开启或关闭。",
+    "errors.reasoningEffort": "思考强度必须是 low、medium、high 或 xhigh。",
     "errors.workspaceNameRequired": "账户名称为必填项。",
     "errors.workspaceDisplayNameRequired": "账户和显示名称都是必填项。",
     "errors.displayNameRequired": "显示名称为必填项。",
@@ -1476,6 +1539,11 @@ const errorMessageKeys: Record<string, string> = {
   "Model permission values must be string arrays.":
     "errors.modelPermissionArrays",
   "Temperature must be a number.": "errors.temperatureNumber",
+  "Thinking mode must be enabled or disabled.": "errors.thinkingMode",
+  "Reasoning effort must be low, medium, high, or xhigh.":
+    "errors.reasoningEffort",
+  "Reasoning effort must be default, low, medium, high, or max.":
+    "errors.reasoningEffort",
   "Workspace name is required.": "errors.workspaceNameRequired",
   "Workspace and display name are required.":
     "errors.workspaceDisplayNameRequired",

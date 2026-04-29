@@ -27,11 +27,13 @@ import type {
 import type { Settled } from "./dashboard-data"
 import type { DashboardPaginationState } from "./dashboard-pagination"
 import type { DashboardSection } from "./dashboard-routes"
+import type { DashboardTimeRange } from "./dashboard-time-range"
 import type { Translator } from "./dashboard-ui"
 
 export type DashboardSectionContentProps = {
   section: DashboardSection
   t: Translator
+  timeRange: DashboardTimeRange
   user: SessionUser
   activeWorkspace?: Workspace
   health: Settled<HealthResponse>

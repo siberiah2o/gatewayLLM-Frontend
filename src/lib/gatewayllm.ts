@@ -225,8 +225,17 @@ export type Balance = {
   workspace_id?: string
   total_spend_usd: string
   month_to_date_spend_usd: string
+  total_spend?: string
+  month_to_date_spend?: string
+  currency?: string
   last_projected_at?: string
   api_key_count: number
+}
+
+export type SpendByCurrency = {
+  spend_usd: string
+  spend_amount: string
+  currency: string
 }
 
 export type DailyUsage = {
@@ -237,6 +246,9 @@ export type DailyUsage = {
   prompt_tokens: number
   completion_tokens: number
   spend_usd: string
+  spend_amount?: string
+  currency?: string
+  spend_by_currency?: SpendByCurrency[]
 }
 
 export type DailyUsageList = {
@@ -253,6 +265,9 @@ export type UsageInsightTotals = {
   completion_tokens: number
   spend_usd: string
   failed_spend_usd: string
+  spend_amount?: string
+  failed_spend_amount?: string
+  currency?: string
   average_latency_ms?: number
   window_start?: string
   window_end?: string
@@ -267,6 +282,8 @@ export type UsageInsightBreakdown = {
   prompt_tokens: number
   completion_tokens: number
   spend_usd: string
+  spend_amount?: string
+  currency?: string
   average_latency_ms?: number
 }
 
@@ -331,6 +348,8 @@ export type RequestLog = {
   completion_tokens: number
   total_tokens: number
   spend_usd: string
+  spend_amount?: string
+  spend_currency?: string
   latest_attempt?: RequestLogAttempt
   attempts: RequestLogAttempt[]
 }
@@ -387,6 +406,7 @@ export type ModelCatalogProviderOption = {
 
 export type ModelCatalogOption = {
   canonical_name: string
+  upstream_model_name?: string
   provider: string
   source: string
   source_provider?: string
@@ -395,6 +415,11 @@ export type ModelCatalogOption = {
   modes?: string[]
   input_modalities?: string[]
   output_modalities?: string[]
+  pricing_currency?: string
+  prompt_cache_hit_micro_amount_per_million?: number
+  prompt_micro_amount_per_million?: number
+  completion_micro_amount_per_million?: number
+  prompt_cache_hit_microusd_per_million?: number
   prompt_microusd_per_million?: number
   completion_microusd_per_million?: number
   supports_vision?: boolean

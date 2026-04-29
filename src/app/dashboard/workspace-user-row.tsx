@@ -81,11 +81,16 @@ function WorkspaceUserTableRow({
   t: Translator
 }) {
   const isOwner = user.role === "owner"
+  const isAdminAccess = user.role === "owner" || user.role === "admin"
   const member = toWorkspaceMember(user, workspaceId)
-  const departmentLabel =
-    user.department_name?.trim() ||
-    user.department_id?.trim() ||
-    t("dashboard.noDepartment")
+  const accessRoleLabel = isAdminAccess
+    ? localizeValue(t, "admin")
+    : localizeValue(t, user.role || "member")
+  const accessDetailLabel = isAdminAccess
+    ? "admin"
+    : user.department_name?.trim() ||
+      user.department_id?.trim() ||
+      t("dashboard.noDepartment")
 
   return (
     <DashboardRow className="gap-2 rounded-md p-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(12rem,1fr)_minmax(10rem,0.8fr)_minmax(9rem,0.7fr)_auto] xl:items-center">
@@ -100,9 +105,9 @@ function WorkspaceUserTableRow({
         title={<div className="truncate">{user.email}</div>}
       />
       <DashboardRowMeta label={t("nav.access")}>
-        <StatusBadge>{localizeValue(t, user.role || "member")}</StatusBadge>
+        <StatusBadge>{accessRoleLabel}</StatusBadge>
         <span className="truncate text-xs text-muted-foreground">
-          {departmentLabel}
+          {accessDetailLabel}
         </span>
       </DashboardRowMeta>
       <DashboardRowMeta label={t("dashboard.userStatus")}>

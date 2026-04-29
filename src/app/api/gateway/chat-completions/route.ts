@@ -10,6 +10,8 @@ type ChatCompletionsBody = {
   model?: string
   prompt?: string
   temperature?: string | number
+  thinking_mode?: string
+  reasoning_effort?: string
   stream?: boolean
 }
 
@@ -26,6 +28,8 @@ export async function POST(request: Request) {
     const model = body.model?.trim()
     const prompt = body.prompt?.trim()
     const temperature = Number(body.temperature ?? 0.2)
+    const thinkingMode = normalizeThinkingMode(body.thinking_mode)
+    const reasoningEffort = normalizeReasoningEffort(body.reasoning_effort)
     const wantsStream = body.stream === true
 
     if (!apiKey || !model || !prompt) {
@@ -36,8 +40,16 @@ export async function POST(request: Request) {
       return badRequest("Temperature must be a number.")
     }
 
+    if (thinkingMode === "invalid") {
+      return badRequest("Thinking mode must be enabled or disabled.")
+    }
+
+    if (reasoningEffort === "invalid") {
+      return badRequest("Reasoning effort must be low, medium, high, or xhigh.")
+    }
+
     const startedAt = Date.now()
-    const requestPayload = {
+    const requestPayload: Record<string, unknown> = {
       model,
       temperature,
       stream: wantsStream,
@@ -48,6 +60,22 @@ export async function POST(request: Request) {
         },
       ],
     }
+
+    const isDeepSeekModel = usesDeepSeekThinkingExtension(model)
+    if (isDeepSeekModel && thinkingMode) {
+      requestPayload.thinking = {
+        type: thinkingMode,
+      }
+    }
+    if (thinkingMode !== "disabled" && reasoningEffort) {
+      requestPayload.reasoning_effort = reasoningEffort
+      if (isDeepSeekModel && !requestPayload.thinking) {
+        requestPayload.thinking = {
+          type: "enabled",
+        }
+      }
+    }
+
     const backendResponse = await fetch(gatewayURL("/v1/chat/completions"), {
       method: "POST",
       headers: {
@@ -106,6 +134,47 @@ export async function POST(request: Request) {
   } catch (error) {
     return gatewayErrorResponse(error)
   }
+}
+
+function normalizeThinkingMode(value: string | undefined) {
+  const normalized = value?.trim().toLowerCase()
+
+  switch (normalized) {
+    case undefined:
+    case "":
+      return undefined
+    case "enabled":
+    case "disabled":
+      return normalized
+    default:
+      return "invalid"
+  }
+}
+
+function normalizeReasoningEffort(value: string | undefined) {
+  const normalized = value?.trim().toLowerCase()
+
+  switch (normalized) {
+    case undefined:
+    case "":
+      return undefined
+    case "low":
+    case "medium":
+    case "high":
+      return normalized
+    case "xhigh":
+      return normalized
+    case "max":
+      return "xhigh"
+    default:
+      return "invalid"
+  }
+}
+
+function usesDeepSeekThinkingExtension(model: string) {
+  const normalized = model.trim().toLowerCase()
+
+  return normalized.startsWith("deepseek-") || normalized.includes("/deepseek-")
 }
 
 function createStreamProxyResponse({

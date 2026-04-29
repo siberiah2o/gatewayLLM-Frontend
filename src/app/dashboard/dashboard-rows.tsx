@@ -333,15 +333,14 @@ export function ModelDeploymentRow({
           {deployment.credential_name}
         </DashboardDetailText>
       </DashboardRowMeta>
-      <DashboardRowMeta label={t("dashboard.region")}>
-        <span className="truncate font-medium">{deployment.region}</span>
+      <DashboardRowMeta label={t("forms.endpointUrl")}>
+        <span className="truncate font-medium" title={deployment.endpoint_url}>
+          {deployment.endpoint_url}
+        </span>
         <DashboardDetailText>
           {t("dashboard.priority")}: {deployment.priority} -{" "}
           {t("dashboard.weight")}: {deployment.weight}
         </DashboardDetailText>
-        <DashboardMonoDetailText>
-          {deployment.endpoint_url}
-        </DashboardMonoDetailText>
       </DashboardRowMeta>
       {showActions ? (
         <DashboardActionCell label={t("dashboard.actions")}>
@@ -401,7 +400,6 @@ export function ProviderSetupRow({
         <span className="truncate font-medium" title={setup.endpoint_url}>
           {setup.endpoint_url}
         </span>
-        <DashboardDetailText>{setup.region}</DashboardDetailText>
       </DashboardRowMeta>
       <DashboardRowMeta label={t("dashboard.updatedAt")}>
         <DashboardMonoDetailText

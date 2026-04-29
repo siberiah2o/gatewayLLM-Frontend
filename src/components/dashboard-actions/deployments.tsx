@@ -50,7 +50,6 @@ import {
 
 type DeploymentRegistryDefaults = {
   suggestedEndpointURL: string
-  suggestedRegion: string
   endpointURLPlaceholder: string
   isLoading: boolean
   error?: string
@@ -68,7 +67,6 @@ function useDeploymentRegistryDefaults({
   const isEnabled = enabled && Boolean(modelCatalog)
   const [defaults, setDefaults] = useState<DeploymentRegistryDefaults>({
     suggestedEndpointURL: "",
-    suggestedRegion: "",
     endpointURLPlaceholder: "",
     isLoading: false,
   })
@@ -125,8 +123,6 @@ function useDeploymentRegistryDefaults({
 
         setDefaults({
           suggestedEndpointURL,
-          suggestedRegion:
-            modelOption?.default_region ?? providerOption?.default_region ?? "",
           endpointURLPlaceholder:
             endpointURLPlaceholder({
               providerOption,
@@ -141,7 +137,6 @@ function useDeploymentRegistryDefaults({
 
         setDefaults({
           suggestedEndpointURL: "",
-          suggestedRegion: "",
           endpointURLPlaceholder: "",
           isLoading: false,
           error: errorText(loadError, t("forms.loadDeploymentDefaultsFailed")),
@@ -159,7 +154,6 @@ function useDeploymentRegistryDefaults({
   if (!isEnabled) {
     return {
       suggestedEndpointURL: "",
-      suggestedRegion: "",
       endpointURLPlaceholder: "",
       isLoading: false,
     } satisfies DeploymentRegistryDefaults
@@ -188,10 +182,8 @@ export function CreateModelDeploymentForm({
   const [selectedCredentialID, setSelectedCredentialID] = useState("")
   const [deploymentName, setDeploymentName] = useState("")
   const [endpointURL, setEndpointURL] = useState("")
-  const [region, setRegion] = useState("")
   const previousSuggestedDefaultsRef = useRef({
     endpointURL: "",
-    region: "",
   })
   const previousGeneratedNameRef = useRef("")
   const resolvedModelCatalogID = modelCatalogs.some(
@@ -253,23 +245,10 @@ export function CreateModelDeploymentForm({
 
       return current
     })
-    setRegion((current) => {
-      const trimmed = current.trim()
-      if (trimmed === "" || trimmed === previous.region) {
-        return deploymentDefaults.suggestedRegion
-      }
-
-      return current
-    })
-
     previousSuggestedDefaultsRef.current = {
       endpointURL: deploymentDefaults.suggestedEndpointURL,
-      region: deploymentDefaults.suggestedRegion,
     }
-  }, [
-    deploymentDefaults.suggestedEndpointURL,
-    deploymentDefaults.suggestedRegion,
-  ])
+  }, [deploymentDefaults.suggestedEndpointURL])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -306,7 +285,6 @@ export function CreateModelDeploymentForm({
           model_catalog_id: resolvedModelCatalogID,
           credential_id: resolvedCredentialID,
           deployment_name: deploymentName,
-          region,
           endpoint_url: endpointURL,
           priority: formData.get("priority"),
           weight: formData.get("weight"),
@@ -327,7 +305,6 @@ export function CreateModelDeploymentForm({
       setSelectedCredentialID("")
       setDeploymentName("")
       setEndpointURL("")
-      setRegion("")
       router.refresh()
     } catch (submitError) {
       setError(errorText(submitError, t("forms.createDeploymentFailed")))
@@ -461,35 +438,11 @@ export function CreateModelDeploymentForm({
           {deploymentEndpointURLHelp ? (
             <FieldDescription>{deploymentEndpointURLHelp}</FieldDescription>
           ) : null}
+          {deploymentDefaults.error ? (
+            <FieldError>{deploymentDefaults.error}</FieldError>
+          ) : null}
         </Field>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Field>
-            <FieldLabel htmlFor="deployment-region">
-              {t("dashboard.region")}
-            </FieldLabel>
-            <Input
-              id="deployment-region"
-              name="deployment-region"
-              value={region}
-              onChange={(event) => {
-                setRegion(event.currentTarget.value)
-                setSuccess(undefined)
-                setError(undefined)
-              }}
-              disabled={!workspaceId || modelCatalogs.length === 0}
-            />
-            <FieldDescription>
-              {suggestedValueText({
-                isLoading: deploymentDefaults.isLoading,
-                registryValue: deploymentDefaults.suggestedRegion,
-                fallbackKey: "forms.deploymentDefaultsHelp",
-                t,
-              })}
-            </FieldDescription>
-            {deploymentDefaults.error ? (
-              <FieldError>{deploymentDefaults.error}</FieldError>
-            ) : null}
-          </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field>
             <FieldLabel htmlFor="priority">{t("dashboard.priority")}</FieldLabel>
             <Input
@@ -556,10 +509,8 @@ export function EditModelDeploymentDialog({
   )
   const [deploymentName, setDeploymentName] = useState(deployment.deployment_name)
   const [endpointURL, setEndpointURL] = useState(deployment.endpoint_url)
-  const [region, setRegion] = useState(deployment.region)
   const previousSuggestedDefaultsRef = useRef({
     endpointURL: "",
-    region: "",
   })
   const previousGeneratedNameRef = useRef("")
   const resolvedModelCatalogID = modelCatalogs.some(
@@ -624,24 +575,10 @@ export function EditModelDeploymentDialog({
 
       return current
     })
-    setRegion((current) => {
-      const trimmed = current.trim()
-      if (trimmed === "" || trimmed === previous.region) {
-        return deploymentDefaults.suggestedRegion
-      }
-
-      return current
-    })
-
     previousSuggestedDefaultsRef.current = {
       endpointURL: deploymentDefaults.suggestedEndpointURL,
-      region: deploymentDefaults.suggestedRegion,
     }
-  }, [
-    deploymentDefaults.suggestedEndpointURL,
-    deploymentDefaults.suggestedRegion,
-    open,
-  ])
+  }, [deploymentDefaults.suggestedEndpointURL, open])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -669,7 +606,6 @@ export function EditModelDeploymentDialog({
             model_catalog_id: resolvedModelCatalogID,
             credential_id: resolvedCredentialID,
             deployment_name: deploymentName,
-            region,
             endpoint_url: endpointURL,
             priority: formData.get("edit-priority"),
             weight: formData.get("edit-weight"),
@@ -702,10 +638,8 @@ export function EditModelDeploymentDialog({
           setSelectedCredentialID(deployment.credential_id)
           setDeploymentName(deployment.deployment_name)
           setEndpointURL(deployment.endpoint_url)
-          setRegion(deployment.region)
           previousSuggestedDefaultsRef.current = {
             endpointURL: "",
-            region: "",
           }
           previousGeneratedNameRef.current =
             `${deployment.model_canonical_name}-default`
@@ -841,33 +775,11 @@ export function EditModelDeploymentDialog({
               {deploymentEndpointURLHelp ? (
                 <FieldDescription>{deploymentEndpointURLHelp}</FieldDescription>
               ) : null}
+              {deploymentDefaults.error ? (
+                <FieldError>{deploymentDefaults.error}</FieldError>
+              ) : null}
             </Field>
-            <div className="grid gap-3 sm:grid-cols-4">
-              <Field>
-                <FieldLabel htmlFor={`edit-deployment-region-${deployment.id}`}>
-                  {t("dashboard.region")}
-                </FieldLabel>
-                <Input
-                  id={`edit-deployment-region-${deployment.id}`}
-                  name="edit-deployment-region"
-                  value={region}
-                  onChange={(event) => {
-                    setRegion(event.currentTarget.value)
-                    setError(undefined)
-                  }}
-                />
-                <FieldDescription>
-                  {suggestedValueText({
-                    isLoading: deploymentDefaults.isLoading,
-                    registryValue: deploymentDefaults.suggestedRegion,
-                    fallbackKey: "forms.deploymentDefaultsHelp",
-                    t,
-                  })}
-                </FieldDescription>
-                {deploymentDefaults.error ? (
-                  <FieldError>{deploymentDefaults.error}</FieldError>
-                ) : null}
-              </Field>
+            <div className="grid gap-3 sm:grid-cols-3">
               <Field>
                 <FieldLabel htmlFor={`edit-priority-${deployment.id}`}>
                   {t("dashboard.priority")}

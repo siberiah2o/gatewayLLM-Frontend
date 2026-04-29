@@ -265,7 +265,7 @@ export function RequestLogsTable({
                       {formatNumber(log.total_tokens)}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
-                      ${log.spend_usd}
+                      {formatSpend(log)}
                     </div>
                   </div>
 
@@ -545,7 +545,7 @@ function RequestLogDetails({
     [t("dashboard.promptTokens"), formatNumber(log.prompt_tokens)],
     [t("dashboard.completionTokens"), formatNumber(log.completion_tokens)],
     [t("dashboard.totalTokens"), formatNumber(log.total_tokens)],
-    [t("dashboard.spend"), `$${log.spend_usd}`],
+    [t("dashboard.spend"), formatSpend(log)],
     [t("dashboard.traceID"), log.trace_id],
     [t("dashboard.clientIP"), log.client_ip],
     [t("dashboard.stream"), log.stream ? t("dashboard.yes") : t("dashboard.no")],
@@ -574,7 +574,7 @@ function RequestLogDetails({
             label={t("dashboard.totalTokens")}
             value={formatNumber(log.total_tokens)}
           />
-          <MetricCard label={t("dashboard.spend")} value={`$${log.spend_usd}`} />
+          <MetricCard label={t("dashboard.spend")} value={formatSpend(log)} />
           <MetricCard
             label={t("dashboard.attempts")}
             value={String(log.attempt_count)}
@@ -814,6 +814,39 @@ function formatNumber(value?: number) {
   return typeof value === "number" && Number.isFinite(value)
     ? value.toLocaleString()
     : "0"
+}
+
+function formatSpend(log: RequestLog) {
+  const currency = (log.spend_currency?.trim() || "USD").toUpperCase()
+  const parsed = Number.parseFloat(
+    currency === "MIXED" ? log.spend_usd : (log.spend_amount ?? log.spend_usd)
+  )
+  const value = Number.isFinite(parsed) ? parsed : 0
+  return formatMoney(value, currency)
+}
+
+function formatMoney(value: number, currency = "USD") {
+  const normalizedCurrency = currency.trim().toUpperCase()
+  if (normalizedCurrency === "MIXED") {
+    return formatMoney(value, "USD")
+  }
+
+  const prefix =
+    normalizedCurrency === "CNY"
+      ? "¥"
+      : normalizedCurrency === "USD"
+        ? "$"
+        : `${normalizedCurrency} `
+  if (!Number.isFinite(value) || value <= 0) {
+    return `${prefix}0`
+  }
+  if (value >= 1000) {
+    return `${prefix}${Math.round(value).toLocaleString("en-US")}`
+  }
+  if (value >= 1) {
+    return `${prefix}${value.toFixed(2)}`
+  }
+  return `${prefix}${value.toFixed(value < 0.01 ? 6 : 4)}`
 }
 
 function formatDate(value?: string) {

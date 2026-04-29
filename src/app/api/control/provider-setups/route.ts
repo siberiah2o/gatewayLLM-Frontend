@@ -19,6 +19,10 @@ type CreateProviderSetupBody = {
   region?: string
   priority?: string | number
   weight?: string | number
+  pricing_currency?: string
+  prompt_cache_hit_micro_amount_per_million?: string | number
+  prompt_micro_amount_per_million?: string | number
+  completion_micro_amount_per_million?: string | number
   prompt_microusd_per_million?: string | number
   completion_microusd_per_million?: string | number
 }
@@ -75,14 +79,23 @@ export async function POST(request: Request) {
     const priority =
       body.priority === undefined ? undefined : Number(body.priority)
     const weight = body.weight === undefined ? undefined : Number(body.weight)
+    const promptCacheHitPrice =
+      body.prompt_cache_hit_micro_amount_per_million === undefined
+        ? undefined
+        : Number(body.prompt_cache_hit_micro_amount_per_million)
     const promptPrice =
+      body.prompt_micro_amount_per_million === undefined &&
       body.prompt_microusd_per_million === undefined
         ? undefined
-        : Number(body.prompt_microusd_per_million)
+        : Number(body.prompt_micro_amount_per_million ?? body.prompt_microusd_per_million)
     const completionPrice =
+      body.completion_micro_amount_per_million === undefined &&
       body.completion_microusd_per_million === undefined
         ? undefined
-        : Number(body.completion_microusd_per_million)
+        : Number(
+            body.completion_micro_amount_per_million ??
+              body.completion_microusd_per_million
+          )
 
     if (
       (priority !== undefined && !Number.isInteger(priority)) ||
@@ -93,6 +106,8 @@ export async function POST(request: Request) {
 
     if (
       (promptPrice !== undefined && !Number.isFinite(promptPrice)) ||
+      (promptCacheHitPrice !== undefined &&
+        !Number.isFinite(promptCacheHitPrice)) ||
       (completionPrice !== undefined && !Number.isFinite(completionPrice))
     ) {
       return badRequest("Pricing values must be numbers.")
@@ -112,8 +127,10 @@ export async function POST(request: Request) {
         region: body.region?.trim() || undefined,
         priority,
         weight,
-        prompt_microusd_per_million: promptPrice,
-        completion_microusd_per_million: completionPrice,
+        pricing_currency: body.pricing_currency?.trim().toUpperCase() || undefined,
+        prompt_cache_hit_micro_amount_per_million: promptCacheHitPrice,
+        prompt_micro_amount_per_million: promptPrice,
+        completion_micro_amount_per_million: completionPrice,
       },
     })
 

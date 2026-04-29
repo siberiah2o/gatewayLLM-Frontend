@@ -43,8 +43,11 @@ import {
 } from "./dashboard-pagination"
 import { isUserDashboardSection } from "./dashboard-permissions"
 import type { DashboardSection } from "./dashboard-routes"
+import {
+  parseDashboardTimeRange,
+  type DashboardTimeRange,
+} from "./dashboard-time-range"
 
-const DAILY_USAGE_LOOKBACK_DAYS = 90
 import { DashboardSectionContent } from "./dashboard-sections"
 
 const RESOURCE_LIST_LIMIT = 200
@@ -54,6 +57,8 @@ const REQUEST_LOG_PROVIDER_PARAM = "provider"
 const REQUEST_LOG_API_KEY_PARAM = "api_key_id"
 const REQUEST_LOG_USER_PARAM = "user"
 const REQUEST_LOG_DEPARTMENT_PARAM = "department_id"
+const REQUEST_LOG_STARTED_AFTER_PARAM = "started_after"
+const REQUEST_LOG_STARTED_BEFORE_PARAM = "started_before"
 export async function DashboardPage({
   section = "status",
   searchParams,
@@ -163,6 +168,8 @@ export async function DashboardPage({
   const pageModelDeployments = section === "deployments"
 
   const requestLogFilters = parseRequestLogFilters(searchParams)
+  const timeRange = parseDashboardTimeRange(searchParams)
+  const dailyUsageLookbackDays = timeRange.lookbackDays
 
   const [health, ready, backendRuntime, frontendRuntime] = needsStatus
     ? await Promise.all([
@@ -229,7 +236,7 @@ export async function DashboardPage({
         gatewayRequest<DailyUsageList>(
           `/control/v1/me/daily-usage?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&days=${DAILY_USAGE_LOOKBACK_DAYS}`,
+          )}&days=${dailyUsageLookbackDays}`,
           { token }
         )
     ),
@@ -241,7 +248,7 @@ export async function DashboardPage({
         gatewayRequest<UsageInsights>(
           `/control/v1/me/usage-insights?workspace_id=${encodeURIComponent(
             workspace.id
-          )}&days=30&limit=5`,
+          )}&days=${timeRange.days}&limit=5`,
           { token }
         )
     ),
@@ -251,10 +258,23 @@ export async function DashboardPage({
       noWorkspaceMessage,
       (workspace) => {
         const query = pageRequestLogs
-          ? requestLogQuery(requestLogsPage, pageRequestLogs, requestLogFilters)
+          ? requestLogQuery(
+              requestLogsPage,
+              pageRequestLogs,
+              requestLogFilters,
+              timeRange
+            )
           : pageUsageDetails
-            ? requestLogQuery(usageDetailsPage, pageUsageDetails, requestLogFilters)
-            : `limit=${needsUsage ? RESOURCE_LIST_LIMIT : 60}`
+            ? requestLogQuery(
+                usageDetailsPage,
+                pageUsageDetails,
+                requestLogFilters,
+                timeRange
+              )
+            : requestLogLimitQuery(
+                needsUsage ? RESOURCE_LIST_LIMIT : 60,
+                timeRange
+              )
 
         return gatewayRequest<RequestLogList>(
           `/control/v1/request-logs?workspace_id=${encodeURIComponent(
@@ -419,13 +439,18 @@ export async function DashboardPage({
   const activeModelCatalogList = modelCatalogList.filter(
     (modelCatalog) => modelCatalog.status === "active"
   )
+  const activeModelCatalogIDSet = new Set(
+    activeModelCatalogList.map((modelCatalog) => modelCatalog.id)
+  )
   const activeModelDeploymentList = modelDeploymentList.filter(
-    (deployment) => deployment.status === "active"
+    (deployment) =>
+      deployment.status === "active" &&
+      activeModelCatalogIDSet.has(deployment.model_catalog_id)
   )
   const chatSmokeModel =
     activeModelDeploymentList[0]?.model_canonical_name ??
     activeModelCatalogList[0]?.canonical_name ??
-    "gpt-4o-mini"
+    ""
   const showUserManagement =
     canManageWorkspace &&
     (section === "users" || showPrivilegedSection(activeWorkspace, workspaceUsers))
@@ -453,6 +478,7 @@ export async function DashboardPage({
     <DashboardSectionContent
       section={section}
       t={t}
+      timeRange={timeRange}
       user={me.user}
       activeWorkspace={activeWorkspace}
       health={health}
@@ -577,10 +603,35 @@ function paginationQuery(
 function requestLogQuery(
   pagination: ParsedDashboardPagination,
   enabled: boolean,
-  filters: ReturnType<typeof parseRequestLogFilters>
+  filters: ReturnType<typeof parseRequestLogFilters>,
+  timeRange: DashboardTimeRange
 ) {
   const params = new URLSearchParams(paginationQuery(pagination, enabled))
 
+  appendRequestLogFilters(params, filters, timeRange)
+
+  return params.toString()
+}
+
+function requestLogLimitQuery(
+  limit: number,
+  timeRange: DashboardTimeRange
+) {
+  const params = new URLSearchParams({
+    limit: String(limit),
+  })
+
+  appendRequestLogTimeRange(params, timeRange)
+
+  return params.toString()
+}
+
+function appendRequestLogFilters(
+  params: URLSearchParams,
+  filters: ReturnType<typeof parseRequestLogFilters>,
+  timeRange: DashboardTimeRange
+) {
+  appendRequestLogTimeRange(params, timeRange)
   if (filters.query) {
     params.set(REQUEST_LOG_QUERY_PARAM, filters.query)
   }
@@ -599,8 +650,14 @@ function requestLogQuery(
   if (filters.departmentID) {
     params.set(REQUEST_LOG_DEPARTMENT_PARAM, filters.departmentID)
   }
+}
 
-  return params.toString()
+function appendRequestLogTimeRange(
+  params: URLSearchParams,
+  timeRange: DashboardTimeRange
+) {
+  params.set(REQUEST_LOG_STARTED_AFTER_PARAM, timeRange.startedAfter)
+  params.set(REQUEST_LOG_STARTED_BEFORE_PARAM, timeRange.startedBefore)
 }
 
 function parseRequestLogFilters(searchParams: DashboardSearchParams | undefined) {

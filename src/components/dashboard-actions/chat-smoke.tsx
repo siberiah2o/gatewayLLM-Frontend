@@ -97,6 +97,8 @@ type ChatSmokeResponse = Partial<ModelDebugResult> & {
 
 type PlaygroundKeySource = "session" | "manual";
 type PlaygroundEndpoint = "chat-completions" | "models";
+type PlaygroundThinkingMode = "enabled" | "disabled";
+type PlaygroundReasoningEffort = "low" | "medium" | "high" | "xhigh";
 
 type ChatTranscriptEntry =
   | {
@@ -145,6 +147,10 @@ export function ChatSmokeTestForm({
   const [model, setModel] = useState(initialModel);
   const [prompt, setPrompt] = useState(() => t("forms.defaultPrompt"));
   const [temperature, setTemperature] = useState("0.2");
+  const [thinkingMode, setThinkingMode] =
+    useState<PlaygroundThinkingMode>("enabled");
+  const [reasoningEffort, setReasoningEffort] =
+    useState<PlaygroundReasoningEffort>("medium");
   const [listedModels, setListedModels] = useState<string[]>([]);
   const [transcript, setTranscript] = useState<ChatTranscriptEntry[]>([]);
   const [lastSubmittedModel, setLastSubmittedModel] = useState("");
@@ -205,6 +211,34 @@ export function ChatSmokeTestForm({
       prompt: t("forms.debugPresetBugfixText"),
     },
   ];
+  const thinkingModeOptions = [
+    {
+      label: t("forms.thinkingEnabled"),
+      value: "enabled",
+    },
+    {
+      label: t("forms.thinkingDisabled"),
+      value: "disabled",
+    },
+  ] satisfies Array<{ label: string; value: PlaygroundThinkingMode }>;
+  const reasoningEffortOptions = [
+    {
+      label: t("forms.reasoningLow"),
+      value: "low",
+    },
+    {
+      label: t("forms.reasoningMedium"),
+      value: "medium",
+    },
+    {
+      label: t("forms.reasoningHigh"),
+      value: "high",
+    },
+    {
+      label: t("forms.reasoningXHigh"),
+      value: "xhigh",
+    },
+  ] satisfies Array<{ label: string; value: PlaygroundReasoningEffort }>;
   const requestJSON = formatDebugJSON(result?.request);
   const responseJSON = formatDebugJSON(result?.response);
   const responseHeaders = Object.entries(result?.response_headers ?? {});
@@ -229,6 +263,8 @@ export function ChatSmokeTestForm({
     model: effectiveModel,
     prompt,
     temperature,
+    thinkingMode,
+    reasoningEffort,
   });
   const javascriptSnippet = buildJavaScriptSnippet({
     baseUrl: codeBaseUrl,
@@ -236,6 +272,8 @@ export function ChatSmokeTestForm({
     model: effectiveModel,
     prompt,
     temperature,
+    thinkingMode,
+    reasoningEffort,
   });
   const statusValue = summary
     ? `HTTP ${summary.backend_status}`
@@ -461,6 +499,8 @@ export function ChatSmokeTestForm({
           model: nextModel,
           prompt: nextPrompt,
           temperature,
+          thinking_mode: thinkingMode,
+          reasoning_effort: reasoningEffort,
           stream: true,
         }),
       });
@@ -982,6 +1022,72 @@ export function ChatSmokeTestForm({
                       setTemperature(event.currentTarget.value)
                     }
                   />
+                </Field>
+                <Field>
+                  <FieldLabel id="thinking-mode-label">
+                    {t("forms.thinkingMode")}
+                  </FieldLabel>
+                  <Select
+                    items={thinkingModeOptions}
+                    value={thinkingMode}
+                    disabled={endpointType === "models"}
+                    onValueChange={(value) =>
+                      setThinkingMode(
+                        (value ?? "enabled") as PlaygroundThinkingMode,
+                      )
+                    }
+                  >
+                    <SelectTrigger
+                      id="thinking-mode"
+                      aria-labelledby="thinking-mode-label"
+                      className="w-full"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectGroup>
+                        {thinkingModeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field>
+                  <FieldLabel id="reasoning-effort-label">
+                    {t("forms.reasoningEffort")}
+                  </FieldLabel>
+                  <Select
+                    items={reasoningEffortOptions}
+                    value={reasoningEffort}
+                    disabled={
+                      endpointType === "models" || thinkingMode === "disabled"
+                    }
+                    onValueChange={(value) =>
+                      setReasoningEffort(
+                        (value ?? "medium") as PlaygroundReasoningEffort,
+                      )
+                    }
+                  >
+                    <SelectTrigger
+                      id="reasoning-effort"
+                      aria-labelledby="reasoning-effort-label"
+                      className="w-full"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectGroup>
+                        {reasoningEffortOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </Field>
               </FieldGroup>
             </PlaygroundConfigSection>
@@ -1568,12 +1674,16 @@ function buildCurlSnippet({
   model,
   prompt,
   temperature,
+  thinkingMode,
+  reasoningEffort,
 }: {
   baseUrl: string;
   endpointType: PlaygroundEndpoint;
   model: string;
   prompt: string;
   temperature: string;
+  thinkingMode: PlaygroundThinkingMode;
+  reasoningEffort: PlaygroundReasoningEffort;
 }) {
   if (endpointType === "models") {
     return [
@@ -1582,19 +1692,13 @@ function buildCurlSnippet({
     ].join("\n");
   }
 
-  const payload = {
-    model: model.trim() || "your-model",
-    temperature: Number.isFinite(Number(temperature))
-      ? Number(temperature)
-      : 0.2,
-    stream: true,
-    messages: [
-      {
-        role: "user",
-        content: prompt.trim() || "Hello from GatewayLLM",
-      },
-    ],
-  };
+  const payload = buildChatDebugPayload({
+    model,
+    prompt,
+    temperature,
+    thinkingMode,
+    reasoningEffort,
+  });
 
   return [
     `curl "${baseUrl}/v1/chat/completions" \\`,
@@ -1610,12 +1714,16 @@ function buildJavaScriptSnippet({
   model,
   prompt,
   temperature,
+  thinkingMode,
+  reasoningEffort,
 }: {
   baseUrl: string;
   endpointType: PlaygroundEndpoint;
   model: string;
   prompt: string;
   temperature: string;
+  thinkingMode: PlaygroundThinkingMode;
+  reasoningEffort: PlaygroundReasoningEffort;
 }) {
   if (endpointType === "models") {
     return [
@@ -1630,19 +1738,13 @@ function buildJavaScriptSnippet({
     ].join("\n");
   }
 
-  const payload = {
-    model: model.trim() || "your-model",
-    temperature: Number.isFinite(Number(temperature))
-      ? Number(temperature)
-      : 0.2,
-    stream: true,
-    messages: [
-      {
-        role: "user",
-        content: prompt.trim() || "Hello from GatewayLLM",
-      },
-    ],
-  };
+  const payload = buildChatDebugPayload({
+    model,
+    prompt,
+    temperature,
+    thinkingMode,
+    reasoningEffort,
+  });
 
   return [
     `const payload = ${JSON.stringify(payload, null, 2)}`,
@@ -1659,6 +1761,53 @@ function buildJavaScriptSnippet({
     "const data = await response.json()",
     "console.log(data)",
   ].join("\n");
+}
+
+function buildChatDebugPayload({
+  model,
+  prompt,
+  temperature,
+  thinkingMode,
+  reasoningEffort,
+}: {
+  model: string;
+  prompt: string;
+  temperature: string;
+  thinkingMode: PlaygroundThinkingMode;
+  reasoningEffort: PlaygroundReasoningEffort;
+}) {
+  const normalizedModel = model.trim() || "your-model";
+  const payload: Record<string, unknown> = {
+    model: normalizedModel,
+    temperature: Number.isFinite(Number(temperature))
+      ? Number(temperature)
+      : 0.2,
+    stream: true,
+    messages: [
+      {
+        role: "user",
+        content: prompt.trim() || "Hello from GatewayLLM",
+      },
+    ],
+  };
+
+  if (usesDeepSeekThinkingExtension(normalizedModel)) {
+    payload.thinking = {
+      type: thinkingMode,
+    };
+  }
+
+  if (thinkingMode === "enabled") {
+    payload.reasoning_effort = reasoningEffort;
+  }
+
+  return payload;
+}
+
+function usesDeepSeekThinkingExtension(model: string) {
+  const normalized = model.trim().toLowerCase();
+
+  return normalized.startsWith("deepseek-") || normalized.includes("/deepseek-");
 }
 
 function ModelDebugMetric({

@@ -17,66 +17,46 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart"
+import type { DashboardTimeRange } from "./dashboard-time-range"
 
 type UsageBusinessTrendPoint = {
   date: string
   label: string
   spend: number
+  spendDisplay?: string
   requests: number
   failures: number
 }
 
-type UsageTrendRange = "7d" | "30d" | "month"
 type UsageTrendView = "requests" | "spend"
-
-type UsageTrendRangeLabels = {
-  last7Days: string
-  last30Days: string
-  thisMonth: string
-}
-
-const RANGE_OPTIONS = [
-  {
-    value: "7d",
-    labelKey: "last7Days",
-  },
-  {
-    value: "30d",
-    labelKey: "last30Days",
-  },
-  {
-    value: "month",
-    labelKey: "thisMonth",
-  },
-] satisfies Array<{
-  value: UsageTrendRange
-  labelKey: keyof UsageTrendRangeLabels
-}>
 
 export function UsageBusinessTrendChart({
   data,
+  timeRange,
   spendLabel,
+  spendSummary,
+  spendCurrency = "USD",
   requestsLabel,
   failuresLabel,
   successesLabel,
-  rangeLabels,
 }: {
   data: UsageBusinessTrendPoint[]
+  timeRange: DashboardTimeRange
   spendLabel: string
+  spendSummary?: string
+  spendCurrency?: string
   requestsLabel: string
   failuresLabel: string
   successesLabel: string
-  rangeLabels: UsageTrendRangeLabels
 }) {
-  const [range, setRange] = React.useState<UsageTrendRange>("30d")
   const [view, setView] = React.useState<UsageTrendView>("spend")
   const visibleData = React.useMemo(
     () =>
-      buildTrendData(data, range).map((point) => ({
+      buildTrendData(data, timeRange).map((point) => ({
         ...point,
         succeeded: Math.max(point.requests - point.failures, 0),
       })),
-    [data, range]
+    [data, timeRange]
   )
   const totals = React.useMemo(
     () =>
@@ -146,26 +126,9 @@ export function UsageBusinessTrendChart({
             {requestsLabel}
           </Button>
         </div>
-        <div className="flex min-w-0 flex-wrap gap-1 rounded-md border border-border/70 bg-background p-1">
-          {RANGE_OPTIONS.map((option) => (
-            <Button
-              key={option.value}
-              type="button"
-              size="xs"
-              variant={range === option.value ? "secondary" : "ghost"}
-              aria-pressed={range === option.value}
-              className="h-6 rounded-[6px] px-2"
-              onClick={() => {
-                setRange(option.value)
-              }}
-            >
-              {rangeLabels[option.labelKey]}
-            </Button>
-          ))}
-        </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <span className="font-mono tabular-nums text-foreground">
-            {formatChartCurrency(totals.spend)}
+            {spendSummary ?? formatChartCurrency(totals.spend, spendCurrency)}
           </span>
           <span>{spendLabel}</span>
           <span className="font-mono tabular-nums text-foreground">
@@ -214,7 +177,7 @@ export function UsageBusinessTrendChart({
                   }
 
                   if (name === spendLabel) {
-                    return formatChartCurrency(value)
+                    return formatChartCurrency(value, spendCurrency)
                   }
 
                   return Math.round(value).toLocaleString("en-US")
@@ -258,7 +221,7 @@ export function UsageBusinessTrendChart({
 
 function buildTrendData(
   data: UsageBusinessTrendPoint[],
-  range: UsageTrendRange
+  timeRange: DashboardTimeRange
 ) {
   const pointsByDate = new Map(
     data.map((point) => [
@@ -266,16 +229,13 @@ function buildTrendData(
       point,
     ])
   )
-  const endDate = new Date(`${getUTCDateString(new Date())}T00:00:00.000Z`)
-  const startDate =
-    range === "month"
-      ? new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), 1))
-      : addUTCDays(endDate, range === "7d" ? -6 : -29)
+  const startDate = new Date(`${timeRange.startDate}T00:00:00.000Z`)
+  const endDate = new Date(`${timeRange.endDate}T00:00:00.000Z`)
 
   const points: UsageBusinessTrendPoint[] = []
   for (
     let cursor = new Date(startDate);
-    cursor <= endDate;
+    cursor < endDate;
     cursor = addUTCDays(cursor, 1)
   ) {
     const date = getUTCDateString(cursor)
@@ -286,6 +246,7 @@ function buildTrendData(
         date,
         label: date.slice(5),
         spend: 0,
+        spendDisplay: undefined,
         requests: 0,
         failures: 0,
       }
@@ -305,16 +266,23 @@ function getUTCDateString(date: Date) {
   return date.toISOString().slice(0, 10)
 }
 
-function formatChartCurrency(value: number) {
+function formatChartCurrency(value: number, currency = "USD") {
+  const normalizedCurrency = currency.trim().toUpperCase()
+  const prefix =
+    normalizedCurrency === "CNY"
+      ? "¥"
+      : normalizedCurrency === "USD"
+        ? "$"
+        : `${normalizedCurrency} `
   if (!Number.isFinite(value) || value <= 0) {
-    return "$0"
+    return `${prefix}0`
   }
 
   if (value >= 100) {
-    return `$${Math.round(value).toLocaleString("en-US")}`
+    return `${prefix}${Math.round(value).toLocaleString("en-US")}`
   }
 
-  return `$${value.toFixed(value >= 1 ? 2 : 4)}`
+  return `${prefix}${value.toFixed(value >= 1 ? 2 : 4)}`
 }
 
 function formatCompactWholeNumber(value: number) {

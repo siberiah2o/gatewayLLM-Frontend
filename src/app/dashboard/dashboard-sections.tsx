@@ -20,6 +20,7 @@ import type {
   DailyUsage,
   RequestLog,
   RuntimeResourceSnapshot,
+  SpendByCurrency,
   UsageInsightBreakdown,
 } from "@/lib/gatewayllm";
 import { cn } from "@/lib/utils";
@@ -37,7 +38,6 @@ import {
   MemoryStickIcon,
   ShieldCheckIcon,
   TriangleAlertIcon,
-  UserCheckIcon,
   UserPlusIcon,
   UsersRoundIcon,
   WorkflowIcon,
@@ -71,6 +71,7 @@ import { AccountSection } from "./dashboard-account-section";
 import type { Settled } from "./dashboard-data";
 import { ModelAccessTabs } from "./model-access-tabs";
 import { RequestLogsTable } from "./request-logs-table";
+import { DashboardTimeRangeControl } from "./dashboard-time-range-control";
 import type { DashboardSectionContentProps } from "./dashboard-section-types";
 import { StatusTrafficChart } from "./status-traffic-chart";
 import { UsageBusinessTrendChart } from "./usage-business-trend-chart";
@@ -147,35 +148,45 @@ function DashboardSettledEmptyState<T>({
   );
 }
 
+function filterDailyUsageByTimeRange(
+  dailyUsageList: DailyUsage[],
+  timeRange: DashboardSectionContentProps["timeRange"],
+) {
+  return dailyUsageList.filter(
+    (usage) =>
+      usage.usage_date >= timeRange.startDate &&
+      usage.usage_date < timeRange.endDate,
+  );
+}
+
 const STATUS_SLOW_REQUEST_THRESHOLD_MS = 6_000;
 
 function StatusSection({
   t,
+  timeRange,
   health,
   ready,
   frontendRuntime,
   backendRuntime,
+  activeWorkspace,
   registrationRequests,
-  apiKeys,
   dailyUsage,
   requestLogs,
-  workspaceUsers,
-  workspaceUserList,
-  workspaceMembers,
-  modelCatalogList,
   providerCredentialList,
   providerSetupList,
   modelDeploymentList,
   showRegistration,
   showModelDeploymentManagement,
 }: DashboardSectionContentProps) {
-  const apiKeyList = apiKeys.ok ? apiKeys.data.data : [];
   const dailyUsageList = dailyUsage.ok
     ? [...dailyUsage.data.data].sort((left, right) =>
         left.usage_date.localeCompare(right.usage_date),
       )
     : [];
-  const dailyUsage30dList = dailyUsageList.slice(-30);
+  const periodDailyUsageList = filterDailyUsageByTimeRange(
+    dailyUsageList,
+    timeRange,
+  );
   const recentStatusRequestLogList = requestLogs.ok
     ? [...requestLogs.data.data]
         .sort(
@@ -189,26 +200,31 @@ function StatusSection({
     .filter(isStatusRequestIssue)
     .slice(0, 6);
   const statusRequestLogList = requestLogs.ok ? requestLogs.data.data : [];
-  const thirtyDayRequests = sumValues(
-    dailyUsage30dList.map((usage) => usage.request_count),
+  const periodRequests = sumValues(
+    periodDailyUsageList.map((usage) => usage.request_count),
   );
-  const thirtyDaySuccesses = sumValues(
-    dailyUsage30dList.map((usage) => usage.success_count),
+  const periodSuccesses = sumValues(
+    periodDailyUsageList.map((usage) => usage.success_count),
   );
-  const thirtyDayFailures = sumValues(
-    dailyUsage30dList.map((usage) => usage.failure_count),
+  const periodFailures = sumValues(
+    periodDailyUsageList.map((usage) => usage.failure_count),
   );
-  const thirtyDayTokens = sumValues(
-    dailyUsage30dList.map(
+  const periodTokens = sumValues(
+    periodDailyUsageList.map(
       (usage) => usage.prompt_tokens + usage.completion_tokens,
     ),
   );
-  const thirtyDaySpend = sumValues(
-    dailyUsage30dList.map((usage) => parseNumericValue(usage.spend_usd)),
+  const periodSpendBreakdown = sumSpendBreakdowns(
+    periodDailyUsageList,
+    activeWorkspace?.billing_currency,
+  );
+  const spendCurrency = singleSpendCurrency(
+    periodSpendBreakdown,
+    activeWorkspace?.billing_currency,
   );
   const successRate =
-    thirtyDayRequests > 0
-      ? (thirtyDaySuccesses / thirtyDayRequests) * 100
+    periodRequests > 0
+      ? (periodSuccesses / periodRequests) * 100
       : 0;
   const averageLatencyMS = averageValues(
     recentRequestLogList.map((log) => log.duration_ms),
@@ -219,21 +235,11 @@ function StatusSection({
   const activeProviderSetups = providerSetupList.filter(
     (setup) => setup.status === "active",
   );
-  const activeModelCount = modelCatalogList.filter(
-    (modelCatalog) => modelCatalog.status === "active",
-  ).length;
   const inactiveDeploymentCount = modelDeploymentList.filter(
     (deployment) => deployment.status !== "active",
   ).length;
-  const readyCredentialCount = providerCredentialList.filter(
-    (credential) =>
-      credential.status === "active" && credential.secret_configured,
-  ).length;
   const missingSecretCount = providerCredentialList.filter(
     (credential) => !credential.secret_configured,
-  ).length;
-  const activeApiKeyCount = apiKeyList.filter(
-    (apiKey) => apiKey.status === "active",
   ).length;
   const pendingRegistrationCount = registrationRequests.ok
     ? registrationRequests.data.data.length
@@ -241,7 +247,7 @@ function StatusSection({
   const recentFailureCount = recentRequestLogList.filter(
     (log) => log.status !== "succeeded",
   ).length;
-  const trafficChartData = dailyUsage30dList.map((usage) => ({
+  const trafficChartData = periodDailyUsageList.map((usage) => ({
     date: usage.usage_date,
     label: usage.usage_date.slice(5),
     succeeded: usage.success_count,
@@ -376,6 +382,7 @@ function StatusSection({
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.statusOverviewTitle")}</CardTitle>
           <CardAction className="flex flex-wrap items-center gap-2">
+            <DashboardTimeRangeControl timeRange={timeRange} />
             <StatusBadge>
               {healthStatus}
             </StatusBadge>
@@ -398,17 +405,17 @@ function StatusSection({
             <DashboardSummaryTile
               icon={<ActivityIcon className="size-4" />}
               label={t("dashboard.thirtyDayRequests")}
-              value={formatWholeNumber(thirtyDayRequests)}
+              value={formatWholeNumber(periodRequests)}
               detail={t("dashboard.statusSuccessFailure", {
-                success: formatWholeNumber(thirtyDaySuccesses),
-                failure: formatWholeNumber(thirtyDayFailures),
+                success: formatWholeNumber(periodSuccesses),
+                failure: formatWholeNumber(periodFailures),
               })}
             />
             <DashboardSummaryTile
               icon={<GaugeIcon className="size-4" />}
               label={t("dashboard.successRate")}
               value={formatPercent(successRate)}
-              detail={t("dashboard.last30Days")}
+              detail={t(timeRange.labelKey)}
             />
             <DashboardSummaryTile
               icon={<WorkflowIcon className="size-4" />}
@@ -450,109 +457,57 @@ function StatusSection({
         </DashboardPanelContent>
       </Card>
 
-      <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.9fr)]">
-        <Card size="sm" className="min-w-0">
-          <DashboardPanelHeader>
-            <CardTitle>{t("dashboard.statusTrafficTitle")}</CardTitle>
-            <CardDescription>
-              {t("dashboard.statusTrafficDescription")}
-            </CardDescription>
-            <CardAction>
-              <StatusBadge>{t("dashboard.last30Days")}</StatusBadge>
-            </CardAction>
-          </DashboardPanelHeader>
-          <DashboardPanelContent className="grid gap-2.5">
-            {trafficChartData.length > 0 ? (
-              <StatusTrafficChart
-                data={trafficChartData}
-                successLabel={t("values.succeeded")}
-                failedLabel={t("values.failed")}
-              />
-            ) : (
-              <DashboardSettledEmptyState
-                result={dailyUsage}
-                emptyMessage={t("dashboard.noDailyUsage")}
-                icon={<ActivityIcon />}
-              />
-            )}
+      <Card size="sm" className="min-w-0">
+        <DashboardPanelHeader>
+          <CardTitle>{t("dashboard.statusTrafficTitle")}</CardTitle>
+          <CardDescription>
+            {t("dashboard.statusTrafficDescription")}
+          </CardDescription>
+          <CardAction>
+            <StatusBadge>{t(timeRange.labelKey)}</StatusBadge>
+          </CardAction>
+        </DashboardPanelHeader>
+        <DashboardPanelContent className="grid gap-2.5">
+          {trafficChartData.length > 0 ? (
+            <StatusTrafficChart
+              data={trafficChartData}
+              timeRange={timeRange}
+              requestsLabel={t("dashboard.requests")}
+              failedLabel={t("values.failed")}
+            />
+          ) : (
+            <DashboardSettledEmptyState
+              result={dailyUsage}
+              emptyMessage={t("dashboard.noDailyUsage")}
+              icon={<ActivityIcon />}
+            />
+          )}
 
-            <div className="grid gap-2 md:grid-cols-3">
-              <DashboardSummaryTile
-                icon={<UsersRoundIcon className="size-4" />}
-                label={t("dashboard.totalTokens")}
-                value={formatWholeNumber(thirtyDayTokens)}
-                detail={t("dashboard.statusTokens30d")}
-              />
-              <DashboardSummaryTile
-                icon={<BadgeDollarSignIcon className="size-4" />}
-                label={t("dashboard.spend")}
-                value={formatCurrency(thirtyDaySpend)}
-                detail={t("dashboard.last30Days")}
-              />
-              <DashboardSummaryTile
-                icon={<Clock3Icon className="size-4" />}
-                label={t("dashboard.firstTokenLatency")}
-                value={formatLatency(
-                  averageFirstTokenLatencyMS,
-                  t("dashboard.notSet"),
-                )}
-                detail={t("dashboard.statusRecentAverage")}
-              />
-            </div>
-          </DashboardPanelContent>
-        </Card>
-
-        <Card size="sm">
-          <DashboardPanelHeader>
-            <CardTitle>{t("dashboard.resourceReadinessTitle")}</CardTitle>
-            <CardDescription>
-              {t("dashboard.resourceReadinessDescription")}
-            </CardDescription>
-          </DashboardPanelHeader>
-          <DashboardPanelContent>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <DashboardSummaryTile
-                icon={<UsersRoundIcon className="size-4" />}
-                label={t("dashboard.users")}
-                value={formatWholeNumber(workspaceUserList.length)}
-                detail={getSettledMessage(
-                  workspaceUsers,
-                  t("dashboard.workspaceUsers"),
-                )}
-              />
-              <DashboardSummaryTile
-                icon={<UserCheckIcon className="size-4" />}
-                label={t("dashboard.members")}
-                value={formatWholeNumber(
-                  workspaceMembers.ok ? workspaceMembers.data.data.length : 0,
-                )}
-                detail={getSettledMessage(
-                  workspaceMembers,
-                  t("dashboard.workspaceMembers"),
-                )}
-              />
-              <DashboardSummaryTile
-                icon={<BotIcon className="size-4" />}
-                label={t("dashboard.modelsTitle")}
-                value={formatWholeNumber(activeModelCount)}
-                detail={t("dashboard.activeModels")}
-              />
-              <DashboardSummaryTile
-                icon={<ShieldCheckIcon className="size-4" />}
-                label={t("dashboard.credentialsReady")}
-                value={formatWholeNumber(readyCredentialCount)}
-                detail={t("dashboard.credentialsDescription")}
-              />
-              <DashboardSummaryTile
-                icon={<KeyRoundIcon className="size-4" />}
-                label={t("dashboard.activeApiKeys")}
-                value={formatWholeNumber(activeApiKeyCount)}
-                detail={getSettledMessage(apiKeys, t("dashboard.apiKeysListTitle"))}
-              />
-            </div>
-          </DashboardPanelContent>
-        </Card>
-      </div>
+          <div className="grid gap-2 md:grid-cols-3">
+            <DashboardSummaryTile
+              icon={<UsersRoundIcon className="size-4" />}
+              label={t("dashboard.totalTokens")}
+              value={formatWholeNumber(periodTokens)}
+              detail={t("dashboard.statusTokens30d")}
+            />
+            <DashboardSummaryTile
+              icon={<BadgeDollarSignIcon className="size-4" />}
+              label={t("dashboard.spend")}
+              value={formatCurrencyBreakdown(periodSpendBreakdown, spendCurrency)}
+              detail={t(timeRange.labelKey)}
+            />
+            <DashboardSummaryTile
+              icon={<Clock3Icon className="size-4" />}
+              label={t("dashboard.firstTokenLatency")}
+              value={formatLatency(
+                averageFirstTokenLatencyMS,
+                t("dashboard.notSet"),
+              )}
+              detail={t("dashboard.statusRecentAverage")}
+            />
+          </div>
+        </DashboardPanelContent>
+      </Card>
 
       <Card size="sm">
         <DashboardPanelHeader>
@@ -604,7 +559,7 @@ function StatusSection({
               {t("dashboard.providerPerformanceDescription")}
             </CardDescription>
             <CardAction>
-              <StatusBadge>{t("dashboard.last60Requests")}</StatusBadge>
+              <StatusBadge>{t(timeRange.labelKey)}</StatusBadge>
             </CardAction>
           </DashboardPanelHeader>
           <DashboardStackContent className="gap-1.5">
@@ -1177,6 +1132,134 @@ function parseNumericValue(value: number | string | undefined): number {
   return 0;
 }
 
+function spendAmountValue(value: {
+  spend_amount?: string;
+  spend_usd: string;
+}): string {
+  return value.spend_amount ?? value.spend_usd;
+}
+
+type CurrencyAmount = {
+  currency: string;
+  amount: number;
+};
+
+function spendCurrencyValue(
+  value: { currency?: string; spend_currency?: string },
+  fallback = "USD",
+): string {
+  return (
+    value.spend_currency?.trim() ||
+    value.currency?.trim() ||
+    fallback ||
+    "USD"
+  ).toUpperCase();
+}
+
+function spendBreakdownValues(
+  value: {
+    spend_amount?: string;
+    spend_usd: string;
+    currency?: string;
+    spend_currency?: string;
+    spend_by_currency?: SpendByCurrency[];
+  },
+  fallback = "USD",
+): CurrencyAmount[] {
+  if (value.spend_by_currency && value.spend_by_currency.length > 0) {
+    return normalizeCurrencyAmounts(
+      value.spend_by_currency.map((entry) => ({
+        currency: spendCurrencyValue({ currency: entry.currency }, fallback),
+        amount: parseNumericValue(entry.spend_amount ?? entry.spend_usd),
+      })),
+    );
+  }
+
+  const currency = spendCurrencyValue(value, fallback);
+  if (currency === "MIXED") {
+    return normalizeCurrencyAmounts([
+      {
+        currency: "USD",
+        amount: parseNumericValue(value.spend_usd),
+      },
+    ]);
+  }
+
+  return normalizeCurrencyAmounts([
+    {
+      currency,
+      amount: parseNumericValue(spendAmountValue(value)),
+    },
+  ]);
+}
+
+function sumSpendBreakdowns(
+  values: Array<{
+    spend_amount?: string;
+    spend_usd: string;
+    currency?: string;
+    spend_currency?: string;
+    spend_by_currency?: SpendByCurrency[];
+  }>,
+  fallback = "USD",
+): CurrencyAmount[] {
+  return normalizeCurrencyAmounts(
+    values.flatMap((value) => spendBreakdownValues(value, fallback)),
+  );
+}
+
+function normalizeCurrencyAmounts(values: CurrencyAmount[]): CurrencyAmount[] {
+  const totals = new Map<string, number>();
+
+  for (const value of values) {
+    const currency = value.currency.trim().toUpperCase() || "USD";
+    if (currency === "MIXED") {
+      continue;
+    }
+    totals.set(currency, (totals.get(currency) ?? 0) + value.amount);
+  }
+
+  return Array.from(totals.entries())
+    .map(([currency, amount]) => ({ currency, amount }))
+    .filter((value) => Number.isFinite(value.amount) && value.amount > 0)
+    .sort((left, right) => currencySortKey(left.currency) - currencySortKey(right.currency));
+}
+
+function currencySortKey(currency: string) {
+  if (currency === "CNY") {
+    return 0;
+  }
+  if (currency === "USD") {
+    return 1;
+  }
+  return 2;
+}
+
+function spendBreakdownTotal(values: CurrencyAmount[]): number {
+  return sumValues(values.map((value) => value.amount));
+}
+
+function scaleSpendBreakdown(values: CurrencyAmount[], divisor: number) {
+  if (!Number.isFinite(divisor) || divisor <= 0) {
+    return [];
+  }
+
+  return normalizeCurrencyAmounts(
+    values.map((value) => ({
+      ...value,
+      amount: value.amount / divisor,
+    })),
+  );
+}
+
+function singleSpendCurrency(values: CurrencyAmount[], fallback = "USD") {
+  return values.length === 1 ? values[0].currency : fallback;
+}
+
+function isMixedSpendBreakdown(values: CurrencyAmount[]) {
+  return values.length > 1;
+}
+
 function formatWholeNumber(value: number): string {
   return Math.round(value).toLocaleString("en-US");
 }
@@ -1193,20 +1276,40 @@ function formatLatency(value: number | undefined, fallback: string): string {
   return `${Math.round(value).toLocaleString("en-US")} ms`;
 }
 
-function formatCurrency(value: number): string {
+function formatCurrency(value: number, currency = "USD"): string {
+  const normalizedCurrency = currency.trim().toUpperCase();
+  const prefix =
+    normalizedCurrency === "CNY"
+      ? "¥"
+      : normalizedCurrency === "USD"
+        ? "$"
+        : `${normalizedCurrency} `;
   if (!Number.isFinite(value) || value <= 0) {
-    return "$0";
+    return `${prefix}0`;
   }
 
   if (value >= 1000) {
-    return `$${Math.round(value).toLocaleString("en-US")}`;
+    return `${prefix}${Math.round(value).toLocaleString("en-US")}`;
   }
 
   if (value >= 1) {
-    return `$${value.toFixed(2)}`;
+    return `${prefix}${value.toFixed(2)}`;
   }
 
-  return `$${value.toFixed(4)}`;
+  return `${prefix}${value.toFixed(4)}`;
+}
+
+function formatCurrencyBreakdown(
+  values: CurrencyAmount[],
+  fallbackCurrency = "USD",
+): string {
+  if (values.length === 0) {
+    return formatCurrency(0, fallbackCurrency);
+  }
+
+  return values
+    .map((value) => formatCurrency(value.amount, value.currency))
+    .join(" + ");
 }
 
 function formatBytes(value: number | undefined, fallback: string): string {
@@ -1442,6 +1545,9 @@ function DepartmentsSection({
   workspaceDepartmentList,
   modelCatalogList,
 }: DashboardSectionContentProps) {
+  const assignableModelCatalogList = modelCatalogList.filter(
+    (modelCatalog) => modelCatalog.status === "active",
+  );
   const activeDepartmentCount = workspaceDepartmentList.filter(
     (department) => department.status === "active",
   ).length;
@@ -1473,7 +1579,7 @@ function DepartmentsSection({
                     key={department.id}
                     department={department}
                     workspaceId={activeWorkspace?.id}
-                    modelCatalogs={modelCatalogList}
+                    modelCatalogs={assignableModelCatalogList}
                     t={t}
                   />
                 ))}
@@ -1707,7 +1813,10 @@ function ProviderSetupsSection({
             title={t("forms.createProviderSetup")}
             icon={<BotIcon className="size-4 text-muted-foreground" />}
           >
-            <CreateProviderSetupForm workspaceId={activeWorkspace?.id} />
+            <CreateProviderSetupForm
+              workspaceId={activeWorkspace?.id}
+              workspaceCurrency={activeWorkspace?.billing_currency}
+            />
           </DashboardSidebarCard>
         }
       />
@@ -1823,7 +1932,10 @@ function ModelsSection({
             title={t("forms.createModel")}
             icon={<BotIcon className="size-4 text-muted-foreground" />}
           >
-            <CreateModelCatalogForm workspaceId={activeWorkspace?.id} />
+            <CreateModelCatalogForm
+              workspaceId={activeWorkspace?.id}
+              workspaceCurrency={activeWorkspace?.billing_currency}
+            />
           </DashboardSidebarCard>
         ) : null}
       </div>
@@ -2021,7 +2133,7 @@ function DeploymentsSection({
                 columns={[
                   { label: t("dashboard.name") },
                   { label: t("forms.model") },
-                  { label: t("dashboard.region") },
+                  { label: t("forms.endpointUrl") },
                   ...(showActions
                     ? [
                         {
@@ -2077,16 +2189,28 @@ function ChatSmokeSection({
   modelCatalogList,
   modelDeploymentList,
 }: DashboardSectionContentProps) {
+  const activeModelCatalogIDs = new Set(
+    modelCatalogList
+      .filter((modelCatalog) => modelCatalog.status === "active")
+      .map((modelCatalog) => modelCatalog.id),
+  );
+  const deploymentModelSuggestions = modelDeploymentList
+    .filter(
+      (deployment) =>
+        deployment.status === "active" &&
+        activeModelCatalogIDs.has(deployment.model_catalog_id),
+    )
+    .map((deployment) => deployment.model_canonical_name);
+  const catalogModelSuggestions = modelCatalogList
+    .filter((modelCatalog) => modelCatalog.status === "active")
+    .map((modelCatalog) => modelCatalog.canonical_name);
   const modelSuggestions = [
     ...new Set(
-      [
-        ...modelDeploymentList
-          .filter((deployment) => deployment.status === "active")
-          .map((deployment) => deployment.model_canonical_name),
-        ...modelCatalogList
-          .filter((modelCatalog) => modelCatalog.status === "active")
-          .map((modelCatalog) => modelCatalog.canonical_name),
-      ].filter(Boolean),
+      (
+        deploymentModelSuggestions.length > 0
+          ? deploymentModelSuggestions
+          : catalogModelSuggestions
+      ).filter(Boolean),
     ),
   ];
   const apiKeyOptions = apiKeys.ok
@@ -2112,6 +2236,8 @@ type UsageBreakdownItem = {
   succeeded: number;
   failed: number;
   spend: number;
+  currency: string;
+  spendBreakdown: CurrencyAmount[];
   tokens: number;
   averageLatencyMS?: number;
   spendShare: number;
@@ -2121,7 +2247,7 @@ function buildUsageBreakdown(
   requestLogs: RequestLog[],
   getLabel: (log: RequestLog) => string,
 ): UsageBreakdownItem[] {
-  const totalSpend = sumValues(requestLogs.map((log) => log.spend_usd));
+  const totalSpend = sumValues(requestLogs.map((log) => spendAmountValue(log)));
   const buckets = new Map<
     string,
     {
@@ -2130,6 +2256,8 @@ function buildUsageBreakdown(
       succeeded: number;
       failed: number;
       spend: number;
+      currency: string;
+      spendBreakdown: CurrencyAmount[];
       tokens: number;
       latencyTotal: number;
       latencyCount: number;
@@ -2148,6 +2276,8 @@ function buildUsageBreakdown(
       succeeded: 0,
       failed: 0,
       spend: 0,
+      currency: spendCurrencyValue(log),
+      spendBreakdown: [],
       tokens: 0,
       latencyTotal: 0,
       latencyCount: 0,
@@ -2156,7 +2286,18 @@ function buildUsageBreakdown(
     current.requests += 1;
     current.succeeded += log.status === "succeeded" ? 1 : 0;
     current.failed += log.status === "failed" ? 1 : 0;
-    current.spend += parseNumericValue(log.spend_usd);
+    current.spend += parseNumericValue(spendAmountValue(log));
+    const logCurrency = spendCurrencyValue(log);
+    if (current.currency !== logCurrency) {
+      current.currency = "MIXED";
+    }
+    current.spendBreakdown = normalizeCurrencyAmounts([
+      ...current.spendBreakdown,
+      {
+        currency: logCurrency,
+        amount: parseNumericValue(spendAmountValue(log)),
+      },
+    ]);
     current.tokens += log.total_tokens;
 
     if (typeof log.duration_ms === "number" && Number.isFinite(log.duration_ms)) {
@@ -2175,6 +2316,8 @@ function buildUsageBreakdown(
       succeeded: bucket.succeeded,
       failed: bucket.failed,
       spend: bucket.spend,
+      currency: bucket.currency,
+      spendBreakdown: bucket.spendBreakdown,
       tokens: bucket.tokens,
       averageLatencyMS:
         bucket.latencyCount > 0 ? bucket.latencyTotal / bucket.latencyCount : undefined,
@@ -2227,15 +2370,6 @@ function formatUsageDeploymentLabel(log: RequestLog, fallback: string) {
   );
 }
 
-function formatUsageTrafficModeLabel(
-  log: RequestLog,
-  t: DashboardSectionContentProps["t"],
-) {
-  return log.stream
-    ? t("dashboard.usageStreamRequests")
-    : t("dashboard.usageNonStreamRequests");
-}
-
 function buildUsageInsightBreakdown(
   breakdowns: UsageInsightBreakdown[],
   totalSpend: number,
@@ -2244,7 +2378,8 @@ function buildUsageInsightBreakdown(
   return breakdowns
     .map((breakdown) => {
       const label = breakdown.label.trim() || fallbackLabel;
-      const spend = parseNumericValue(breakdown.spend_usd);
+      const spend = parseNumericValue(spendAmountValue(breakdown));
+      const currency = spendCurrencyValue(breakdown);
 
       return {
         key: breakdown.key.trim() || label,
@@ -2253,6 +2388,8 @@ function buildUsageInsightBreakdown(
         succeeded: breakdown.success_count,
         failed: breakdown.failure_count,
         spend,
+        currency,
+        spendBreakdown: normalizeCurrencyAmounts([{ currency, amount: spend }]),
         tokens: breakdown.prompt_tokens + breakdown.completion_tokens,
         averageLatencyMS: breakdown.average_latency_ms,
         spendShare: totalSpend > 0 ? (spend / totalSpend) * 100 : 0,
@@ -2261,22 +2398,12 @@ function buildUsageInsightBreakdown(
     .filter((item) => item.label.trim() !== "");
 }
 
-function formatOptionalCurrency(
-  value: number | undefined,
-  fallback: string,
-): string {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return fallback;
-  }
-
-  return formatCurrency(value);
-}
-
 function formatUsageSpendMomentum(
   t: DashboardSectionContentProps["t"],
   delta: number,
   deltaPercent: number | undefined,
   previousSpend: number,
+  currency: string,
 ) {
   const direction =
     delta > 0
@@ -2293,14 +2420,15 @@ function formatUsageSpendMomentum(
 
   return t("dashboard.usageSpendMomentumDetail", {
     direction,
-    delta: formatCurrency(Math.abs(delta)),
+    delta: formatCurrency(Math.abs(delta), currency),
     percent,
   });
 }
 
 function UsageSection({
   t,
-  balance,
+  timeRange,
+  activeWorkspace,
   dailyUsage,
   usageInsights,
   requestLogs,
@@ -2310,7 +2438,10 @@ function UsageSection({
         left.usage_date.localeCompare(right.usage_date),
       )
     : [];
-  const dailyUsage30dList = dailyUsageList.slice(-30);
+  const periodDailyUsageList = filterDailyUsageByTimeRange(
+    dailyUsageList,
+    timeRange,
+  );
   const recentRequestSample = requestLogs.ok
     ? [...requestLogs.data.data].sort(
         (left, right) =>
@@ -2319,26 +2450,75 @@ function UsageSection({
       )
     : [];
   const notSet = t("dashboard.notSet");
-  const totalSpend30d = sumValues(dailyUsage30dList.map((usage) => usage.spend_usd));
-  const last7dSpend = sumValues(
-    dailyUsageList.slice(-7).map((usage) => usage.spend_usd),
+  const periodSpendBreakdown = sumSpendBreakdowns(
+    periodDailyUsageList,
+    activeWorkspace?.billing_currency,
   );
-  const previous7dSpend = sumValues(
-    dailyUsageList.slice(-14, -7).map((usage) => usage.spend_usd),
+  const spendCurrency = singleSpendCurrency(
+    periodSpendBreakdown,
+    activeWorkspace?.billing_currency,
   );
+  const periodRequests = sumValues(
+    periodDailyUsageList.map((usage) => usage.request_count),
+  );
+  const periodTokens = sumValues(
+    periodDailyUsageList.map(
+      (usage) => usage.prompt_tokens + usage.completion_tokens,
+    ),
+  );
+  const last7dUsageList = dailyUsageList.filter(
+    (usage) =>
+      usage.usage_date >= timeRange.recentWindowStartDate &&
+      usage.usage_date < timeRange.endDate,
+  );
+  const previous7dUsageList = dailyUsageList.filter(
+    (usage) =>
+      usage.usage_date >= timeRange.comparisonStartDate &&
+      usage.usage_date < timeRange.recentWindowStartDate,
+  );
+  const last7dSpendBreakdown = sumSpendBreakdowns(
+    last7dUsageList,
+    activeWorkspace?.billing_currency,
+  );
+  const previous7dSpendBreakdown = sumSpendBreakdowns(
+    previous7dUsageList,
+    activeWorkspace?.billing_currency,
+  );
+  const last7dSpend = spendBreakdownTotal(last7dSpendBreakdown);
+  const previous7dSpend = spendBreakdownTotal(previous7dSpendBreakdown);
+  const canCompareSpendMomentum =
+    !isMixedSpendBreakdown(last7dSpendBreakdown) &&
+    !isMixedSpendBreakdown(previous7dSpendBreakdown) &&
+    singleSpendCurrency(last7dSpendBreakdown, spendCurrency) ===
+      singleSpendCurrency(previous7dSpendBreakdown, spendCurrency);
   const last7dSpendDelta = last7dSpend - previous7dSpend;
   const last7dSpendDeltaPercent =
-    previous7dSpend > 0 ? (last7dSpendDelta / previous7dSpend) * 100 : undefined;
-  const averageDailySpend =
-    dailyUsage30dList.length > 0 ? totalSpend30d / dailyUsage30dList.length : undefined;
-  const latestDailyRows = [...dailyUsageList].slice(-10).reverse();
-  const maxDailySpend = dailyUsage30dList.reduce((currentMax, usage) => {
-    const spend = parseNumericValue(usage.spend_usd);
+    canCompareSpendMomentum && previous7dSpend > 0
+      ? (last7dSpendDelta / previous7dSpend) * 100
+      : undefined;
+  const averageDailySpendBreakdown = scaleSpendBreakdown(
+    periodSpendBreakdown,
+    periodDailyUsageList.length,
+  );
+  const latestDailyRows = [...periodDailyUsageList].reverse();
+  const maxDailySpend = periodDailyUsageList.reduce((currentMax, usage) => {
+    const spend = spendBreakdownTotal(
+      spendBreakdownValues(usage, activeWorkspace?.billing_currency),
+    );
     return spend > currentMax ? spend : currentMax;
   }, 0);
-  let peakUsageDay = dailyUsage30dList[0];
-  for (const usage of dailyUsage30dList.slice(1)) {
-    if (parseNumericValue(usage.spend_usd) > parseNumericValue(peakUsageDay?.spend_usd)) {
+  let peakUsageDay = periodDailyUsageList[0];
+  for (const usage of periodDailyUsageList.slice(1)) {
+    if (
+      spendBreakdownTotal(
+        spendBreakdownValues(usage, activeWorkspace?.billing_currency),
+      ) >
+      spendBreakdownTotal(
+        peakUsageDay
+          ? spendBreakdownValues(peakUsageDay, activeWorkspace?.billing_currency)
+          : [],
+      )
+    ) {
       peakUsageDay = usage;
     }
   }
@@ -2353,7 +2533,7 @@ function UsageSection({
     ? requestLogs
     : usageInsights;
   const insightSpend = insightTotals
-    ? parseNumericValue(insightTotals.spend_usd)
+    ? parseNumericValue(spendAmountValue(insightTotals))
     : 0;
 
   const providerBreakdown = requestLogs.ok
@@ -2429,12 +2609,6 @@ function UsageSection({
         (log) => localizeValue(t, log.status),
       ).slice(0, 5)
     : [];
-  const trafficModeBreakdown = requestLogs.ok
-    ? buildUsageBreakdown(
-        recentRequestSample,
-        (log) => formatUsageTrafficModeLabel(log, t),
-      ).slice(0, 5)
-    : [];
   const topContributor = [
     ...userBreakdown.slice(0, 1).map((item) => ({
       ...item,
@@ -2470,64 +2644,45 @@ function UsageSection({
       ? [
           {
             title: t("dashboard.usageUserMixTitle"),
-            description: t("dashboard.usageUserMixDescription"),
             items: userBreakdown,
           },
         ]
       : []),
     {
       title: t("dashboard.usageDepartmentMixTitle"),
-      description: t("dashboard.usageDepartmentMixDescription"),
       items: departmentBreakdown,
     },
     {
-      title: t("dashboard.usageModelMixTitle"),
-      description: t("dashboard.usageModelMixDescription"),
-      items: modelBreakdown,
-    },
-    {
       title: t("dashboard.usageApiKeyMixTitle"),
-      description: t("dashboard.usageApiKeyMixDescription"),
       items: apiKeyBreakdown,
     },
-    ...(requestLogs.ok
-      ? [
-          {
-            title: t("dashboard.usageDeploymentMixTitle"),
-            description: t("dashboard.usageDeploymentMixDescription"),
-            items: deploymentBreakdown,
-          },
-        ]
-      : []),
     {
       title: t("dashboard.usageProviderMixTitle"),
-      description: t("dashboard.usageProviderMixDescription"),
       items: providerBreakdown,
     },
     {
       title: t("dashboard.usageEndpointMixTitle"),
-      description: t("dashboard.usageEndpointMixDescription"),
       items: endpointBreakdown,
     },
     ...(requestLogs.ok
       ? [
           {
             title: t("dashboard.usageStatusMixTitle"),
-            description: t("dashboard.usageStatusMixDescription"),
             items: statusBreakdown,
-          },
-          {
-            title: t("dashboard.usageTrafficModeMixTitle"),
-            description: t("dashboard.usageTrafficModeMixDescription"),
-            items: trafficModeBreakdown,
           },
         ]
       : []),
   ];
-  const usageTrendChartData = dailyUsageList.map((usage) => ({
+  const usageTrendChartData = periodDailyUsageList.map((usage) => ({
     date: usage.usage_date,
     label: usage.usage_date.slice(5),
-    spend: parseNumericValue(usage.spend_usd),
+    spend: spendBreakdownTotal(
+      spendBreakdownValues(usage, activeWorkspace?.billing_currency),
+    ),
+    spendDisplay: formatCurrencyBreakdown(
+      spendBreakdownValues(usage, activeWorkspace?.billing_currency),
+      spendCurrency,
+    ),
     requests: usage.request_count,
     failures: usage.failure_count,
   }));
@@ -2540,59 +2695,86 @@ function UsageSection({
           <CardDescription>
             {t("dashboard.usageOverviewDescription")}
           </CardDescription>
-          {sampleCount > 0 ? (
-            <CardAction>
+          <CardAction className="flex flex-wrap items-center gap-2">
+            <DashboardTimeRangeControl timeRange={timeRange} />
+            {sampleCount > 0 ? (
               <StatusBadge>
                 {t("dashboard.usageSampleCount", {
                   count: formatWholeNumber(sampleCount),
                 })}
               </StatusBadge>
-            </CardAction>
-          ) : null}
+            ) : null}
+          </CardAction>
         </DashboardPanelHeader>
         <DashboardPanelContent className="grid gap-2.5">
-          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-5">
             <UsageBusinessMetric
-              label={t("dashboard.usageMonthToDateSpend")}
+              label={t("dashboard.usagePeriodSpend")}
               value={
-                balance.ok
-                  ? formatCurrency(parseNumericValue(balance.data.month_to_date_spend_usd))
-                  : notSet
+                dailyUsage.ok
+                  ? formatCurrencyBreakdown(periodSpendBreakdown, spendCurrency)
+                  : t("dashboard.notSet")
+              }
+              detail={getSettledMessage(dailyUsage, t(timeRange.labelKey))}
+              tone="neutral"
+            />
+            <UsageBusinessMetric
+              label={t("dashboard.usagePeriodRequests")}
+              value={
+                dailyUsage.ok ? formatWholeNumber(periodRequests) : t("dashboard.notSet")
               }
               detail={
-                balance.ok && balance.data.last_projected_at
-                  ? t("dashboard.lastProjectedAt", {
-                      time: formatStableTimestamp(balance.data.last_projected_at, notSet),
+                dailyUsage.ok
+                  ? t("dashboard.usagePeriodTokens", {
+                      tokens: formatWholeNumber(periodTokens),
                     })
-                  : getSettledMessage(balance, t("dashboard.monthToDate"))
+                  : getSettledMessage(dailyUsage, t(timeRange.labelKey))
               }
               tone="neutral"
             />
             <UsageBusinessMetric
-              label={t("dashboard.usageTrailing30dSpend")}
-              value={
-                dailyUsage.ok ? formatCurrency(totalSpend30d) : t("dashboard.notSet")
-              }
+              label={t("dashboard.usageSpendMomentum")}
+              value={formatCurrencyBreakdown(last7dSpendBreakdown, spendCurrency)}
               detail={
                 dailyUsage.ok
-                  ? formatUsageSpendMomentum(
-                      t,
-                      last7dSpendDelta,
-                      last7dSpendDeltaPercent,
-                      previous7dSpend,
-                    )
-                  : getSettledMessage(dailyUsage, t("dashboard.last30Days"))
+                  ? canCompareSpendMomentum
+                    ? formatUsageSpendMomentum(
+                        t,
+                        last7dSpendDelta,
+                        last7dSpendDeltaPercent,
+                        previous7dSpend,
+                        spendCurrency,
+                      )
+                    : t("dashboard.usageMixedCurrencyMomentumDetail")
+                  : getSettledMessage(dailyUsage, t(timeRange.labelKey))
               }
-              tone={last7dSpendDelta > 0 ? "warning" : "neutral"}
+              tone={
+                canCompareSpendMomentum && last7dSpendDelta > 0
+                  ? "warning"
+                  : "neutral"
+              }
             />
             <UsageBusinessMetric
               label={t("dashboard.usageAverageDailySpend")}
-              value={formatOptionalCurrency(averageDailySpend, notSet)}
+              value={
+                dailyUsage.ok && periodDailyUsageList.length > 0
+                  ? formatCurrencyBreakdown(
+                      averageDailySpendBreakdown,
+                      spendCurrency,
+                    )
+                  : notSet
+              }
               detail={
                 dailyUsage.ok && peakUsageDay
                   ? t("dashboard.usagePeakDay", {
                       date: peakUsageDay.usage_date,
-                      value: formatCurrency(parseNumericValue(peakUsageDay.spend_usd)),
+                      value: formatCurrencyBreakdown(
+                        spendBreakdownValues(
+                          peakUsageDay,
+                          activeWorkspace?.billing_currency,
+                        ),
+                        spendCurrency,
+                      ),
                     })
                   : getSettledMessage(dailyUsage, notSet)
               }
@@ -2626,23 +2808,21 @@ function UsageSection({
               <div className="text-sm font-medium">
                 {t("dashboard.usageOperatingTrendTitle")}
               </div>
-                <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
-                {t("dashboard.usageOperatingTrendDescription")}
-              </div>
             </div>
           </div>
           {usageTrendChartData.length > 0 ? (
             <UsageBusinessTrendChart
               data={usageTrendChartData}
+              timeRange={timeRange}
               spendLabel={t("dashboard.spend")}
+              spendSummary={formatCurrencyBreakdown(
+                periodSpendBreakdown,
+                spendCurrency,
+              )}
+              spendCurrency={spendCurrency}
               requestsLabel={t("dashboard.requests")}
               failuresLabel={t("dashboard.failures")}
               successesLabel={t("values.succeeded")}
-              rangeLabels={{
-                last7Days: t("dashboard.last7Days"),
-                last30Days: t("dashboard.last30Days"),
-                thisMonth: t("dashboard.thisMonth"),
-              }}
             />
           ) : (
               <DashboardSettledEmptyState
@@ -2655,6 +2835,15 @@ function UsageSection({
         </DashboardPanelContent>
       </Card>
 
+      <UsageAllocationMatrix
+        title={t("dashboard.usageAllocationTitle")}
+        description={t("dashboard.usageAllocationDescription")}
+        result={breakdownResult}
+        sampleCount={sampleCount}
+        groups={usageDimensionGroups}
+        t={t}
+      />
+
       <Card size="sm">
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.usageDailyTrendTitle")}</CardTitle>
@@ -2662,7 +2851,7 @@ function UsageSection({
             {t("dashboard.usageDailyTrendDescription")}
           </CardDescription>
           <CardAction>
-            <StatusBadge>{t("dashboard.last30Days")}</StatusBadge>
+            <StatusBadge>{t(timeRange.labelKey)}</StatusBadge>
           </CardAction>
         </DashboardPanelHeader>
         <DashboardStackContent className="gap-1.5">
@@ -2683,21 +2872,13 @@ function UsageSection({
           )}
         </DashboardStackContent>
       </Card>
-
-      <UsageAllocationMatrix
-        title={t("dashboard.usageAllocationTitle")}
-        description={t("dashboard.usageAllocationDescription")}
-        result={breakdownResult}
-        sampleCount={sampleCount}
-        groups={usageDimensionGroups}
-        t={t}
-      />
     </section>
   );
 }
 
 function UsageDetailsSection({
   t,
+  timeRange,
   activeWorkspace,
   requestLogs,
   apiKeys,
@@ -2711,6 +2892,9 @@ function UsageDetailsSection({
       <Card id="usage-details" size="sm">
         <DashboardPanelHeader>
           <CardTitle>{t("dashboard.usageRequestDetailsTitle")}</CardTitle>
+          <CardAction>
+            <DashboardTimeRangeControl timeRange={timeRange} />
+          </CardAction>
         </DashboardPanelHeader>
         <DashboardPanelContent>
           {requestLogs.ok ? (
@@ -2721,6 +2905,7 @@ function UsageDetailsSection({
               workspaceID={activeWorkspace?.id ?? ""}
               pagination={tablePagination.usage_details}
               paginationId="usage_details"
+              timeRange={timeRange}
             />
           ) : (
             <DashboardSettledEmptyState
@@ -2744,7 +2929,8 @@ function UsageDailySpendRow({
   maxSpend: number;
   t: DashboardSectionContentProps["t"];
 }) {
-  const spend = parseNumericValue(usage.spend_usd);
+  const spendBreakdown = spendBreakdownValues(usage);
+  const spend = spendBreakdownTotal(spendBreakdown);
   const totalTokens = usage.prompt_tokens + usage.completion_tokens;
   const successRate =
     usage.request_count > 0 ? (usage.success_count / usage.request_count) * 100 : 0;
@@ -2774,7 +2960,7 @@ function UsageDailySpendRow({
         </div>
         <div className="shrink-0 text-right">
           <div className="font-mono text-sm font-semibold tabular-nums text-foreground">
-            {formatCurrency(spend)}
+            {formatCurrencyBreakdown(spendBreakdown, spendCurrencyValue(usage))}
           </div>
         </div>
       </div>
@@ -2815,7 +3001,7 @@ function UsageBusinessMetric({
           <div className="text-xs font-medium text-muted-foreground">
             {label}
           </div>
-          <div className="mt-0.5 truncate font-mono text-base font-semibold leading-5 tabular-nums text-foreground">
+          <div className="mt-0.5 break-words font-mono text-base font-semibold leading-5 tabular-nums text-foreground">
             {value}
           </div>
           <div className="mt-0.5 text-xs leading-5 text-muted-foreground">
@@ -2837,7 +3023,6 @@ function UsageBusinessMetric({
 
 type UsageDimensionGroup = {
   title: string;
-  description: string;
   items: UsageBreakdownItem[];
 };
 
@@ -2899,10 +3084,6 @@ function UsageAllocationGroupCard({
 }) {
   const topItems = group.items.slice(0, 3);
   const topItem = topItems[0];
-  const topItemSuccessRate =
-    topItem && topItem.requests > 0
-      ? (topItem.succeeded / topItem.requests) * 100
-      : 0;
 
   return (
     <div className="flex min-w-0 flex-col gap-2 rounded-md border border-border/70 bg-muted/15 p-2.5">
@@ -2910,9 +3091,6 @@ function UsageAllocationGroupCard({
         <div className="truncate text-sm font-semibold text-foreground">
           {group.title}
         </div>
-        <DashboardDetailText className="whitespace-normal">
-          {group.description}
-        </DashboardDetailText>
       </div>
       {topItem ? (
         <div className="rounded-md border border-border/70 bg-background p-2">
@@ -2921,28 +3099,13 @@ function UsageAllocationGroupCard({
               <div className="break-words font-medium leading-5">
                 {topItem.label}
               </div>
-              <DashboardDetailText>
-                {t("dashboard.usageTopContributor")}
-              </DashboardDetailText>
-              <DashboardMonoDetailText>
-                {t("dashboard.usageRequestVolumeDetail", {
-                  requests: formatWholeNumber(topItem.requests),
-                  tokens: formatWholeNumber(topItem.tokens),
-                })}
-              </DashboardMonoDetailText>
-              <DashboardDetailText>
-                {t("dashboard.usageSuccessRateLatency", {
-                  successRate: formatPercent(topItemSuccessRate),
-                  latency: formatLatency(
-                    topItem.averageLatencyMS,
-                    t("dashboard.notSet"),
-                  ),
-                })}
-              </DashboardDetailText>
             </div>
             <div className="shrink-0 text-right">
               <div className="font-mono text-sm font-semibold tabular-nums">
-                {formatCurrency(topItem.spend)}
+                {formatCurrencyBreakdown(
+                  topItem.spendBreakdown,
+                  topItem.currency,
+                )}
               </div>
               <DashboardMonoDetailText>
                 {formatPercent(topItem.spendShare)}
@@ -2976,7 +3139,7 @@ function UsageAllocationGroupCard({
               {item.label}
             </span>
             <span className="shrink-0 font-mono tabular-nums">
-              {formatCurrency(item.spend)}
+              {formatCurrencyBreakdown(item.spendBreakdown, item.currency)}
             </span>
           </div>
         ))}
@@ -2987,6 +3150,7 @@ function UsageAllocationGroupCard({
 
 function RequestLogsSection({
   t,
+  timeRange,
   activeWorkspace,
   requestLogs,
   providerSetupList,
@@ -2996,6 +3160,12 @@ function RequestLogsSection({
   return (
     <section className="grid gap-2.5">
       <Card id="request-logs" size="sm">
+        <DashboardPanelHeader>
+          <CardTitle>{t("dashboard.requestLogsTitle")}</CardTitle>
+          <CardAction>
+            <DashboardTimeRangeControl timeRange={timeRange} />
+          </CardAction>
+        </DashboardPanelHeader>
         <DashboardPanelContent>
           {requestLogs.ok ? (
             <RequestLogsTable
